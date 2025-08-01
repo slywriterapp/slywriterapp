@@ -30,11 +30,24 @@ def update_usage():
 
     return jsonify({"status": "ok", "total_user_words": data[uid]})
 
+@app.route("/get_usage", methods=["GET"])
+def get_usage():
+    uid = request.args.get("user_id")
+    if not uid:
+        return jsonify({"error": "Missing user_id"}), 400
+
+    data = load_data()
+    return jsonify({"words": data.get(uid, 0)})
+
 @app.route("/total_words", methods=["GET"])
 def total_words():
     data = load_data()
     total = sum(data.values())
     return jsonify({"total_words": total})
+
+@app.route("/debug_all_users", methods=["GET"])
+def debug_all_users():
+    return jsonify(load_data())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
