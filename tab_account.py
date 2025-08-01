@@ -161,18 +161,25 @@ class AccountTab(ttk.Frame):
 
         uid = self.google_info.get("id", "unknown")
 
-        # Try server first
         try:
-            resp = requests.get(f"{SERVER_URL}/get_usage", params={"user_id": uid})
-            if resp.status_code == 200:
-                self.words_used = resp.json().get("words", 0)
-                self.save_usage()  # sync to local
-                self.update_usage_display()
-                return
-        except Exception as e:
-            print("⚠️ Failed to load usage data from server:", e)
+            # Get usage
+            usage_resp = requests.get(f"{SERVER_URL}/get_usage", params={"user_id": uid})
+            if usage_resp.status_code == 200:
+                self.words_used = usage_resp.json().get("words", 0)
+            else:
+                self.words_used = 0
 
-        # Fallback to local
+            # Get plan
+            plan_resp = requests.get(f"{SERVER_URL}/get_plan", params={"user_id": uid})
+            if plan_resp.status_code == 200:
+                self.plan = plan_resp.json().get("plan", "free")  # fallback to free
+
+            self.save_usage()
+            self.update_usage_display()
+            return
+        except Exception as e:
+            print("⚠️ Failed to load usage or plan from server:", e)
+
         try:
             if os.path.exists(self.USAGE_FILE):
                 with open(self.USAGE_FILE, 'r') as f:
