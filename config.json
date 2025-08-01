@@ -1,0 +1,25 @@
+{
+  "profiles": [
+    "Default",
+    "Ultra\u2011Slow",
+    "Speed Type"
+  ],
+  "active_profile": "Speed Type",
+  "settings": {
+    "min_delay": 0.01,
+    "max_delay": 0.05,
+    "typos_on": false,
+    "pause_freq": 1000,
+    "bg_mode": false,
+    "autocap": false,
+    "paste_go_url": "",
+    "hotkeys": {
+      "start": "0",
+      "stop": "9",
+      "pause": "8"
+    },
+    "schedule": [],
+    "dark_mode": true
+  },
+  "profile_settings": {}
+}
