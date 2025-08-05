@@ -156,6 +156,8 @@ def on_setting_change(app):
     Persist any slider/check changes, and if on a custom profile,
     update its snapshot too.
     """
+    if not hasattr(app, "typing_tab"):
+        return
     s = app.cfg["settings"]
     tt = app.typing_tab
 

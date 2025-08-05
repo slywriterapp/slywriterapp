@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, redirect
 import json
 import os
 import hashlib
-import openai
 
 app = Flask(__name__)
 
@@ -215,17 +214,18 @@ def debug_referrals():
 
 @app.route('/generate_filler', methods=['POST'])
 def generate_filler():
+    import openai
     try:
-        openai.api_key = os.environ["OPENAI_API_KEY"]
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     except KeyError:
         return jsonify({"error": "OpenAI key not set"}), 500
 
     data = request.get_json()
     prompt = data.get('prompt', '')
-    model = data.get('model', 'gpt-3.5-turbo')  # You can change to 'gpt-4o' if you want
+    model = data.get('model', 'gpt-3.5-turbo')  # or 'gpt-4o'
 
     try:
-        completion = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": (
@@ -239,7 +239,7 @@ def generate_filler():
             temperature=0.95,
             n=1
         )
-        filler = completion.choices[0].message["content"].strip()
+        filler = response.choices[0].message.content.strip()
         return jsonify({"filler": filler})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

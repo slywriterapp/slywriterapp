@@ -96,12 +96,13 @@ class TypingApp(tb.Window):
         on_profile_change(self)
         self.deiconify()
 
-        # If already logged in, restore account tab
+        # If already logged in, restore account tab and refresh premium
         saved_user = get_saved_user()
         if saved_user:
             self.user = saved_user
             self.on_login(saved_user)
             self.account_tab.update_for_login(saved_user)
+            self.typing_tab.update_from_config()  # Ensure TypingTab picks up premium
 
     def setup_ui(self):
         self.title("SlyWriter")
@@ -210,12 +211,15 @@ class TypingApp(tb.Window):
             if name != 'Account':
                 self.notebook.tab(frame, state='normal')
         self.notebook.select(self.tabs['Typing'])
+        # Whenever you login, always refresh premium in TypingTab
+        self.typing_tab.update_from_config()
 
     def on_logout(self):
         self.user = None
         for name, frame in self.tabs.items():
             self.notebook.tab(frame, state='disabled')
         self.notebook.select(self.tabs['Account'])
+        self.typing_tab.update_from_config()  # Lock out premium on logout
 
     # ─── Hotkeys & Settings ─────────────────
     def set_start_hotkey(self, hk):     set_start_hotkey(self, hk)

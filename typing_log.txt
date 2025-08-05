@@ -117,3 +117,8 @@ test test test test test test test test test test test test test test test test
 update_stats() is still called after logging for all-time stats and log display.
 
 This keeps "words this session," "average WPM," and "most used profile" strictly for the current app run, while "total words" and "total sessions" remain all-time. (profile=Speed-Type, duration=12.23)
+[2025-08-05T16:47:43.343215] s i i (profile=Default, duration=0.44)
+[2025-08-05T16:48:11.593144] test test test
+test test test
+test test test
+test test test (profile=Default, duration=5.64)

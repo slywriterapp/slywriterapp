@@ -20,52 +20,48 @@ class TypingTab(tk.Frame):
         super().__init__(parent)
         self.app = app
         self.paused = False
-        self.widgets_to_style = []
-        self.text_widgets = []
-        # --- CONTROL VARIABLES ---
-        self.min_delay_var   = tk.DoubleVar()
-        self.max_delay_var   = tk.DoubleVar()
-        self.pause_freq_var  = tk.IntVar()
-        self.typos_var       = tk.BooleanVar()
-        self.paste_go_var    = tk.StringVar()
-        self.autocap_var     = tk.BooleanVar()
-        self.adv_antidetect_var = tk.BooleanVar()  # Premium advanced anti-detection
 
-        # -- Prevent trace recursion --
+        # --- CONTROL VARIABLES ---
+        self.min_delay_var      = tk.DoubleVar()
+        self.max_delay_var      = tk.DoubleVar()
+        self.pause_freq_var     = tk.IntVar()
+        self.typos_var          = tk.BooleanVar()
+        self.paste_go_var       = tk.StringVar()
+        self.autocap_var        = tk.BooleanVar()
+        self.adv_antidetect_var = tk.BooleanVar()  # Premium feature
+
         self.loading_profile = False
 
-        # This will set up self.sf as the settings area (LabelFrame)
         build_typing_ui(self)
-        # Add the premium setting to the bottom of the settings area (self.sf)
         self._add_premium_setting(self.sf)
 
-        # --- Set up traces ONLY ONCE! ---
-        self.min_delay_var.trace_add('write',   lambda *a: self._maybe_setting_changed())
-        self.max_delay_var.trace_add('write',   lambda *a: self._maybe_setting_changed())
-        self.pause_freq_var.trace_add('write',  lambda *a: self._maybe_setting_changed())
-        self.typos_var.trace_add('write',       lambda *a: self._maybe_setting_changed())
-        self.paste_go_var.trace_add('write',    lambda *a: self._maybe_setting_changed())
-        self.autocap_var.trace_add('write',     lambda *a: self._maybe_setting_changed())
-        self.adv_antidetect_var.trace_add('write', lambda *a: self._maybe_setting_changed())
+        # Set up traces once
+        for var in [
+            self.min_delay_var, self.max_delay_var,
+            self.pause_freq_var, self.typos_var,
+            self.paste_go_var, self.autocap_var,
+            self.adv_antidetect_var
+        ]:
+            var.trace_add('write', lambda *a: self._maybe_setting_changed())
 
         self.update_from_config()
 
+    def _get_premium_status(self):
+        usage_mgr = getattr(getattr(self.app, 'account_tab', None), 'usage_mgr', None)
+        plan = usage_mgr.get_user_plan() if usage_mgr else "free"
+        return plan, plan in ("pro", "enterprise")
+
     def _add_premium_setting(self, parent_frame):
-        # Use grid to match the rest of your settings
-        row = parent_frame.grid_size()[1]  # next available row in grid
+        row = parent_frame.grid_size()[1]
 
-        # Premium label (small, with crown)
-        premium_label = tk.Label(
-            parent_frame,
-            text="👑 Premium",
-            fg="#d4af37",
-            font=('Segoe UI', 10, 'bold'),
+        # Premium crown label
+        tk.Label(
+            parent_frame, text="👑 Premium",
+            fg="#d4af37", font=('Segoe UI', 10, 'bold'),
             anchor='w', justify='left'
-        )
-        premium_label.grid(row=row, column=0, sticky='w', pady=(14, 0), padx=(0, 6))
+        ).grid(row=row, column=0, sticky='w', pady=(14, 0), padx=(0, 6))
 
-        # Determine user premium state
-        is_premium = self.app.account_tab.is_premium() if hasattr(self.app, 'account_tab') else False
+        plan, is_premium = self._get_premium_status()
 
         # Premium anti-detection toggle
         self.adv_antidetect_check = tk.Checkbutton(
@@ -74,23 +70,13 @@ class TypingTab(tk.Frame):
             variable=self.adv_antidetect_var,
             state="normal" if is_premium else "disabled",
             fg="#222" if is_premium else "#888",
-            anchor='w', justify='left',
-            wraplength=350
+            anchor='w', justify='left', wraplength=350
         )
-        self.adv_antidetect_check.grid(row=row, column=1, sticky='w', pady=(14, 0), padx=(0, 0))
+        self.adv_antidetect_check.grid(row=row, column=1, sticky='w', pady=(14, 0))
 
-        # Description or lock message beneath (full width)
+        # Show correct message below
         row += 1
-        if not is_premium:
-            locked_msg = tk.Label(
-                parent_frame,
-                text="Upgrade to SlyWriter Premium to unlock AI-based undetectability.",
-                fg="#bb9200",
-                font=('Segoe UI', 9, 'italic'),
-                anchor='w', justify='left'
-            )
-            locked_msg.grid(row=row, column=0, columnspan=2, sticky='w', padx=(40, 0), pady=(0, 8))
-        else:
+        if is_premium:
             desc_msg = tk.Label(
                 parent_frame,
                 text="(AI-generated edits, filler, and advanced pauses to defeat all replay/AI detection.)",
@@ -99,9 +85,18 @@ class TypingTab(tk.Frame):
                 anchor='w', justify='left'
             )
             desc_msg.grid(row=row, column=0, columnspan=2, sticky='w', padx=(40, 0), pady=(0, 8))
+        else:
+            locked_msg = tk.Label(
+                parent_frame,
+                text="Upgrade to SlyWriter Premium to unlock AI-based undetectability.",
+                fg="#bb9200",
+                font=('Segoe UI', 9, 'italic'),
+                anchor='w', justify='left'
+            )
+            locked_msg.grid(row=row, column=0, columnspan=2, sticky='w', padx=(40, 0), pady=(0, 8))
 
     def _maybe_setting_changed(self):
-        if getattr(self, "loading_profile", False):
+        if self.loading_profile:
             return
         self.app.on_setting_change()
         self.update_wpm()
@@ -109,6 +104,7 @@ class TypingTab(tk.Frame):
     def update_from_config(self):
         s = self.app.cfg['settings']
         self.loading_profile = True
+
         self.min_delay_var.set(s['min_delay'])
         self.max_delay_var.set(s['max_delay'])
         self.pause_freq_var.set(s['pause_freq'])
@@ -116,12 +112,24 @@ class TypingTab(tk.Frame):
         self.paste_go_var.set(s.get('paste_go_url', ''))
         self.autocap_var.set(s.get('autocap', False))
         self.adv_antidetect_var.set(s.get('adv_antidetect', False))
+
+        # Update scales (from build_typing_ui)
         self.min_delay_scale.set(s['min_delay'])
         self.max_delay_scale.set(s['max_delay'])
         self.pause_freq_scale.set(s['pause_freq'])
+
         self.loading_profile = False
+
         self.update_wpm()
         self.update_placeholder_color()
+
+        # Recompute premium state and update toggle/message
+        plan, is_premium = self._get_premium_status()
+        self.adv_antidetect_check.config(
+            state="normal" if is_premium else "disabled",
+            fg="#222" if is_premium else "#888"
+        )
+        # Remove/add messages as needed (if dynamic, would need to recreate below-label, or just refresh UI)
 
     def toggle_pause(self):
         typing_logic.toggle_pause(self)
@@ -136,10 +144,10 @@ class TypingTab(tk.Frame):
         update_placeholder_color(self, self.app.cfg['settings'].get('dark_mode', False))
 
     def _get_entry_fg(self):
-        return get_entry_fg(self, self.app.cfg['settings'].get('dark_mode', False))
+        return get_entry_fg(self.app.cfg['settings'].get('dark_mode', False))
 
     def _get_placeholder_fg(self):
-        return get_placeholder_fg(self, self.app.cfg['settings'].get('dark_mode', False))
+        return get_placeholder_fg(self.app.cfg['settings'].get('dark_mode', False))
 
     def update_wpm(self):
         typing_logic.update_wpm(self)

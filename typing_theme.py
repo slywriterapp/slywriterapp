@@ -7,7 +7,7 @@ def apply_typing_theme(tab, dark):
     bg = config.DARK_BG if dark else config.LIGHT_BG
     fg = config.DARK_FG if dark else config.LIGHT_FG
     entry_bg = config.DARK_ENTRY_BG if dark else "white"
-    entry_fg = get_entry_fg(tab, dark)
+    entry_fg = get_entry_fg(dark)
     accent = "#4a90e2" if dark else "#0078d7"
 
     # All backgrounds for frames/canvas
@@ -82,7 +82,7 @@ def apply_typing_theme(tab, dark):
 
 def update_placeholder_color(tab, dark):
     placeholder_fg = get_placeholder_fg(dark)
-    entry_fg = get_entry_fg(tab, dark)
+    entry_fg = get_entry_fg(dark)
     tab.text_input.tag_configure("placeholder", foreground=placeholder_fg)
     tab.live_preview.tag_configure("placeholder", foreground=placeholder_fg)
     # If placeholder is present, use gray, otherwise normal fg
@@ -95,14 +95,10 @@ def update_placeholder_color(tab, dark):
     else:
         tab.live_preview.config(fg=entry_fg)
 
-def get_entry_fg(tab, dark=None):
-    # Optionally use current theme if dark=None
-    if dark is None:
-        dark = tab.app.cfg['settings'].get('dark_mode', False)
+def get_entry_fg(dark=False):
+    # Only one parameter, "dark"
     return config.LIGHT_FG if not dark else config.DARK_FG
 
-def get_placeholder_fg(dark=None):
-    # Optionally use current theme if dark=None
-    if dark is None:
-        return "#888"
-    return "#888"  # Always gray for now (can tweak if you want a lighter/darker gray)
+def get_placeholder_fg(dark=False):
+    # Only one parameter, "dark"
+    return "#888"  # Can adjust for dark/light mode if needed
