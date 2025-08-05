@@ -85,3 +85,35 @@ Chrome frees up memory from inactive tabs. This gives active tabs and other apps
 [2025-08-01T13:41:18.998670] Memory Saver
 Chrome frees up memory from inactive tabs. This gives active tabs and other apps more computer resources and keeps Chrome fast. Your inactive tabs automatically become active again when you go back to them. Learn more about Memory Saver Memory Saver
 Chrome frees up memory from inactive tabs. This gives active tabs and other apps more computer resources and keeps Chrome fast. Your inactive tabs automatically become active again when you go back to them. Learn more about Memory Saver
+[2025-08-01T18:19:19.426537] test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test
+[2025-08-01T18:21:03.234457] test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+test test test test test test test test test test test test test test test test
+[2025-08-01T18:23:14.303576] test test test  test test test test test  test test test test test  test test test test test  test test
+[2025-08-01T18:35:51.266287] test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test test
+[2025-08-01T21:07:04.907626] https://slywriterapp.onrender.com/debug_all_users
+[2025-08-05T11:12:31.394895] this is just a test
+[2025-08-05T11:13:35.296907] just a test
+[2025-08-05T11:26:28.177863] hi
+[2025-08-05T11:26:52.063850] hi hi hi hi hi hi hi hi hi hi hi hi hi
+[2025-08-05T11:27:26.123127] hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi
+[2025-08-05T11:29:36.436795] hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi
+[2025-08-05T11:30:06.387075] hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi hi
+[2025-08-05T11:37:34.147428] test this is a test
+[2025-08-05T11:37:54.379236] test this is a test test this is a test
+[2025-08-05T11:38:14.773419] test this is a test test this is a test test this is a test test this is a test
+[2025-08-05T11:47:25.361185] hi hi hi (profile=Speed-Type, duration=0.25)
+[2025-08-05T11:51:23.437015] this is just random words with no meaning at all (profile=Speed-Type, duration=1.74)
+[2025-08-05T11:53:00.999304] this is just random words with no meaning at all this is just random words with no meaning at all 9 (profile=Speed-Type, duration=3.96)
+[2025-08-05T11:53:16.684150] 9999999 (profile=Speed-Type, duration=0.25)
+[2025-08-05T11:53:34.906613] this is just random (profile=Speed-Type, duration=0.78)
+[2025-08-05T11:54:08.406044] this is just random wtf is this doing (profile=Speed-Type, duration=1.21)
+[2025-08-05T12:03:28.171083] receive_session(words, wpm, profile) on your StatsTab is called after every typing session.
+
+update_stats() is still called after logging for all-time stats and log display.
+
+This keeps "words this session," "average WPM," and "most used profile" strictly for the current app run, while "total words" and "total sessions" remain all-time. (profile=Speed-Type, duration=12.23)

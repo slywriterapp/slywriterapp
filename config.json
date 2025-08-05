@@ -1,25 +1,34 @@
 {
   "profiles": [
-    "Default",
-    "Ultra\u2011Slow",
-    "Speed Type"
+    "Speed-Type",
+    "Ultra-Slow",
+    "Default"
   ],
-  "active_profile": "Speed Type",
+  "active_profile": "Default",
   "settings": {
-    "min_delay": 0.01,
-    "max_delay": 0.05,
-    "typos_on": false,
-    "pause_freq": 1000,
+    "min_delay": 0.07,
+    "max_delay": 0.11,
+    "typos_on": true,
+    "pause_freq": 50,
     "bg_mode": false,
     "autocap": false,
     "paste_go_url": "",
     "hotkeys": {
-      "start": "0",
-      "stop": "9",
-      "pause": "8"
+      "start": "9",
+      "stop": "8",
+      "pause": "7"
     },
     "schedule": [],
-    "dark_mode": true
+    "dark_mode": false,
+    "humanizer": {
+      "grade_level": 12,
+      "tone": "Neutral",
+      "depth": 2,
+      "rewrite_style": "Concise",
+      "use_of_evidence": "None"
+    },
+    "active_profile": "Ultra-Slow"
   },
-  "profile_settings": {}
+  "profile_settings": {},
+  "custom_presets": {}
 }
