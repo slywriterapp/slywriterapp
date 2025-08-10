@@ -34,7 +34,7 @@
     "active_profile": "Ultra-Slow",
     "preview_only": false,
     "adv_antidetect": false,
-    "overlay_enabled": false,
+    "overlay_enabled": true,
     "overlay_opacity": 1.0,
     "overlay_width": 200,
     "overlay_height": 40,

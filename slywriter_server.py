@@ -235,7 +235,7 @@ def generate_filler():
                 )},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=36,
+            max_completion_tokens=36,
             temperature=0.95,
             n=1
         )
@@ -268,7 +268,7 @@ def ai_generate_text():
                 {"role": "system", "content": "You are a helpful writing assistant."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=2000,
+            max_completion_tokens=2000,
             temperature=0.7
         )
         
