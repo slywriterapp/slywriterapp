@@ -235,9 +235,7 @@ def generate_filler():
                 )},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=36,
-            temperature=0.95,
-            n=1
+            max_completion_tokens=36
         )
         filler = response.choices[0].message.content.strip()
         return jsonify({"filler": filler})
@@ -268,8 +266,7 @@ def ai_generate_text():
                 {"role": "system", "content": "You are a helpful writing assistant."},
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=2000,
-            temperature=0.7
+            max_completion_tokens=2000
         )
         
         generated_text = response.choices[0].message.content.strip()
