@@ -56,6 +56,34 @@ class HotkeysTab(tk.Frame):
         self.pause_rec.pack(fill="x", padx=10, pady=(0, 8))
         self.widgets.append(self.pause_rec)
 
+        # --- Overlay Toggle Hotkey ---
+        lbl_overlay = tk.Label(self, text="Toggle Overlay Hotkey:", font=("Segoe UI", 11), bg=bg, fg=self._fg())
+        lbl_overlay.pack(anchor="w", padx=10, pady=(0, 0))
+        self.widgets.append(lbl_overlay)
+
+        self.overlay_rec = HotkeyRecorder(
+            self,
+            self.app.set_overlay_hotkey,
+            self.app.cfg["settings"]["hotkeys"].get("overlay", "ctrl+alt+o"),
+            get_all_hotkeys=self.get_all_hotkeys
+        )
+        self.overlay_rec.pack(fill="x", padx=10, pady=(0, 8))
+        self.widgets.append(self.overlay_rec)
+
+        # --- AI Text Generation Hotkey ---
+        lbl_ai_gen = tk.Label(self, text="AI Text Generation Hotkey:", font=("Segoe UI", 11), bg=bg, fg=self._fg())
+        lbl_ai_gen.pack(anchor="w", padx=10, pady=(0, 0))
+        self.widgets.append(lbl_ai_gen)
+
+        self.ai_gen_rec = HotkeyRecorder(
+            self,
+            self.app.set_ai_generation_hotkey,
+            self.app.cfg["settings"]["hotkeys"].get("ai_generation", "ctrl+alt+g"),
+            get_all_hotkeys=self.get_all_hotkeys
+        )
+        self.ai_gen_rec.pack(fill="x", padx=10, pady=(0, 8))
+        self.widgets.append(self.ai_gen_rec)
+
         # --- Reset Hotkeys Button ---
         btn_frame = tk.Frame(self, bg=bg)
         btn_frame.pack(padx=10, pady=(10, 18), fill="x")
@@ -80,12 +108,12 @@ class HotkeysTab(tk.Frame):
         return config.DARK_FG if dark else config.LIGHT_FG
 
     def _button_bg(self):
-        dark = self.app.cfg['settings'].get('dark_mode', False)
-        return "#23272f" if dark else "#e0e0e0"
+        # Always use the same dark blue for consistency with other buttons
+        return config.PRIMARY_BLUE
 
     def _button_fg(self):
         dark = self.app.cfg['settings'].get('dark_mode', False)
-        return "#ffffff" if dark else "#000000"
+        return "white"  # White text looks good on both blue backgrounds
 
     def set_theme(self, dark):
         bg = config.DARK_BG if dark else config.LIGHT_BG
@@ -120,5 +148,7 @@ class HotkeysTab(tk.Frame):
         return [
             self.start_rec.current,
             self.stop_rec.current,
-            self.pause_rec.current
+            self.pause_rec.current,
+            self.overlay_rec.current,
+            self.ai_gen_rec.current
         ]

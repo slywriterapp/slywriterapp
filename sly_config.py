@@ -13,24 +13,18 @@ BUILTIN_PROFILES = {
         "max_delay":    config.MAX_DELAY_DEFAULT,
         "typos_on":     True,
         "pause_freq":   config.LONG_PAUSE_DEFAULT,
-        "paste_go_url": "",
-        "autocap":      False
     },
     "Speed-Type": {
         "min_delay":    0.01,
         "max_delay":    0.05,
         "typos_on":     True,
         "pause_freq":   1000,
-        "paste_go_url": "",
-        "autocap":      False
     },
     "Ultra-Slow": {
         "min_delay":    0.15,
         "max_delay":    0.40,
         "typos_on":     True,
         "pause_freq":   30,
-        "paste_go_url": "",
-        "autocap":      False
     },
 }
 
@@ -79,8 +73,8 @@ def add_profile(app):
         "max_delay":    s.get("max_delay", config.MAX_DELAY_DEFAULT),
         "typos_on":     True,
         "pause_freq":   s.get("pause_freq", config.LONG_PAUSE_DEFAULT),
-        "paste_go_url": s.get("paste_go_url", ""),
-        "autocap":      s.get("autocap", False)
+        "preview_only": s.get("preview_only", False),
+        "adv_antidetect": s.get("adv_antidetect", False)
     }
 
     app.cfg["custom_presets"][name] = snapshot
@@ -127,8 +121,8 @@ def save_profile(app):
         "max_delay":    s["max_delay"],
         "typos_on":     s["typos_on"],
         "pause_freq":   s["pause_freq"],
-        "paste_go_url": s.get("paste_go_url", ""),
-        "autocap":      s.get("autocap", False)
+        "preview_only": s.get("preview_only", False),
+        "adv_antidetect": s.get("adv_antidetect", False)
     }
 
     app.cfg["custom_presets"][name] = snapshot
@@ -165,8 +159,17 @@ def on_setting_change(app):
     s["max_delay"]    = tt.max_delay_var.get()
     s["typos_on"]     = tt.typos_var.get()
     s["pause_freq"]   = tt.pause_freq_var.get()
-    s["paste_go_url"] = tt.paste_go_var.get()
-    s["autocap"]      = tt.autocap_var.get()
+    s["preview_only"] = tt.preview_only_var.get()
+    s["adv_antidetect"] = tt.adv_antidetect_var.get()
+    
+    # Save overlay settings
+    if hasattr(app, 'overlay_tab'):
+        s["overlay_enabled"] = app.overlay_tab.overlay_enabled.get()
+        s["overlay_opacity"] = app.overlay_tab.overlay_opacity.get()
+        s["overlay_width"] = app.overlay_tab.overlay_width.get()
+        s["overlay_height"] = app.overlay_tab.overlay_height.get()
+        s["overlay_x"] = app.overlay_tab.overlay_x.get()
+        s["overlay_y"] = app.overlay_tab.overlay_y.get()
 
     name = app.active_profile.get()
     if name in app.cfg["custom_presets"]:
@@ -175,8 +178,8 @@ def on_setting_change(app):
             "max_delay":    s["max_delay"],
             "typos_on":     s["typos_on"],
             "pause_freq":   s["pause_freq"],
-            "paste_go_url": s["paste_go_url"],
-            "autocap":      s["autocap"]
+            "preview_only": s["preview_only"],
+            "adv_antidetect": s["adv_antidetect"]
         }
 
     save_config(app.cfg)

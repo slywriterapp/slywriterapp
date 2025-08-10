@@ -100,9 +100,10 @@ class HotkeyRecorder(tk.Frame):
         self.label.configure(bg=self.bg, fg=self.fg)
         self.configure(bg=self.bg)
         self.btns_frame.configure(bg=self.bg)
-        # Buttons always contrast
-        btn_bg = "#23272f" if dark else "#e0e0e0"
-        btn_fg = "#ffffff" if dark else "#000000"
+        # Modern button colors
+        import config
+        btn_bg = config.PRIMARY_BLUE if dark else config.PRIMARY_BLUE_LIGHT
+        btn_fg = "white"  # White text on blue background
         for b in [self.btn_record, self.btn_confirm, self.btn_cancel]:
             b.configure(bg=btn_bg, fg=btn_fg, activebackground=btn_bg, activeforeground=btn_fg)
         # Entry: "Recording..." should be WHITE box, BLACK text in dark mode!
@@ -202,3 +203,55 @@ class HotkeyRecorder(tk.Frame):
     def cancel_recording(self):
         self.entry_var.set('')
         self._stop_recording()
+
+
+# ═══════════════════════════════════════════════════════════════
+# Centralized Premium Feature Management
+# ═══════════════════════════════════════════════════════════════
+
+def is_premium_user(app):
+    """
+    Centralized premium check to prevent feature leaks.
+    Returns True if user has premium access, False otherwise.
+    """
+    try:
+        # Check if app has account_tab with premium check
+        if hasattr(app, 'account_tab') and hasattr(app.account_tab, 'is_premium'):
+            return app.account_tab.is_premium()
+        
+        # Fallback: check user object directly  
+        if hasattr(app, 'user') and app.user:
+            plan = getattr(app.user, 'plan', 'free')
+            return plan.lower() in ("pro", "premium", "enterprise")
+        
+        # No user logged in = not premium
+        return False
+    except Exception as e:
+        print(f"Error checking premium status: {e}")
+        return False  # Default to free if error
+
+def get_user_plan(app):
+    """
+    Get the current user's plan name.
+    Returns 'free' if not premium or error.
+    """
+    try:
+        if hasattr(app, 'user') and app.user:
+            return getattr(app.user, 'plan', 'free').lower()
+        return 'free'
+    except Exception:
+        return 'free'
+
+def require_premium(app, feature_name="this feature"):
+    """
+    Check premium status and show upgrade message if not premium.
+    Returns True if premium, False if not (with message shown).
+    """
+    if is_premium_user(app):
+        return True
+    
+    messagebox.showinfo(
+        "Premium Required",
+        f"Upgrade to SlyWriter Premium to unlock {feature_name}!"
+    )
+    return False

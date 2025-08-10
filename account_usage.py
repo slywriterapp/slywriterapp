@@ -129,6 +129,9 @@ class AccountUsageManager:
 
             self.save_usage()
             self.update_usage_display()
+            
+            # Force immediate UI update after server data loads
+            self.account_tab.update_idletasks()
             return
         except Exception as e:
             print("⚠️ Failed to load usage or plan from server:", e)

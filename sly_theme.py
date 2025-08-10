@@ -15,8 +15,8 @@ def apply_app_theme(app):
     bg        = get_color('bg', config.DARK_BG if dark else config.LIGHT_BG)
     fg        = get_color('fg', config.DARK_FG if dark else config.LIGHT_FG)
     entry_bg  = get_color('inputbg', config.DARK_ENTRY_BG if dark else "white")
-    entry_fg  = get_color('inputfg', config.LIGHT_FG if dark else config.DARK_FG)
-    accent    = get_color('primary', "#4a90e2" if dark else "#0078d7")
+    entry_fg  = get_color('inputfg', config.DARK_FG if dark else config.LIGHT_FG)
+    accent    = get_color('primary', config.PRIMARY_BLUE)
 
     app.configure(bg=bg)
 

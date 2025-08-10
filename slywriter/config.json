@@ -1,0 +1,29 @@
+{
+  "settings": {
+    "dark_mode": false,
+    "min_delay": 0.07,
+    "max_delay": 0.11,
+    "typos_on": true,
+    "pause_freq": 50,
+    "bg_mode": false,
+    "autocap": false,
+    "hotkeys": {
+      "start": "ctrl+alt+s",
+      "stop": "ctrl+alt+x"
+    },
+    "humanizer": {
+      "grade_level": 3,
+      "tone": "Neutral",
+      "depth": 3,
+      "rewrite_style": "Clear",
+      "use_of_evidence": "Optional"
+    }
+  },
+  "profiles": [
+    "Default",
+    "Speed-Type",
+    "Ultra-Slow"
+  ],
+  "active_profile": "Default",
+  "custom_presets": {}
+}

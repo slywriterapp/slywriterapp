@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(cp:*)",
+      "Bash(timeout 30 python gui_main.py)",
+      "Bash(timeout:*)"
+    ],
+    "deny": []
+  }
+}

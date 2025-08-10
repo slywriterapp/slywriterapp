@@ -8,7 +8,7 @@ def apply_typing_theme(tab, dark):
     fg = config.DARK_FG if dark else config.LIGHT_FG
     entry_bg = config.DARK_ENTRY_BG if dark else "white"
     entry_fg = get_entry_fg(dark)
-    accent = "#4a90e2" if dark else "#0078d7"
+    accent = "#003366"
 
     # All backgrounds for frames/canvas
     for frame in [
@@ -36,8 +36,26 @@ def apply_typing_theme(tab, dark):
         elif widget.__class__.__name__ == "Label":
             widget.configure(bg=bg, fg=fg)
         elif widget.__class__.__name__ == "Button":
-            btn_bg = accent if widget is tab.start_btn else ("orange" if widget is tab.pause_btn else "red")
-            widget.configure(bg=btn_bg, activebackground=btn_bg, fg="white", relief="raised")
+            # Use modern blue colors for all buttons
+            btn_bg = config.MODERN_BLUE_DARK if dark else config.MODERN_BLUE
+            btn_hover = config.MODERN_BLUE_DARK_HOVER if dark else config.MODERN_BLUE_HOVER
+            
+            # Special colors for specific buttons
+            if widget is tab.pause_btn:
+                btn_bg = "#FF8C42" if not dark else "#FF9F5A"  # Modern orange
+                btn_hover = "#E07A36" if not dark else "#FF8C42"
+            elif widget is tab.stop_btn:
+                btn_bg = "#E74C3C" if not dark else "#F16C5C"  # Modern red
+                btn_hover = "#C0392B" if not dark else "#E74C3C"
+                
+            widget.configure(
+                bg=btn_bg, 
+                activebackground=btn_hover, 
+                fg="white", 
+                relief="flat",  # Modern flat design
+                font=('Segoe UI', 9),
+                padx=12, pady=6
+            )
         else:
             try:
                 widget.configure(bg=bg, fg=fg)
@@ -77,6 +95,44 @@ def apply_typing_theme(tab, dark):
                     background=bg, foreground=fg)
     style.configure("TLabelframe.Label",
                     background=bg, foreground=fg)
+    
+    # Modern button styling
+    btn_bg = config.MODERN_BLUE_DARK if dark else config.MODERN_BLUE
+    btn_hover = config.MODERN_BLUE_DARK_HOVER if dark else config.MODERN_BLUE_HOVER
+    
+    style.configure("TButton",
+                    background=btn_bg,
+                    foreground="white",
+                    borderwidth=0,
+                    focuscolor="none",
+                    font=('Segoe UI', 9))
+    style.map("TButton",
+              background=[('active', btn_hover),
+                         ('pressed', btn_hover)])
+    
+    # Configure ttk.Notebook for modern tabs
+    style.configure("TNotebook",
+                    background=bg,
+                    borderwidth=0,
+                    tabposition="n")
+    
+    # Modern tab styling
+    tab_bg = "#404040" if dark else "#e1e1e1"
+    tab_active = config.MODERN_BLUE_DARK if dark else config.MODERN_BLUE
+    tab_fg = "#ffffff" if dark else "#333333"
+    
+    style.configure("TNotebook.Tab",
+                    background=tab_bg,
+                    foreground=tab_fg,
+                    padding=[12, 8],
+                    borderwidth=0,
+                    font=('Segoe UI', 9))
+    
+    style.map("TNotebook.Tab",
+              background=[('selected', tab_active),
+                         ('active', btn_hover)],
+              foreground=[('selected', 'white'),
+                         ('active', 'white')])
 
     tab.update_idletasks()
 

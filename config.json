@@ -12,14 +12,14 @@
     "pause_freq": 50,
     "bg_mode": false,
     "autocap": false,
-    "paste_go_url": "",
     "hotkeys": {
       "start": "9",
       "stop": "8",
-      "pause": "7"
+      "pause": "7",
+      "overlay": "t"
     },
     "schedule": [],
-    "dark_mode": false,
+    "dark_mode": true,
     "humanizer": {
       "grade_level": 12,
       "tone": "Neutral",
@@ -27,7 +27,15 @@
       "rewrite_style": "Concise",
       "use_of_evidence": "None"
     },
-    "active_profile": "Ultra-Slow"
+    "active_profile": "Ultra-Slow",
+    "preview_only": false,
+    "adv_antidetect": false,
+    "overlay_enabled": true,
+    "overlay_opacity": 1.0,
+    "overlay_width": 200,
+    "overlay_height": 40,
+    "overlay_x": 63,
+    "overlay_y": 54
   },
   "profile_settings": {},
   "custom_presets": {}

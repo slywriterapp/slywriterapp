@@ -20,16 +20,48 @@ _custom_typos = config.custom_typos
 
 _account_tab = None
 _stats_tab = None   # Diagnostics tab reference
+_overlay_tab = None  # Overlay tab reference
 
 def set_account_tab_reference(tab):
     global _account_tab
     _account_tab = tab
-    print("✅ Account tab reference set in typing_engine")
+    print("Account tab reference set in typing_engine")
 
 def set_stats_tab_reference(tab):  # Diagnostics setter
     global _stats_tab
     _stats_tab = tab
-    print("✅ Stats tab reference set in typing_engine")
+    print("Stats tab reference set in typing_engine")
+
+def _get_user_log_file():
+    """Get user-specific log file path"""
+    try:
+        # Try to get user info from the account tab
+        if _account_tab and hasattr(_account_tab, 'app') and _account_tab.app.user:
+            user_id = _account_tab.app.user.get('id', 'unknown')
+            # Create user-specific log file name
+            base_dir = os.path.dirname(config.LOG_FILE)
+            user_log_file = os.path.join(base_dir, f"typing_log_{user_id}.txt")
+            return user_log_file
+        else:
+            # No user logged in - use default log file
+            return config.LOG_FILE
+    except Exception:
+        # Fallback to default log file
+        return config.LOG_FILE
+
+def set_overlay_tab_reference(tab):  # Overlay setter
+    global _overlay_tab
+    _overlay_tab = tab
+    print("Overlay tab reference set in typing_engine")
+
+def _update_status_and_overlay(status_callback, text):
+    """Update both status callback and overlay"""
+    status_callback(text)
+    if _overlay_tab:
+        try:
+            _overlay_tab.update_overlay_text(text)
+        except Exception as e:
+            print(f"Error updating overlay: {e}")
 
 def stop_typing_func():
     _stop_flag.set()
@@ -53,8 +85,7 @@ def start_typing_from_input(
     max_delay: float = config.MAX_DELAY_DEFAULT,
     typos_on: bool = True,
     pause_freq: int = config.LONG_PAUSE_DEFAULT,
-    paste_and_go_url: str = "",
-    autocap_enabled: bool = False
+    preview_only: bool = False
 ):
     global _typing_thread
     stop_typing_func()
@@ -67,18 +98,18 @@ def start_typing_from_input(
 
         for i in range(5, 0, -1):
             if _stop_flag.is_set():
-                status_callback("Cancelled")
+                _update_status_and_overlay(status_callback, "Cancelled")
                 return
-            status_callback(f"Starting in {i}...")
+            _update_status_and_overlay(status_callback, f"Starting in {i}...")
             for _ in range(10):
                 if _stop_flag.is_set():
-                    status_callback("Cancelled")
+                    _update_status_and_overlay(status_callback, "Cancelled")
                     return
                 time.sleep(0.1)
 
         preview = ""
         last_pause = 0
-        status_callback("Typing…")
+        _update_status_and_overlay(status_callback, "Typing…")
         word_count = 0
         words_since_last_report = 0
 
@@ -114,23 +145,43 @@ def start_typing_from_input(
                 print("⛔ Typing interrupted: limit reached mid-session.")
                 return
 
-            if autocap_enabled and ch.isalpha():
-                if idx == 0 or text[idx - 1] in ".!?":
-                    ch = ch.upper()
 
             if typos_on and random.random() < config.TYPO_PROBABILITY_DEFAULT:
                 wrong_char = random.choice("abcdefghijklmnopqrstuvwxyz")
-                keyboard.write(wrong_char)
-                time.sleep(0.05)
-                keyboard.send("backspace")
+                if not preview_only:
+                    keyboard.write(wrong_char)
+                    time.sleep(0.05)
+                    keyboard.send("backspace")
                 live_preview_callback(preview)
 
-            keyboard.write(ch)
+            if not preview_only:
+                keyboard.write(ch)
             preview += ch
             live_preview_callback(preview)
 
             if ch in _punctuations:
+                # Regular punctuation pause
                 time.sleep(max_delay * 2)
+                
+                # Longer sentence breaks for period, exclamation, question mark
+                if ch in ".!?":
+                    # Simulate user looking elsewhere, checking other tabs, etc.
+                    sentence_break_chance = 0.3  # 30% chance
+                    if random.random() < sentence_break_chance:
+                        sentence_break_duration = random.uniform(2.0, 5.0)  # 2-5 second break
+                        _update_status_and_overlay(status_callback, f"Taking a break ({sentence_break_duration:.1f}s)...")
+                        
+                        # Check for stop/pause during the break
+                        for i in range(int(sentence_break_duration * 10)):
+                            if _stop_flag.is_set():
+                                status_callback("Stopped")
+                                return
+                            while _pause_flag.is_set() and not _stop_flag.is_set():
+                                status_callback("Paused…")
+                                time.sleep(0.1)
+                            time.sleep(0.1)
+                        
+                        _update_status_and_overlay(status_callback, "Resuming typing...")
 
             if pause_freq and (idx - last_pause) >= pause_freq:
                 time.sleep(max_delay)
@@ -150,10 +201,8 @@ def start_typing_from_input(
                         print("⚠️ No account tab set — cannot update usage bar")
                     words_since_last_report = 0
 
-        if paste_and_go_url:
-            webbrowser.open(paste_and_go_url)
 
-        status_callback("Done")
+        _update_status_and_overlay(status_callback, "Done")
 
         # --- Compute duration, WPM, and log session ---
         end_time = time.time()
@@ -177,10 +226,13 @@ def start_typing_from_input(
 
 def _log_session(text: str, duration=None, profile=None):
     try:
-        with open(config.LOG_FILE, 'a', encoding='utf-8') as f:
-            ts = datetime.now().isoformat()
-            profile_str = f" (profile={profile}, duration={duration:.2f})" if duration and profile else ""
-            f.write(f"[{ts}] {text}{profile_str}\n")
+        # Get user-specific log file
+        log_file = _get_user_log_file()
+        if log_file:
+            with open(log_file, 'a', encoding='utf-8') as f:
+                ts = datetime.now().isoformat()
+                profile_str = f" (profile={profile}, duration={duration:.2f})" if duration and profile else ""
+                f.write(f"[{ts}] {text}{profile_str}\n")
     except Exception:
         pass
     # Live update Diagnostics tab for all-time stats/log display

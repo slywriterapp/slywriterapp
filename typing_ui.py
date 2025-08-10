@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import config
 from config import LIME_GREEN
+import typing_logic
+from modern_components import ModernCard, ModernTextArea, ModernPanel, ModernProgressBar
+from utils import Tooltip
 
 PLACEHOLDER_INPUT = "Type here..."
 PLACEHOLDER_PREVIEW = "Preview will appear here..."
@@ -45,8 +48,12 @@ def build_typing_ui(tab):
 
     tab.text_input.insert('1.0', PLACEHOLDER_INPUT)
     tab.text_input.tag_add("placeholder", "1.0", "end")
-    tab.text_input.bind("<FocusIn>", tab._clear_input_placeholder)
-    tab.text_input.bind("<FocusOut>", tab._restore_input_placeholder)
+    tab.text_input.bind("<FocusIn>", lambda e: typing_logic.clear_input_placeholder(tab, e))
+    tab.text_input.bind("<FocusOut>", lambda e: typing_logic.restore_input_placeholder(tab, e))
+    # Enable undo/redo functionality
+    tab.text_input.config(undo=True, maxundo=20)
+    tab.text_input.bind("<Control-z>", lambda e: tab._handle_undo(e))
+    tab.text_input.bind("<Control-y>", lambda e: tab._handle_redo(e))
     tab.text_widgets.append(tab.text_input)
 
     # ─── Status & live preview ──────────────────────────────
@@ -76,15 +83,13 @@ def build_typing_ui(tab):
     tab.ctrl.pack(fill='x', padx=10, pady=5)
     ttk.Button(tab.ctrl, text='Load from File', command=tab.load_file).pack(side='left')
     ttk.Button(tab.ctrl, text='Paste Clipboard', command=tab.paste_clipboard).pack(side='left', padx=5)
+    ttk.Button(tab.ctrl, text='Clear All', command=tab.clear_text_areas).pack(side='left', padx=5)
 
-    tab.start_btn = tk.Button(tab.ctrl, text='Start Typing', command=tab.start_typing)
-    tab.start_btn.pack(side='left', padx=5)
-    tab.pause_btn = tk.Button(tab.ctrl, text='Pause Typing', command=tab.toggle_pause)
-    tab.pause_btn.pack(side='left', padx=5)
-    tab.stop_btn = tk.Button(tab.ctrl, text='Panic Stop', command=tab.stop_typing_hotkey)
-    tab.stop_btn.pack(side='right')
-    for b in [tab.start_btn, tab.pause_btn, tab.stop_btn]:
-        tab.widgets_to_style.append(b)
+    # Modern buttons will be created by the theme system
+    # Just create placeholders that will be replaced by ModernButton
+    tab.start_btn = None
+    tab.pause_btn = None  
+    tab.stop_btn = None
 
     # ─── Settings panel ──────────────────────────────────────
     tab.sf = tk.LabelFrame(tab.content, text="Settings", padx=10, pady=10, font=('Segoe UI', 11, 'bold'))
@@ -92,38 +97,37 @@ def build_typing_ui(tab):
     tab.sf.columnconfigure(1, weight=1)
 
     tab.wpm_var   = tk.StringVar(value="WPM: 0")
-    tab.wpm_label = tk.Label(tab.sf, textvariable=tab.wpm_var, font=('Segoe UI', 11, 'bold'))
+    tab.wpm_label = tk.Label(tab.sf, textvariable=tab.wpm_var, font=('Segoe UI', 11, 'bold'), fg=config.SUCCESS_GREEN)
     tab.wpm_label.grid(row=0, column=1, sticky='w')
     tab.widgets_to_style.append(tab.wpm_label)
 
-    # Min delay
-    tk.Label(tab.sf, text="Min delay (sec):", font=('Segoe UI', 11)).grid(row=1, column=0, sticky='w')
+    # Min delay with tooltip
+    min_delay_label = tk.Label(tab.sf, text="Min delay (sec):", font=('Segoe UI', 11))
+    min_delay_label.grid(row=1, column=0, sticky='w')
     tab.min_delay_scale = ttk.Scale(tab.sf, from_=0.01, to=0.3, variable=tab.min_delay_var)
     tab.min_delay_scale.grid(row=1, column=1, sticky='ew', pady=3)
+    Tooltip(min_delay_label, "Minimum time between keystrokes - lower = faster typing")
 
-    # Max delay
-    tk.Label(tab.sf, text="Max delay (sec):", font=('Segoe UI', 11)).grid(row=2, column=0, sticky='w')
+    # Max delay with tooltip
+    max_delay_label = tk.Label(tab.sf, text="Max delay (sec):", font=('Segoe UI', 11))
+    max_delay_label.grid(row=2, column=0, sticky='w')
     tab.max_delay_scale = ttk.Scale(tab.sf, from_=0.05, to=0.5, variable=tab.max_delay_var)
     tab.max_delay_scale.grid(row=2, column=1, sticky='ew', pady=3)
+    Tooltip(max_delay_label, "Maximum time between keystrokes - creates natural typing rhythm variation")
 
-    # Typos
+    # Typos with tooltip
     tab.typos_check = ttk.Checkbutton(tab.sf, text="Enable typos", variable=tab.typos_var)
     tab.typos_check.grid(row=3, column=0, columnspan=2, sticky='w', pady=3)
+    Tooltip(tab.typos_check, "Randomly makes typing mistakes then corrects them automatically for human-like behavior")
 
-    # Pause freq
-    tk.Label(tab.sf, text="Pause every X chars:", font=('Segoe UI', 11)).grid(row=4, column=0, sticky='w')
+    # Pause freq with tooltip
+    pause_freq_label = tk.Label(tab.sf, text="Pause every X chars:", font=('Segoe UI', 11))
+    pause_freq_label.grid(row=4, column=0, sticky='w')
     tab.pause_freq_scale = ttk.Scale(tab.sf, from_=10, to=200, variable=tab.pause_freq_var)
     tab.pause_freq_scale.grid(row=4, column=1, sticky='ew', pady=3)
+    Tooltip(pause_freq_label, "How many characters to type before taking a brief pause - lower = more frequent pauses")
 
-    # Paste & Go URL
-    tk.Label(tab.sf, text="Paste & Go URL:", font=('Segoe UI', 11)).grid(row=5, column=0, sticky='w')
-    tab.paste_go_entry = ttk.Entry(tab.sf, textvariable=tab.paste_go_var)
-    tab.paste_go_entry.grid(row=5, column=1, sticky='ew', pady=3)
-
-    # Auto-capitalize
-    tab.autocap_check = ttk.Checkbutton(tab.sf, text="Auto-capitalize sentences", variable=tab.autocap_var)
-    tab.autocap_check.grid(row=6, column=0, columnspan=2, sticky='w', pady=3)
-
-    # Reset button
+    # Reset button with tooltip
     tab.reset_btn = ttk.Button(tab.sf, text="Reset to Defaults", command=tab.app.reset_typing_settings)
-    tab.reset_btn.grid(row=7, column=0, columnspan=2, pady=8)
+    tab.reset_btn.grid(row=5, column=0, columnspan=2, pady=8)
+    Tooltip(tab.reset_btn, "Reset all typing settings to their default values")

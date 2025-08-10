@@ -19,7 +19,7 @@ class AccountTab(tk.Frame):
         self.usage_mgr = AccountUsageManager(self)
         # --- Add is_premium fallback if not present ---
         if not hasattr(self.usage_mgr, "is_premium"):
-            self.usage_mgr.is_premium = lambda: getattr(self.usage_mgr, "plan", "free") in ("pro", "enterprise")
+            self.usage_mgr.is_premium = lambda: getattr(self.usage_mgr, "plan", "free") in ("pro", "premium", "enterprise")
 
         self.bar_width = 300
         self.bar_height = 20
@@ -106,9 +106,12 @@ class AccountTab(tk.Frame):
                 print("⚠️ Referral auto-bonus error:", e)
 
             self.usage_mgr.load_usage()
-            self.app.on_login(info)
             self._render_user_status()
             self.usage_mgr.update_usage_display()
+            self.app.on_login(info)
+            
+            # Force immediate UI update for words left bar
+            self.update_idletasks()
 
     def _do_manual_sign_in(self):
         email = sd.askstring("Manual Sign-In", "Enter your email:")
@@ -126,9 +129,12 @@ class AccountTab(tk.Frame):
                     user_info = r2.json()
                     self.google_info = user_info
                     self.usage_mgr.load_usage()
-                    self.app.on_login(user_info)
                     self._render_user_status()
                     self.usage_mgr.update_usage_display()
+                    self.app.on_login(user_info)
+                    
+                    # Force immediate UI update for words left bar
+                    self.update_idletasks()
                     messagebox.showinfo("Manual Sign-In", "Logged in successfully!")
                 else:
                     messagebox.showerror("Manual Sign-In", "Invalid code. Try again.")
@@ -150,14 +156,28 @@ class AccountTab(tk.Frame):
         self.usage_label.config(text="")
         self.referral_label.config(text="")
         self.canvas.coords(self.progress_bar, 0, 0, 0, self.bar_height)
-        # 2. Show sign-in buttons, hide logout
+        
+        # 2. Show sign-in buttons, hide logout, and ensure they're enabled
         self.signin_btn.pack(pady=(20, 8))
+        self.signin_btn.config(state='normal')  # Ensure button is enabled
         self.manual_btn.pack(pady=8)
+        self.manual_btn.config(state='normal')   # Ensure button is enabled
         self.logout_btn.pack_forget()
+        
         # 3. App disables other tabs and selects Account
         self.app.on_logout()
         self.app.notebook.select(self.app.tabs["Account"])
-        messagebox.showinfo("Logged Out", "You have been logged out.")
+        
+        # 4. Reset typing tab to clear any user-specific state
+        if hasattr(self.app, 'typing_tab'):
+            # Clear text areas
+            if hasattr(self.app.typing_tab, 'clear_text_areas'):
+                self.app.typing_tab.clear_text_areas()
+        
+        # 5. Force UI refresh to ensure proper state
+        self.update()
+        
+        messagebox.showinfo("Logged Out", "You have been logged out successfully. The app has been reset to a fresh state.")
 
     def _render_user_status(self):
         # Hide sign-in buttons if signed in, show logout; vice versa if not
@@ -183,6 +203,9 @@ class AccountTab(tk.Frame):
         self.usage_mgr.load_usage()
         self._render_user_status()
         self.usage_mgr.update_usage_display()
+        
+        # Force immediate UI update for words left bar
+        self.update_idletasks()
 
     def start_auto_update(self):
         self.usage_mgr.update_usage_display()

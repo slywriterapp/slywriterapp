@@ -72,7 +72,7 @@ def set_plan():
     uid = body.get("user_id")
     new_plan = body.get("plan")
 
-    if not uid or new_plan not in ["free", "pro", "enterprise"]:
+    if not uid or new_plan not in ["free", "pro", "premium", "enterprise"]:
         return jsonify({"error": "Missing or invalid data"}), 400
 
     plans = load_data(PLAN_FILE)
@@ -222,7 +222,7 @@ def generate_filler():
 
     data = request.get_json()
     prompt = data.get('prompt', '')
-    model = data.get('model', 'gpt-3.5-turbo')  # or 'gpt-4o'
+    model = data.get('model', 'gpt-5-nano')  # Updated to use latest model
 
     try:
         response = client.chat.completions.create(
