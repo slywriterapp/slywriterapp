@@ -16,7 +16,8 @@
       "start": "9",
       "stop": "8",
       "pause": "7",
-      "overlay": "t"
+      "overlay": "t",
+      "ai_generation": "backslash"
     },
     "schedule": [],
     "dark_mode": true,
@@ -25,12 +26,15 @@
       "tone": "Neutral",
       "depth": 2,
       "rewrite_style": "Concise",
-      "use_of_evidence": "None"
+      "use_of_evidence": "None",
+      "academic_format": "APA",
+      "required_pages": 1,
+      "response_length": 1
     },
     "active_profile": "Ultra-Slow",
     "preview_only": false,
     "adv_antidetect": false,
-    "overlay_enabled": true,
+    "overlay_enabled": false,
     "overlay_opacity": 1.0,
     "overlay_width": 200,
     "overlay_height": 40,

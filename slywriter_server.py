@@ -244,6 +244,107 @@ def generate_filler():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ---------------- AI TEXT GENERATION ----------------
+
+@app.route('/ai_generate_text', methods=['POST'])
+def ai_generate_text():
+    import openai
+    try:
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    except KeyError:
+        return jsonify({"success": False, "error": "OpenAI API key not configured on server"}), 500
+
+    data = request.get_json()
+    prompt = data.get('prompt', '')
+    user_id = data.get('user_id')
+    
+    if not prompt:
+        return jsonify({"success": False, "error": "Missing prompt"}), 400
+
+    try:
+        response = client.chat.completions.create(
+            model='gpt-5-nano',
+            messages=[
+                {"role": "system", "content": "You are a helpful writing assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=2000,
+            temperature=0.7
+        )
+        
+        generated_text = response.choices[0].message.content.strip()
+        
+        return jsonify({
+            "success": True,
+            "text": generated_text
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/ai_humanize_text', methods=['POST'])
+def ai_humanize_text():
+    import requests
+    
+    data = request.get_json()
+    text = data.get('text', '')
+    model = data.get('model', '1')  # Default to balanced
+    user_id = data.get('user_id')
+    
+    if not text:
+        return jsonify({"success": False, "error": "Missing text"}), 400
+    
+    try:
+        # Get AIUndetect credentials from environment variables
+        api_key = os.environ.get("AIUNDETECT_API_KEY")
+        email = os.environ.get("AIUNDETECT_EMAIL")
+        
+        if not api_key or not email:
+            return jsonify({"success": False, "error": "AIUndetect credentials not configured on server"}), 500
+        
+        headers = {
+            'Authorization': api_key,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'model': model,
+            'mail': email,
+            'data': text
+        }
+        
+        response = requests.post(
+            'https://aiundetect.com/api/v1/rewrite',
+            headers=headers,
+            json=payload,
+            timeout=45
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('code') == 200:
+                return jsonify({
+                    "success": True,
+                    "humanized_text": result.get('data')
+                })
+            else:
+                error_codes = {
+                    1001: "Missing API key",
+                    1002: "Rate limit exceeded", 
+                    1003: "Invalid API Key",
+                    1004: "Request parameter error",
+                    1005: "Text language not supported",
+                    1006: "You don't have enough words",
+                    1007: "Server Error"
+                }
+                error_msg = error_codes.get(result.get('code'), f"Unknown error (code: {result.get('code')})")
+                return jsonify({"success": False, "error": f"AIUndetect error: {error_msg}"}), 500
+        else:
+            return jsonify({"success": False, "error": f"HTTP {response.status_code}: {response.text}"}), 500
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # ---------------- MAIN ----------------
 
 if __name__ == "__main__":

@@ -98,66 +98,58 @@ class AITextGenerator:
             # Construct prompt based on user settings
             prompt = self._build_chatgpt_prompt(input_text, settings)
             
-            # Call OpenAI API
-            api_key = os.environ.get('OPENAI_API_KEY')
-            if not api_key:
-                self._show_error("API Key Missing", "OpenAI API key not found in environment variables.")
-                return None
-            
-            headers = {
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json'
-            }
-            
+            # Make API call through your server (which has the OPENAI_API_KEY environment variable)
             data = {
-                'model': 'gpt-5-nano',
-                'messages': [
-                    {'role': 'system', 'content': 'You are a helpful writing assistant.'},
-                    {'role': 'user', 'content': prompt}
-                ],
-                'max_tokens': 2000,
-                'temperature': 0.7
+                'prompt': prompt,
+                'user_id': getattr(self.app, 'user_id', None)
             }
             
             response = requests.post(
-                'https://api.openai.com/v1/chat/completions',
-                headers=headers,
+                'https://slywriterapp.onrender.com/ai_generate_text',
                 json=data,
                 timeout=30
             )
             
             if response.status_code == 200:
                 result = response.json()
-                generated_text = result['choices'][0]['message']['content'].strip()
-                
-                # Check if text is too short and retry if needed
-                if len(generated_text) < 100:
-                    print("[AI GEN] Text too short, retrying with longer prompt...")
-                    time.sleep(1)  # 1 second delay as requested
-                    retry_prompt = prompt + "\n\nPlease provide a longer, more detailed response with at least 100 characters."
-                    data['messages'][1]['content'] = retry_prompt
+                if result.get('success'):
+                    generated_text = result.get('text', '').strip()
                     
-                    retry_response = requests.post(
-                        'https://api.openai.com/v1/chat/completions',
-                        headers=headers,
-                        json=data,
-                        timeout=30
-                    )
+                    # Check if text is too short and retry if needed
+                    if len(generated_text) < 100:
+                        print("[AI GEN] Text too short, retrying with longer prompt...")
+                        time.sleep(1)  # 1 second delay as requested
+                        retry_prompt = prompt + "\n\nPlease provide a longer, more detailed response with at least 100 characters."
+                        retry_data = {
+                            'prompt': retry_prompt,
+                            'user_id': getattr(self.app, 'user_id', None)
+                        }
+                        
+                        retry_response = requests.post(
+                            'https://slywriterapp.onrender.com/ai_generate_text',
+                            json=retry_data,
+                            timeout=30
+                        )
+                        
+                        if retry_response.status_code == 200:
+                            retry_result = retry_response.json()
+                            if retry_result.get('success'):
+                                generated_text = retry_result.get('text', '').strip()
                     
-                    if retry_response.status_code == 200:
-                        retry_result = retry_response.json()
-                        generated_text = retry_result['choices'][0]['message']['content'].strip()
-                
-                # Update word usage tracking
-                self._update_usage_tracking(generated_text)
-                
-                return generated_text
+                    # Update word usage tracking
+                    self._update_usage_tracking(generated_text)
+                    
+                    return generated_text
+                else:
+                    error_msg = result.get('error', 'Unknown server error')
+                    self._show_error("AI Generation Error", error_msg)
+                    return None
                 
             else:
-                error_msg = f"ChatGPT API error: {response.status_code}"
+                error_msg = f"Server error: {response.status_code}"
                 if response.text:
                     error_msg += f" - {response.text}"
-                self._show_error("ChatGPT API Error", error_msg)
+                self._show_error("Server Error", error_msg)
                 return None
                 
         except requests.exceptions.Timeout:
@@ -238,14 +230,8 @@ class AITextGenerator:
         return "\n".join(prompt_parts)
     
     def _call_humanizer(self, text):
-        """Process text through AIUndetect humanizer"""
+        """Process text through AIUndetect humanizer via server"""
         try:
-            api_key = os.environ.get('AIUNDETECT_API_KEY')
-            email = os.environ.get('AIUNDETECT_EMAIL')
-            
-            if not api_key or not email:
-                raise Exception("AIUndetect credentials not found in environment variables")
-            
             # Map user settings to AIUndetect model
             humanizer_settings = self.app.cfg.get('settings', {}).get('humanizer', {})
             depth = humanizer_settings.get('depth', 3)
@@ -258,42 +244,27 @@ class AITextGenerator:
             else:
                 model = "1"  # Balanced
             
-            headers = {
-                'Authorization': api_key,
-                'Content-Type': 'application/json'
-            }
-            
             data = {
+                'text': text,
                 'model': model,
-                'mail': email,
-                'data': text
+                'user_id': getattr(self.app, 'user_id', None)
             }
             
             response = requests.post(
-                'https://aiundetect.com/api/v1/rewrite',
-                headers=headers,
+                'https://slywriterapp.onrender.com/ai_humanize_text',
                 json=data,
                 timeout=45
             )
             
             if response.status_code == 200:
                 result = response.json()
-                if result.get('code') == 200:
-                    return result.get('data')
+                if result.get('success'):
+                    return result.get('humanized_text')
                 else:
-                    error_codes = {
-                        1001: "Missing API key",
-                        1002: "Rate limit exceeded", 
-                        1003: "Invalid API Key",
-                        1004: "Request parameter error",
-                        1005: "Text language not supported",
-                        1006: "You don't have enough words",
-                        1007: "Server Error"
-                    }
-                    error_msg = error_codes.get(result.get('code'), f"Unknown error (code: {result.get('code')})")
+                    error_msg = result.get('error', 'Unknown humanizer error')
                     raise Exception(f"AIUndetect error: {error_msg}")
             else:
-                raise Exception(f"HTTP {response.status_code}: {response.text}")
+                raise Exception(f"Server error: {response.status_code}")
                 
         except Exception as e:
             print(f"[AI GEN] Humanizer error: {e}")
