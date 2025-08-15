@@ -267,8 +267,8 @@ def ai_generate_text():
             "Aim for at least 200-300 words minimum, with thorough explanations and examples."
         )
         
-        # Try models in order specified by user (cheapest first)
-        models_to_try = ['gpt-5-nano', 'gpt-4.1-nano', 'gpt-4o-mini']
+        # Try models in order specified by user (start with working model)
+        models_to_try = ['gpt-4.1-nano', 'gpt-5-nano', 'gpt-4o-mini']
         model_to_use = None
         response = None
         
