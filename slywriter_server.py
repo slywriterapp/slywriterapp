@@ -222,21 +222,36 @@ def generate_filler():
 
     data = request.get_json()
     prompt = data.get('prompt', '')
-    model = data.get('model', 'gpt-5-nano')  # Updated to use latest model
 
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": (
-                    "You are a human typing a first draft. "
-                    "Generate a single plausible but ultimately unused or rambling sentence, "
-                    "or a short filler clause, that someone might type, hesitate, then erase while writing."
-                )},
-                {"role": "user", "content": prompt}
-            ],
-            max_completion_tokens=36
-        )
+        # Use same model fallback as main text generation
+        models_to_try = ['gpt-4.1-nano', 'gpt-5-nano', 'gpt-4o-mini']
+        response = None
+        
+        for model in models_to_try:
+            try:
+                print(f"[FILLER] Trying model: {model}")
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": (
+                            "You are a human typing a first draft. "
+                            "Generate a single plausible but ultimately unused or rambling sentence, "
+                            "or a short filler clause, that someone might type, hesitate, then erase while writing."
+                        )},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_completion_tokens=36
+                )
+                print(f"[FILLER] Successfully using model: {model}")
+                break
+            except Exception as model_error:
+                print(f"[FILLER] Model {model} failed: {model_error}")
+                continue
+        
+        if not response:
+            raise Exception("All filler models failed to respond")
+            
         filler = response.choices[0].message.content.strip()
         return jsonify({"filler": filler})
     except Exception as e:

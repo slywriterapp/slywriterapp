@@ -61,11 +61,17 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
         # Check for stop after server response
         if stop_flag and stop_flag.is_set():
             return ""
-        if response.status_code == 200 and "filler" in response.json():
-            filler = response.json()["filler"]
-            if status_callback:
-                status_callback(f"[AI Filler] Success: \"{filler}\"")
-            print("[AI Filler] Server response:", filler)
+        if response.status_code == 200:
+            result = response.json()
+            print(f"[AI Filler] Full server response: {result}")
+            if "filler" in result and result["filler"]:
+                filler = result["filler"]
+                if status_callback:
+                    status_callback(f"[AI Filler] Success: \"{filler}\"")
+                print("[AI Filler] Server response:", filler)
+            else:
+                print(f"[AI Filler] No filler in response or filler is empty: {result}")
+                raise Exception("Empty filler response")
             
             # Process the filler text
             processed_filler = ' '.join(filler.split()[:random.randint(min_words, max_words)])
@@ -126,7 +132,6 @@ def premium_type_with_filler(
     max_delay,
     typos_on,
     pause_freq,
-    autocap_enabled,
     preview_only=False,
     stop_flag=None,
     pause_flag=None

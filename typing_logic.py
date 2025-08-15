@@ -21,11 +21,17 @@ def toggle_pause(tab):
         tab.pause_btn.config(text='Pause Typing')
         tab.paused = False
         update_status(tab, 'Resumed typing...')
+        # Update overlay
+        if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
+            tab.app.overlay_tab.update_overlay_text('Resumed typing...')
     else:
         engine.pause_typing()
         tab.pause_btn.config(text='Resume Typing')
         tab.paused = True
         update_status(tab, 'Paused typing!')
+        # Update overlay
+        if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
+            tab.app.overlay_tab.update_overlay_text('Paused')
 
 def clear_input_placeholder(tab, event=None):
     if tab.text_input.get('1.0', 'end').strip() == tab.PLACEHOLDER_INPUT:
@@ -120,6 +126,9 @@ def start_typing(tab, use_adv_antidetect=False, preview_only=False):
 def stop_typing_hotkey(tab):
     engine.stop_typing_func()
     update_status(tab, 'Typing stopped!')
+    # Update overlay
+    if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
+        tab.app.overlay_tab.update_overlay_text('Stopped')
     tab.start_btn.config(bg='#003366')
     tab.stop_btn.config(bg='red')
 
@@ -158,6 +167,10 @@ def update_live_preview(tab, text):
 
 def update_status(tab, text):
     tab.status_label.config(text=text)
+    
+    # Update overlay with status
+    if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
+        tab.app.overlay_tab.update_overlay_text(text)
     
     # Unlock profile selector when typing is done/cancelled/stopped
     if text in ["Done", "Stopped", "Cancelled"]:

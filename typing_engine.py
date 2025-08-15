@@ -67,7 +67,7 @@ def stop_typing_func():
     _stop_flag.set()
     _pause_flag.clear()
     if _typing_thread and _typing_thread.is_alive():
-        _typing_thread.join(timeout=0.1)
+        _typing_thread.join(timeout=2.0)  # Give more time for thread to stop
     _stop_flag.clear()
 
 def pause_typing():
@@ -100,11 +100,31 @@ def start_typing_from_input(
             if _stop_flag.is_set():
                 _update_status_and_overlay(status_callback, "Cancelled")
                 return
+            
+            # Check for pause during countdown
+            while _pause_flag.is_set() and not _stop_flag.is_set():
+                _update_status_and_overlay(status_callback, "Paused")
+                time.sleep(0.1)
+            
+            if _stop_flag.is_set():
+                _update_status_and_overlay(status_callback, "Cancelled")
+                return
+                
             _update_status_and_overlay(status_callback, f"Starting in {i}...")
             for _ in range(10):
                 if _stop_flag.is_set():
                     _update_status_and_overlay(status_callback, "Cancelled")
                     return
+                
+                # Check for pause during each 0.1s interval
+                while _pause_flag.is_set() and not _stop_flag.is_set():
+                    _update_status_and_overlay(status_callback, "Paused")
+                    time.sleep(0.1)
+                
+                if _stop_flag.is_set():
+                    _update_status_and_overlay(status_callback, "Cancelled")
+                    return
+                    
                 time.sleep(0.1)
 
         preview = ""
@@ -129,15 +149,15 @@ def start_typing_from_input(
 
         for idx, ch in enumerate(text):
             if _stop_flag.is_set():
-                status_callback("Stopped")
+                _update_status_and_overlay(status_callback, "Stopped")
                 return
 
             while _pause_flag.is_set() and not _stop_flag.is_set():
-                status_callback("Paused…")
+                _update_status_and_overlay(status_callback, "Paused")
                 time.sleep(0.1)
 
             if _stop_flag.is_set():
-                status_callback("Stopped")
+                _update_status_and_overlay(status_callback, "Stopped")
                 return
 
             if _account_tab and not _account_tab.has_words_remaining():
@@ -174,10 +194,10 @@ def start_typing_from_input(
                         # Check for stop/pause during the break
                         for i in range(int(sentence_break_duration * 10)):
                             if _stop_flag.is_set():
-                                status_callback("Stopped")
+                                _update_status_and_overlay(status_callback, "Stopped")
                                 return
                             while _pause_flag.is_set() and not _stop_flag.is_set():
-                                status_callback("Paused…")
+                                _update_status_and_overlay(status_callback, "Paused")
                                 time.sleep(0.1)
                             time.sleep(0.1)
                         

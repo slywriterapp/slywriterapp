@@ -120,9 +120,11 @@ class AITextGenerator:
         try:
             # Get humanizer settings for prompt construction
             settings = self.app.cfg.get('settings', {}).get('humanizer', {})
+            print(f"[AI GEN] Using humanizer settings: {settings}")
             
             # Construct prompt based on user settings
             prompt = self._build_chatgpt_prompt(input_text, settings)
+            print(f"[AI GEN] Built prompt: {prompt[:200]}...")
             
             # Make API call through your server (which has the OPENAI_API_KEY environment variable)
             data = {
