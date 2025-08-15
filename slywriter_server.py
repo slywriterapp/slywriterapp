@@ -267,17 +267,34 @@ def ai_generate_text():
             "Aim for at least 200-300 words minimum, with thorough explanations and examples."
         )
         
-        # First attempt
-        response = client.chat.completions.create(
-            model='gpt-5-nano',
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            max_completion_tokens=2000
-        )
+        # Try models in order specified by user (cheapest first)
+        models_to_try = ['gpt-5-nano', 'gpt-4.1-nano', 'gpt-4o-mini']
+        model_to_use = None
+        response = None
+        
+        for model in models_to_try:
+            try:
+                print(f"[AI] Trying model: {model}")
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_completion_tokens=2000
+                )
+                model_to_use = model
+                print(f"[AI] Successfully using model: {model}")
+                break
+            except Exception as model_error:
+                print(f"[AI] Model {model} failed: {model_error}")
+                continue
+        
+        if not response:
+            raise Exception("All AI models failed to respond")
         
         generated_text = response.choices[0].message.content.strip()
+        print(f"[AI] OpenAI response using {model_to_use}: '{generated_text[:100]}...' (length: {len(generated_text)})")
         
         # Only retry once if text is very short (under 100 chars) - faster approach
         if len(generated_text) < 100:
@@ -290,7 +307,7 @@ REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and 
             
             try:
                 retry_response = client.chat.completions.create(
-                    model='gpt-5-nano',
+                    model=model_to_use,  # Use the same model that worked
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": enhanced_prompt}
