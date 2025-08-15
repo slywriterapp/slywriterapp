@@ -82,7 +82,8 @@ class AITextGenerator:
                 else:
                     # Humanizer failed - ask user what to do
                     self._update_status("Humanizer failed - awaiting user choice")
-                    self._handle_humanizer_failure(chatgpt_response)
+                    # Show humanizer failure dialog on main thread
+                    self.app.after_idle(lambda: self._handle_humanizer_failure(chatgpt_response))
                     return
             
             # Step 5: Check if learning mode is enabled and generate lesson
@@ -139,27 +140,6 @@ class AITextGenerator:
                 if result.get('success'):
                     generated_text = result.get('text', '').strip()
                     
-                    # Check if text is too short and retry if needed
-                    if len(generated_text) < 100:
-                        print("[AI GEN] Text too short, retrying with longer prompt...")
-                        time.sleep(1)  # 1 second delay as requested
-                        retry_prompt = prompt + "\n\nPlease provide a longer, more detailed response with at least 100 characters."
-                        retry_data = {
-                            'prompt': retry_prompt,
-                            'user_id': getattr(self.app, 'user_id', None)
-                        }
-                        
-                        retry_response = requests.post(
-                            'https://slywriterapp.onrender.com/ai_generate_text',
-                            json=retry_data,
-                            timeout=30
-                        )
-                        
-                        if retry_response.status_code == 200:
-                            retry_result = retry_response.json()
-                            if retry_result.get('success'):
-                                generated_text = retry_result.get('text', '').strip()
-                    
                     # Update word usage tracking
                     self._update_usage_tracking(generated_text)
                     
@@ -189,13 +169,13 @@ class AITextGenerator:
         # Get response length setting (will be added in Stage 3)
         response_length = settings.get('response_length', 3)  # Default to medium
         
-        # Map response length to descriptive terms
+        # Map response length to descriptive terms - ensure all lengths are substantial
         length_mapping = {
-            1: "very short (1-2 sentences)",
-            2: "short (2-4 sentences)", 
-            3: "medium length (4-8 sentences)",
-            4: "long (8-15 sentences)",
-            5: "very long and detailed (15+ sentences)"
+            1: "concise but detailed (3-5 sentences, minimum 150 words)",
+            2: "moderate length (5-8 sentences, minimum 200 words)", 
+            3: "comprehensive (8-12 sentences, minimum 300 words)",
+            4: "extensive (12-20 sentences, minimum 500 words)",
+            5: "very detailed and thorough (20+ sentences, minimum 700 words)"
         }
         
         length_instruction = length_mapping.get(response_length, "medium length")
@@ -248,8 +228,11 @@ class AITextGenerator:
         if academic_format:
             prompt_parts.append(f"- Follows {academic_format} formatting guidelines")
         
-        # Ensure minimum length
-        prompt_parts.append("- Ensure the response is at least 100 characters long")
+        # Ensure adequate length based on setting
+        min_words = {1: 150, 2: 200, 3: 300, 4: 500, 5: 700}.get(response_length, 300)
+        prompt_parts.append(f"- CRITICAL: Ensure the response is at least {min_words} words long with substantial detail and depth")
+        prompt_parts.append("- Never provide brief, short, or summary responses")
+        prompt_parts.append("- Always expand with examples, explanations, and thorough coverage")
         
         return "\n".join(prompt_parts)
     
@@ -296,46 +279,88 @@ class AITextGenerator:
     
     def _handle_humanizer_failure(self, original_text):
         """Handle case where humanizer fails - show warning and let user choose"""
-        def on_proceed():
-            dialog.destroy()
+        try:
+            # Ensure we're on the main thread
+            if not self.app.winfo_exists():
+                print("[AI GEN] App window destroyed, cannot show humanizer failure dialog")
+                return
+                
+            def on_proceed():
+                try:
+                    dialog.destroy()
+                    self._update_status("Starting typing simulation...")
+                    self._start_typing(original_text)
+                except Exception as e:
+                    print(f"[AI GEN] Error in proceed handler: {e}")
+            
+            def on_cancel():
+                try:
+                    dialog.destroy()
+                    self._update_status("Ready")
+                    # Still charge for the words since API was used
+                    self._update_usage_tracking(original_text)
+                    messagebox.showinfo("Words Deducted", 
+                                      "Your word count has been updated since we used AI services. "
+                                      "This helps cover our costs for the API calls.")
+                except Exception as e:
+                    print(f"[AI GEN] Error in cancel handler: {e}")
+            
+            def on_close():
+                try:
+                    dialog.destroy()
+                    self._update_status("Ready")
+                except Exception as e:
+                    print(f"[AI GEN] Error in close handler: {e}")
+            
+            dialog = tk.Toplevel(self.app)
+            dialog.title("Humanizer Failed")
+            dialog.geometry("450x250")
+            dialog.resizable(False, False)
+            dialog.grab_set()
+            dialog.focus_force()
+            
+            # Make sure dialog stays on top and handles close properly
+            dialog.protocol("WM_DELETE_WINDOW", on_close)
+            dialog.transient(self.app)
+            
+            # Content
+            tk.Label(dialog, text="⚠️ Humanizer Service Failed", 
+                    font=('Segoe UI', 14, 'bold'), fg='red').pack(pady=15)
+            
+            tk.Label(dialog, text="The AI Humanizer service encountered an error or returned text that was too short.\n\n"
+                                "You can proceed with the unhumanized text or cancel this operation.",
+                    wraplength=400, justify='center', font=('Segoe UI', 10)).pack(pady=10)
+            
+            button_frame = tk.Frame(dialog)
+            button_frame.pack(pady=20)
+            
+            # Make buttons more visible
+            proceed_btn = tk.Button(button_frame, text="Proceed (NOT Humanized)", 
+                                   command=on_proceed, bg='#ff6b35', fg='white', 
+                                   font=('Segoe UI', 10, 'bold'), width=20)
+            proceed_btn.pack(side='left', padx=10)
+            
+            cancel_btn = tk.Button(button_frame, text="Cancel", 
+                                  command=on_cancel, bg='#666', fg='white',
+                                  font=('Segoe UI', 10), width=10)
+            cancel_btn.pack(side='left', padx=10)
+            
+            # Center the dialog
+            dialog.update_idletasks()
+            x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (dialog.winfo_width() // 2)
+            y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (dialog.winfo_height() // 2)
+            dialog.geometry(f"+{x}+{y}")
+            
+            # Ensure dialog is visible
+            dialog.lift()
+            dialog.attributes('-topmost', True)
+            dialog.after(100, lambda: dialog.attributes('-topmost', False))
+            
+        except Exception as e:
+            print(f"[AI GEN] Error creating humanizer failure dialog: {e}")
+            # Fallback: just proceed without humanization
             self._update_status("Starting typing simulation...")
             self._start_typing(original_text)
-        
-        def on_cancel():
-            dialog.destroy()
-            self._update_status("Ready")
-            # Still charge for the words since API was used
-            self._update_usage_tracking(original_text)
-            messagebox.showinfo("Words Deducted", 
-                              "Your word count has been updated since we used AI services. "
-                              "This helps cover our costs for the API calls.")
-        
-        dialog = tk.Toplevel(self.app)
-        dialog.title("Humanizer Failed")
-        dialog.geometry("400x200")
-        dialog.grab_set()
-        
-        tk.Label(dialog, text="⚠️ Humanizer Service Failed", 
-                font=('Segoe UI', 12, 'bold')).pack(pady=10)
-        
-        tk.Label(dialog, text="The AI Humanizer service is not available.\n"
-                            "You can still proceed with the unhumanized text.",
-                wraplength=350).pack(pady=10)
-        
-        button_frame = tk.Frame(dialog)
-        button_frame.pack(pady=20)
-        
-        tk.Button(button_frame, text="Proceed (NOT Humanized)", 
-                 command=on_proceed, bg='orange', fg='white').pack(side='left', padx=5)
-        tk.Button(button_frame, text="Cancel", 
-                 command=on_cancel).pack(side='left', padx=5)
-        
-        # Center on parent
-        dialog.transient(self.app)
-        dialog.update_idletasks()
-        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (dialog.winfo_width() // 2)
-        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (dialog.winfo_height() // 2)
-        dialog.geometry(f"+{x}+{y}")
     
     def _show_review_dialog(self, text, was_humanized):
         """Show review dialog for user approval before typing"""

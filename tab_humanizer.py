@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import config  # Make sure config is imported for color constants
+from sly_config import save_config
 
 class HumanizerTab(tk.Frame):
     def __init__(self, parent, app):
@@ -217,12 +218,12 @@ class HumanizerTab(tk.Frame):
 
     def update_setting(self, key, value):
         self.app.cfg["settings"].setdefault("humanizer", {})[key] = value
-        self.app.save_config()
+        save_config(self.app.cfg)
     
     def update_bool_setting(self, key, value):
         """Update boolean settings in main settings section"""
         self.app.cfg["settings"][key] = value
-        self.app.save_config()
+        save_config(self.app.cfg)
     
     def _update_length_info(self):
         """Update the response length information label"""

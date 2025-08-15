@@ -260,16 +260,66 @@ def ai_generate_text():
         return jsonify({"success": False, "error": "Missing prompt"}), 400
 
     try:
+        # Enhanced system prompt to ensure adequate length
+        system_prompt = (
+            "You are a helpful writing assistant. IMPORTANT: Always generate comprehensive, "
+            "detailed responses with proper depth and length. Never provide brief or short answers. "
+            "Aim for at least 200-300 words minimum, with thorough explanations and examples."
+        )
+        
+        # First attempt
         response = client.chat.completions.create(
             model='gpt-5-nano',
             messages=[
-                {"role": "system", "content": "You are a helpful writing assistant."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             max_completion_tokens=2000
         )
         
         generated_text = response.choices[0].message.content.strip()
+        
+        # Check if generated text is too short (less than 200 characters)
+        if len(generated_text) < 200:
+            print(f"[AI] First attempt too short ({len(generated_text)} chars), retrying with enhanced prompt...")
+            
+            # Enhanced prompt for retry
+            enhanced_prompt = f"""{prompt}
+
+IMPORTANT: Please provide a comprehensive, detailed response with:
+- At least 300-500 words
+- Multiple paragraphs with full explanations
+- Specific examples and details
+- Thorough coverage of the topic
+- No brief or summary responses
+
+Original prompt: {prompt}"""
+            
+            # Retry with enhanced prompt
+            retry_response = client.chat.completions.create(
+                model='gpt-5-nano',
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": enhanced_prompt}
+                ],
+                max_completion_tokens=2000
+            )
+            
+            retry_text = retry_response.choices[0].message.content.strip()
+            
+            # Use the longer of the two responses
+            if len(retry_text) > len(generated_text):
+                generated_text = retry_text
+                print(f"[AI] Retry successful, using longer response ({len(retry_text)} chars)")
+            else:
+                print(f"[AI] Retry didn't improve length, using original ({len(generated_text)} chars)")
+        
+        # Final length check - if still too short, return error
+        if len(generated_text) < 150:
+            return jsonify({
+                "success": False, 
+                "error": f"Generated text too short ({len(generated_text)} characters). Please try again with a more detailed request."
+            }), 400
         
         return jsonify({
             "success": True,
@@ -320,9 +370,22 @@ def ai_humanize_text():
         if response.status_code == 200:
             result = response.json()
             if result.get('code') == 200:
+                humanized_text = result.get('data', '')
+                
+                # Ensure humanized text maintains reasonable length
+                original_length = len(text)
+                humanized_length = len(humanized_text)
+                
+                # If humanized text is less than 70% of original, reject it
+                if humanized_length < (original_length * 0.7):
+                    return jsonify({
+                        "success": False,
+                        "error": f"Humanized text too short ({humanized_length} chars vs {original_length} original). Please try again."
+                    }), 400
+                
                 return jsonify({
                     "success": True,
-                    "humanized_text": result.get('data')
+                    "humanized_text": humanized_text
                 })
             else:
                 error_codes = {

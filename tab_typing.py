@@ -176,10 +176,10 @@ class TypingTab(tk.Frame):
         update_placeholder_color(self, self.app.cfg['settings'].get('dark_mode', False))
 
     def _get_entry_fg(self):
-        return modern_get_entry_fg(self.app.cfg['settings'].get('dark_mode', False))
+        return get_entry_fg(self.app.cfg['settings'].get('dark_mode', False))
 
     def _get_placeholder_fg(self):
-        return modern_get_placeholder_fg(self.app.cfg['settings'].get('dark_mode', False))
+        return get_placeholder_fg(self.app.cfg['settings'].get('dark_mode', False))
 
     def update_wpm(self):
         typing_logic.update_wpm(self)

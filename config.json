@@ -20,14 +20,14 @@
       "ai_generation": "backslash"
     },
     "schedule": [],
-    "dark_mode": true,
+    "dark_mode": false,
     "humanizer": {
       "grade_level": 12,
       "tone": "Neutral",
       "depth": 2,
       "rewrite_style": "Concise",
       "use_of_evidence": "None",
-      "academic_format": "APA",
+      "academic_format": "MLA",
       "required_pages": 1,
       "response_length": 1
     },
@@ -38,8 +38,10 @@
     "overlay_opacity": 1.0,
     "overlay_width": 200,
     "overlay_height": 40,
-    "overlay_x": 63,
-    "overlay_y": 54
+    "overlay_x": 99,
+    "overlay_y": 116,
+    "learning_mode": true,
+    "review_mode": true
   },
   "profile_settings": {},
   "custom_presets": {}
