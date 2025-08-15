@@ -62,10 +62,11 @@ class AITextGenerator:
                 
             # Step 3: Process through ChatGPT
             print("[AI GEN] Processing with ChatGPT...")
-            self._update_status(f"Generating ({char_count} chars)...")
+            self._update_status("Generating text...")
             chatgpt_response = self._call_chatgpt(captured_text)
             
             if not chatgpt_response:
+                print("[AI GEN] ChatGPT response was empty or failed")
                 self._update_status("Ready")
                 return  # Error already shown
             
@@ -135,10 +136,14 @@ class AITextGenerator:
                 timeout=30
             )
             
+            print(f"[AI GEN] Server response status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
+                print(f"[AI GEN] Server response success: {result.get('success')}")
                 if result.get('success'):
                     generated_text = result.get('text', '').strip()
+                    print(f"[AI GEN] Generated text length: {len(generated_text)} characters")
                     
                     # Update word usage tracking
                     self._update_usage_tracking(generated_text)
@@ -146,6 +151,7 @@ class AITextGenerator:
                     return generated_text
                 else:
                     error_msg = result.get('error', 'Unknown server error')
+                    print(f"[AI GEN] Server error: {error_msg}")
                     self._show_error("AI Generation Error", error_msg)
                     return None
                 
@@ -153,6 +159,7 @@ class AITextGenerator:
                 error_msg = f"Server error: {response.status_code}"
                 if response.text:
                     error_msg += f" - {response.text}"
+                print(f"[AI GEN] HTTP error: {error_msg}")
                 self._show_error("Server Error", error_msg)
                 return None
                 
@@ -471,8 +478,12 @@ class AITextGenerator:
     def _update_usage_tracking(self, text):
         """Update word usage tracking"""
         try:
+            if not text:
+                print(f"[AI GEN] WARNING: Empty text passed to usage tracking")
+                return
+                
             word_count = len(text.split())
-            print(f"[AI GEN] Updating usage: {word_count} words")
+            print(f"[AI GEN] Updating usage: {word_count} words for text: '{text[:50]}...'")
             
             # Update local usage tracking (fallback)
             if hasattr(self.app, 'account_tab'):
