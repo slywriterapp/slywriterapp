@@ -279,77 +279,39 @@ def ai_generate_text():
         
         generated_text = response.choices[0].message.content.strip()
         
-        # Check if generated text is too short (less than 200 characters)
-        if len(generated_text) < 200:
-            print(f"[AI] First attempt too short ({len(generated_text)} chars), retrying with enhanced prompt...")
+        # Only retry once if text is very short (under 100 chars) - faster approach
+        if len(generated_text) < 100:
+            print(f"[AI] Text very short ({len(generated_text)} chars), single retry...")
             
-            # Enhanced prompt for retry
-            enhanced_prompt = f"""{prompt}
+            # Single retry with enhanced prompt
+            enhanced_prompt = f"""Write a detailed, comprehensive response about: {prompt}
 
-IMPORTANT: Please provide a comprehensive, detailed response with:
-- At least 300-500 words
-- Multiple paragraphs with full explanations
-- Specific examples and details
-- Thorough coverage of the topic
-- No brief or summary responses
-
-Original prompt: {prompt}"""
+REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and examples."""
             
-            # Retry with enhanced prompt
-            retry_response = client.chat.completions.create(
-                model='gpt-5-nano',
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": enhanced_prompt}
-                ],
-                max_completion_tokens=2000
-            )
-            
-            retry_text = retry_response.choices[0].message.content.strip()
-            
-            # Use the longer of the two responses
-            if len(retry_text) > len(generated_text):
-                generated_text = retry_text
-                print(f"[AI] Retry successful, using longer response ({len(retry_text)} chars)")
-            else:
-                print(f"[AI] Retry didn't improve length, using original ({len(generated_text)} chars)")
+            try:
+                retry_response = client.chat.completions.create(
+                    model='gpt-5-nano',
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": enhanced_prompt}
+                    ],
+                    max_completion_tokens=2000
+                )
+                
+                retry_text = retry_response.choices[0].message.content.strip()
+                
+                # Use the longer response
+                if len(retry_text) > len(generated_text):
+                    generated_text = retry_text
+                    print(f"[AI] Retry successful ({len(retry_text)} chars)")
+                else:
+                    print(f"[AI] Using original ({len(generated_text)} chars)")
+                    
+            except Exception as retry_error:
+                print(f"[AI] Retry failed: {retry_error}, using original")
         
-        # Final length check - if still too short, try one more time with very aggressive prompt
-        if len(generated_text) < 150:
-            print(f"[AI] Both attempts failed length check ({len(generated_text)} chars), trying aggressive prompt...")
-            
-            aggressive_prompt = f"""You must write a comprehensive, detailed essay about: {prompt}
-
-STRICT REQUIREMENTS:
-- MINIMUM 400 words required
-- Write in multiple detailed paragraphs
-- Include specific examples and explanations
-- Expand on every point thoroughly
-- Never give brief or short answers
-- This must be substantial content
-
-Topic: {prompt}
-
-Write a thorough, detailed response that fully covers this topic with examples, explanations, and comprehensive detail."""
-
-            final_response = client.chat.completions.create(
-                model='gpt-5-nano',
-                messages=[
-                    {"role": "system", "content": "You are a detailed writing assistant. ALWAYS write comprehensive, lengthy responses with substantial detail. NEVER write brief answers."},
-                    {"role": "user", "content": aggressive_prompt}
-                ],
-                max_completion_tokens=2000
-            )
-            
-            final_text = final_response.choices[0].message.content.strip()
-            if len(final_text) > len(generated_text):
-                generated_text = final_text
-                print(f"[AI] Aggressive prompt successful ({len(final_text)} chars)")
-            
-            # If still too short after 3 attempts, log but don't error to user
-            if len(generated_text) < 150:
-                print(f"[AI] WARNING: All attempts failed, using best result ({len(generated_text)} chars)")
-                # Don't return error - let it proceed with whatever we got
+        # Log final result but don't block on length
+        print(f"[AI] Final text length: {len(generated_text)} chars")
         
         return jsonify({
             "success": True,

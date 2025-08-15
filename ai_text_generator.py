@@ -133,7 +133,7 @@ class AITextGenerator:
             response = requests.post(
                 'https://slywriterapp.onrender.com/ai_generate_text',
                 json=data,
-                timeout=30
+                timeout=60  # Increased from 30 to 60 seconds
             )
             
             print(f"[AI GEN] Server response status: {response.status_code}")
@@ -164,8 +164,43 @@ class AITextGenerator:
                 return None
                 
         except requests.exceptions.Timeout:
-            self._show_error("Request Timeout", "ChatGPT API request timed out. Please try again.")
-            return None
+            print("[AI GEN] Request timed out, retrying once...")
+            self._update_status("Retrying generation...")
+            try:
+                # Retry once with longer timeout
+                response = requests.post(
+                    'https://slywriterapp.onrender.com/ai_generate_text',
+                    json=data,
+                    timeout=90  # Even longer timeout for retry
+                )
+                
+                print(f"[AI GEN] Retry response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        generated_text = result.get('text', '').strip()
+                        print(f"[AI GEN] Retry successful, generated text length: {len(generated_text)} characters")
+                        self._update_usage_tracking(generated_text)
+                        return generated_text
+                    else:
+                        error_msg = result.get('error', 'Unknown server error')
+                        print(f"[AI GEN] Retry failed with server error: {error_msg}")
+                        self._show_error("AI Generation Error", error_msg)
+                        return None
+                else:
+                    print(f"[AI GEN] Retry failed with HTTP error: {response.status_code}")
+                    self._show_error("Server Error", f"Server error: {response.status_code}")
+                    return None
+                    
+            except requests.exceptions.Timeout:
+                print("[AI GEN] Retry also timed out")
+                self._show_error("Request Timeout", "ChatGPT API request timed out twice. The server may be overloaded. Please try again.")
+                return None
+            except Exception as retry_error:
+                print(f"[AI GEN] Retry failed with exception: {retry_error}")
+                self._show_error("Request Timeout", "ChatGPT API request timed out. Please try again.")
+                return None
         except Exception as e:
             self._show_error("ChatGPT Error", f"Error calling ChatGPT API: {str(e)}")
             return None
