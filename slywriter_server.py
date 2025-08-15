@@ -314,12 +314,42 @@ Original prompt: {prompt}"""
             else:
                 print(f"[AI] Retry didn't improve length, using original ({len(generated_text)} chars)")
         
-        # Final length check - if still too short, return error
+        # Final length check - if still too short, try one more time with very aggressive prompt
         if len(generated_text) < 150:
-            return jsonify({
-                "success": False, 
-                "error": f"Generated text too short ({len(generated_text)} characters). Please try again with a more detailed request."
-            }), 400
+            print(f"[AI] Both attempts failed length check ({len(generated_text)} chars), trying aggressive prompt...")
+            
+            aggressive_prompt = f"""You must write a comprehensive, detailed essay about: {prompt}
+
+STRICT REQUIREMENTS:
+- MINIMUM 400 words required
+- Write in multiple detailed paragraphs
+- Include specific examples and explanations
+- Expand on every point thoroughly
+- Never give brief or short answers
+- This must be substantial content
+
+Topic: {prompt}
+
+Write a thorough, detailed response that fully covers this topic with examples, explanations, and comprehensive detail."""
+
+            final_response = client.chat.completions.create(
+                model='gpt-5-nano',
+                messages=[
+                    {"role": "system", "content": "You are a detailed writing assistant. ALWAYS write comprehensive, lengthy responses with substantial detail. NEVER write brief answers."},
+                    {"role": "user", "content": aggressive_prompt}
+                ],
+                max_completion_tokens=2000
+            )
+            
+            final_text = final_response.choices[0].message.content.strip()
+            if len(final_text) > len(generated_text):
+                generated_text = final_text
+                print(f"[AI] Aggressive prompt successful ({len(final_text)} chars)")
+            
+            # If still too short after 3 attempts, log but don't error to user
+            if len(generated_text) < 150:
+                print(f"[AI] WARNING: All attempts failed, using best result ({len(generated_text)} chars)")
+                # Don't return error - let it proceed with whatever we got
         
         return jsonify({
             "success": True,

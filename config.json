@@ -20,7 +20,7 @@
       "ai_generation": "backslash"
     },
     "schedule": [],
-    "dark_mode": false,
+    "dark_mode": true,
     "humanizer": {
       "grade_level": 12,
       "tone": "Neutral",

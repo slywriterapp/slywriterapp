@@ -39,11 +39,11 @@ class AITextGenerator:
             self.lesson_generated = False  # Reset lesson flag
             
             # Update overlay status
-            self._update_status("Initializing AI Generation...")
+            self._update_status("Initializing AI...")
             
             # Step 1: Capture highlighted text
             print("[AI GEN] Capturing highlighted text...")
-            self._update_status("Capturing highlighted text...")
+            self._update_status("Capturing text...")
             captured_text = clipboard_handler.capture_highlighted_text()
             
             if not captured_text:
@@ -62,7 +62,7 @@ class AITextGenerator:
                 
             # Step 3: Process through ChatGPT
             print("[AI GEN] Processing with ChatGPT...")
-            self._update_status(f"Generating AI text ({char_count} chars)...")
+            self._update_status(f"Generating ({char_count} chars)...")
             chatgpt_response = self._call_chatgpt(captured_text)
             
             if not chatgpt_response:
@@ -75,13 +75,13 @@ class AITextGenerator:
             final_text = chatgpt_response
             if humanizer_enabled:
                 print("[AI GEN] Processing with AIUndetect humanizer...")
-                self._update_status("Humanizing text with AI...")
+                self._update_status("Humanizing...")
                 humanized_text = self._call_humanizer(chatgpt_response)
                 if humanized_text:
                     final_text = humanized_text
                 else:
                     # Humanizer failed - ask user what to do
-                    self._update_status("Humanizer failed - awaiting user choice")
+                    self._update_status("Humanizer failed")
                     # Show humanizer failure dialog on main thread
                     self.app.after_idle(lambda: self._handle_humanizer_failure(chatgpt_response))
                     return
@@ -91,7 +91,7 @@ class AITextGenerator:
             
             if learning_mode:
                 print("[AI GEN] Generating educational lesson...")
-                self._update_status("Generating educational lesson...")
+                self._update_status("Creating lesson...")
                 # Generate lesson but don't switch tabs yet - let user finish typing first
                 self._generate_lesson_async(captured_text, switch_tab=False)
             
@@ -99,10 +99,10 @@ class AITextGenerator:
             review_mode = self.app.cfg.get('settings', {}).get('review_mode', False)
             
             if review_mode:
-                self._update_status("Review required - awaiting user approval")
+                self._update_status("Review required")
                 self._show_review_dialog(final_text, humanizer_enabled)
             else:
-                self._update_status("Starting typing simulation...")
+                self._update_status("Starting typing...")
                 self._start_typing(final_text)
                 
         except Exception as e:
