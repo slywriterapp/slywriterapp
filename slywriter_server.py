@@ -342,6 +342,319 @@ def ai_humanize_text():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ---------------- EDUCATIONAL CONTENT GENERATION ----------------
+
+@app.route('/ai_generate_lesson', methods=['POST'])
+def ai_generate_lesson():
+    import openai
+    try:
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    except KeyError:
+        return jsonify({"success": False, "error": "OpenAI API key not configured on server"}), 500
+
+    data = request.get_json()
+    original_question = data.get('original_question', '')
+    explanation_style = data.get('explanation_style', 'casual')
+    difficulty_level = data.get('difficulty_level', 'intermediate')
+    user_id = data.get('user_id')
+    
+    if not original_question:
+        return jsonify({"success": False, "error": "Missing original question"}), 400
+
+    try:
+        # Build educational prompt based on style and difficulty
+        prompt = _build_educational_prompt(original_question, explanation_style, difficulty_level)
+        
+        response = client.chat.completions.create(
+            model='gpt-5-nano',
+            messages=[
+                {"role": "system", "content": "You are an expert educational content creator. Generate comprehensive, engaging lessons with step-by-step explanations."},
+                {"role": "user", "content": prompt}
+            ],
+            max_completion_tokens=2000
+        )
+        
+        lesson_content = response.choices[0].message.content.strip()
+        
+        # Parse the structured response
+        lesson_data = _parse_lesson_content(lesson_content, original_question, explanation_style)
+        
+        return jsonify({
+            "success": True,
+            "lesson": lesson_data
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+def _build_educational_prompt(question, style, difficulty):
+    """Build a specialized prompt for educational content generation"""
+    
+    style_instructions = {
+        'casual': "Explain like you're talking to a friend - use simple language, everyday examples, and a conversational tone.",
+        'formal': "Use academic language with proper terminology, structured explanations, and scholarly examples.", 
+        'analogy': "Focus heavily on analogies and metaphors to explain complex concepts. Use creative comparisons.",
+        'visual': "Structure your explanation with clear bullet points, numbered steps, and visual descriptions."
+    }
+    
+    difficulty_instructions = {
+        'beginner': "Assume no prior knowledge. Define all terms and start with basics.",
+        'intermediate': "Assume some background knowledge but explain key concepts clearly.",
+        'advanced': "Use technical terminology and assume strong foundational knowledge."
+    }
+    
+    prompt_parts = [
+        f"Create a comprehensive educational lesson about: {question}",
+        "",
+        f"EXPLANATION STYLE: {style_instructions.get(style, style_instructions['casual'])}",
+        f"DIFFICULTY LEVEL: {difficulty_instructions.get(difficulty, difficulty_instructions['intermediate'])}",
+        "",
+        "Please structure your response with these sections:",
+        "",
+        "STEP-BY-STEP EXPLANATION:",
+        "Provide a detailed, step-by-step explanation of the topic.",
+        "",
+        "KEY POINTS:",
+        "List 3-5 key takeaways (one per line, starting with '-')",
+        "",
+        "REAL-WORLD EXAMPLES:",
+        "Provide 2-3 practical, real-world examples or applications",
+        "",
+        "FOLLOW-UP QUESTIONS:", 
+        "Suggest 2-3 related questions for deeper exploration",
+        "",
+        "Make the content engaging, accurate, and educational. Use the specified style and difficulty level throughout."
+    ]
+    
+    return "\n".join(prompt_parts)
+
+def _parse_lesson_content(content, original_question, style):
+    """Parse the AI-generated lesson content into structured data"""
+    import datetime
+    
+    # Basic parsing - look for section headers
+    sections = {
+        'explanation': '',
+        'key_points': [],
+        'examples': [],
+        'follow_up_questions': []
+    }
+    
+    lines = content.split('\n')
+    current_section = 'explanation'
+    current_content = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Check for section headers
+        if 'KEY POINTS:' in line.upper():
+            if current_content:
+                sections[current_section] = '\n'.join(current_content).strip()
+                current_content = []
+            current_section = 'key_points'
+        elif 'REAL-WORLD EXAMPLES:' in line.upper() or 'EXAMPLES:' in line.upper():
+            if current_content:
+                if current_section == 'key_points':
+                    sections[current_section] = [item.strip('- ') for item in current_content if item.strip()]
+                else:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                current_content = []
+            current_section = 'examples'
+        elif 'FOLLOW-UP QUESTIONS:' in line.upper():
+            if current_content:
+                if current_section == 'key_points':
+                    sections[current_section] = [item.strip('- ') for item in current_content if item.strip()]
+                elif current_section == 'examples':
+                    sections[current_section] = [item.strip() for item in current_content if item.strip()]
+                else:
+                    sections[current_section] = '\n'.join(current_content).strip()
+                current_content = []
+            current_section = 'follow_up_questions'
+        else:
+            # Add content to current section
+            if current_section == 'key_points' and line.startswith('-'):
+                current_content.append(line)
+            elif current_section in ['examples', 'follow_up_questions']:
+                current_content.append(line)
+            else:
+                current_content.append(line)
+    
+    # Handle the last section
+    if current_content:
+        if current_section == 'key_points':
+            sections[current_section] = [item.strip('- ') for item in current_content if item.strip()]
+        elif current_section in ['examples', 'follow_up_questions']:
+            sections[current_section] = [item.strip() for item in current_content if item.strip()]
+        else:
+            sections[current_section] = '\n'.join(current_content).strip()
+    
+    # Build lesson data structure
+    lesson_data = {
+        'original_question': original_question,
+        'explanation_style': style,
+        'explanation': sections['explanation'],
+        'key_points': sections['key_points'],
+        'examples': sections['examples'],
+        'follow_up_questions': sections['follow_up_questions'],
+        'timestamp': datetime.datetime.now().isoformat(),
+        'marked_for_review': False
+    }
+    
+    return lesson_data
+
+@app.route('/ai_generate_quiz', methods=['POST'])
+def ai_generate_quiz():
+    import openai
+    try:
+        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    except KeyError:
+        return jsonify({"success": False, "error": "OpenAI API key not configured on server"}), 500
+
+    data = request.get_json()
+    lesson_content = data.get('lesson_content', '')
+    original_question = data.get('original_question', '')
+    quiz_type = data.get('quiz_type', 'multiple_choice')  # multiple_choice, true_false, short_answer
+    num_questions = data.get('num_questions', 3)
+    user_id = data.get('user_id')
+    
+    if not lesson_content:
+        return jsonify({"success": False, "error": "Missing lesson content"}), 400
+
+    try:
+        prompt = _build_quiz_prompt(lesson_content, original_question, quiz_type, num_questions)
+        
+        response = client.chat.completions.create(
+            model='gpt-5-nano',
+            messages=[
+                {"role": "system", "content": "You are an expert quiz creator. Generate well-crafted questions that test understanding of the provided content."},
+                {"role": "user", "content": prompt}
+            ],
+            max_completion_tokens=1500
+        )
+        
+        quiz_content = response.choices[0].message.content.strip()
+        quiz_data = _parse_quiz_content(quiz_content, quiz_type, original_question)
+        
+        return jsonify({
+            "success": True,
+            "quiz": quiz_data
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+def _build_quiz_prompt(lesson_content, original_question, quiz_type, num_questions):
+    """Build prompt for quiz generation"""
+    
+    type_instructions = {
+        'multiple_choice': f"Create {num_questions} multiple choice questions with 4 options each (A, B, C, D). Mark the correct answer.",
+        'true_false': f"Create {num_questions} true/false questions about key concepts.",
+        'short_answer': f"Create {num_questions} short answer questions that require 1-2 sentence responses."
+    }
+    
+    prompt_parts = [
+        f"Based on this lesson about '{original_question}', create a quiz to test comprehension:",
+        "",
+        "LESSON CONTENT:",
+        lesson_content[:1000],  # Limit content length for prompt
+        "",
+        f"QUIZ REQUIREMENTS:",
+        type_instructions.get(quiz_type, type_instructions['multiple_choice']),
+        "",
+        "Format your response exactly like this:",
+        ""
+    ]
+    
+    if quiz_type == 'multiple_choice':
+        prompt_parts.extend([
+            "QUESTION 1: [Question text]",
+            "A) [Option A]",
+            "B) [Option B]", 
+            "C) [Option C]",
+            "D) [Option D]",
+            "CORRECT: [A/B/C/D]",
+            "",
+            "QUESTION 2: [Question text]",
+            "[...continue pattern...]"
+        ])
+    elif quiz_type == 'true_false':
+        prompt_parts.extend([
+            "QUESTION 1: [Statement]",
+            "CORRECT: [TRUE/FALSE]",
+            "",
+            "QUESTION 2: [Statement]", 
+            "[...continue pattern...]"
+        ])
+    else:  # short_answer
+        prompt_parts.extend([
+            "QUESTION 1: [Question text]",
+            "ANSWER: [Expected answer]",
+            "",
+            "QUESTION 2: [Question text]",
+            "[...continue pattern...]"
+        ])
+    
+    return "\n".join(prompt_parts)
+
+def _parse_quiz_content(content, quiz_type, original_question):
+    """Parse AI-generated quiz content into structured data"""
+    import datetime
+    
+    questions = []
+    lines = content.split('\n')
+    current_question = None
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        if line.startswith('QUESTION'):
+            # Save previous question if exists
+            if current_question:
+                questions.append(current_question)
+            
+            # Start new question
+            question_text = line.split(':', 1)[1].strip() if ':' in line else line
+            current_question = {
+                'question': question_text,
+                'type': quiz_type
+            }
+            
+            if quiz_type == 'multiple_choice':
+                current_question['options'] = []
+                
+        elif quiz_type == 'multiple_choice' and line.startswith(('A)', 'B)', 'C)', 'D)')):
+            if current_question:
+                option_text = line[2:].strip()
+                current_question['options'].append(option_text)
+                
+        elif line.startswith('CORRECT:'):
+            if current_question:
+                correct_answer = line.split(':', 1)[1].strip()
+                current_question['correct_answer'] = correct_answer
+                
+        elif line.startswith('ANSWER:'):
+            if current_question:
+                answer = line.split(':', 1)[1].strip()
+                current_question['expected_answer'] = answer
+    
+    # Add the last question
+    if current_question:
+        questions.append(current_question)
+    
+    quiz_data = {
+        'original_question': original_question,
+        'quiz_type': quiz_type,
+        'questions': questions,
+        'timestamp': datetime.datetime.now().isoformat()
+    }
+    
+    return quiz_data
+
 # ---------------- MAIN ----------------
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ class HumanizerTab(tk.Frame):
         # Boolean settings for toggles
         self.humanizer_enabled = tk.BooleanVar(value=self.app.cfg["settings"].get("humanizer_enabled", True))
         self.review_mode = tk.BooleanVar(value=self.app.cfg["settings"].get("review_mode", False))
+        self.learning_mode = tk.BooleanVar(value=self.app.cfg["settings"].get("learning_mode", False))
 
         self.widgets_to_style = []
         self.dynamic_labels = []
@@ -74,44 +75,61 @@ class HumanizerTab(tk.Frame):
         """Create toggle switches for main AI features"""
         toggle_frame = tk.Frame(self)
         toggle_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-        toggle_frame.columnconfigure((0, 1), weight=1)
+        
+        # First row with 3 toggles
+        first_row = tk.Frame(toggle_frame)
+        first_row.pack(fill='x', pady=(0, 5))
+        first_row.columnconfigure((0, 1, 2), weight=1)
         
         # Humanizer On/Off Toggle
-        humanizer_frame = tk.Frame(toggle_frame)
-        humanizer_frame.grid(row=0, column=0, sticky="w", padx=(0, 20))
+        humanizer_frame = tk.Frame(first_row)
+        humanizer_frame.grid(row=0, column=0, sticky="w", padx=(0, 10))
         
-        tk.Label(humanizer_frame, text="AI Humanizer:", font=("Segoe UI", 11, "bold")).pack(side='left')
+        tk.Label(humanizer_frame, text="AI Humanizer:", font=("Segoe UI", 10, "bold")).pack(side='left')
         humanizer_check = tk.Checkbutton(
             humanizer_frame,
-            text="Enabled",
+            text="On",
             variable=self.humanizer_enabled,
             command=lambda: self.update_bool_setting("humanizer_enabled", self.humanizer_enabled.get())
         )
-        humanizer_check.pack(side='left', padx=(10, 0))
+        humanizer_check.pack(side='left', padx=(5, 0))
         
         # Review Mode Toggle  
-        review_frame = tk.Frame(toggle_frame)
-        review_frame.grid(row=0, column=1, sticky="w")
+        review_frame = tk.Frame(first_row)
+        review_frame.grid(row=0, column=1, sticky="w", padx=(0, 10))
         
-        tk.Label(review_frame, text="Review Mode:", font=("Segoe UI", 11, "bold")).pack(side='left')
+        tk.Label(review_frame, text="Review Mode:", font=("Segoe UI", 10, "bold")).pack(side='left')
         review_check = tk.Checkbutton(
             review_frame,
-            text="Enabled",
+            text="On",
             variable=self.review_mode,
             command=lambda: self.update_bool_setting("review_mode", self.review_mode.get())
         )
-        review_check.pack(side='left', padx=(10, 0))
+        review_check.pack(side='left', padx=(5, 0))
+        
+        # Learning Mode Toggle
+        learning_frame = tk.Frame(first_row)
+        learning_frame.grid(row=0, column=2, sticky="w")
+        
+        tk.Label(learning_frame, text="Learning Mode:", font=("Segoe UI", 10, "bold")).pack(side='left')
+        learning_check = tk.Checkbutton(
+            learning_frame,
+            text="On",
+            variable=self.learning_mode,
+            command=lambda: self.update_bool_setting("learning_mode", self.learning_mode.get())
+        )
+        learning_check.pack(side='left', padx=(5, 0))
         
         # Warning label
         warning_label = tk.Label(toggle_frame, 
                                text="⚠️ Words deducted even if review declined (API costs apply)",
                                font=("Segoe UI", 9, "italic"), fg="orange")
-        warning_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        warning_label.pack(pady=(0, 0))
         
         # Add to styling
         self.widgets_to_style.extend([
-            toggle_frame, humanizer_frame, review_frame, 
-            humanizer_check, review_check, warning_label
+            toggle_frame, first_row, humanizer_frame, review_frame, learning_frame,
+            humanizer_check, review_check, learning_check, warning_label
         ])
 
     def label(self, text, row, style="normal"):

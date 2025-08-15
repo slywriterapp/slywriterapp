@@ -19,6 +19,7 @@ class AITextGenerator:
         self.app = app
         self.is_processing = False
         self.review_window = None
+        self.lesson_generated = False  # Track if lesson was generated this session
         self.generated_text = None
         
     def trigger_generation(self):
@@ -35,12 +36,18 @@ class AITextGenerator:
         """Complete workflow: clipboard -> ChatGPT -> Humanizer -> typing"""
         try:
             self.is_processing = True
+            self.lesson_generated = False  # Reset lesson flag
+            
+            # Update overlay status
+            self._update_status("Initializing AI Generation...")
             
             # Step 1: Capture highlighted text
             print("[AI GEN] Capturing highlighted text...")
+            self._update_status("Capturing highlighted text...")
             captured_text = clipboard_handler.capture_highlighted_text()
             
             if not captured_text:
+                self._update_status("Ready")
                 self._show_error("No text selected", 
                                "Please highlight some text and try again.")
                 return
@@ -48,15 +55,18 @@ class AITextGenerator:
             # Step 2: Validate text length
             char_count = len(captured_text)
             if char_count > 10000:
+                self._update_status("Ready")
                 self._show_error("Text too long", 
                                f"Selected text is {char_count} characters. Maximum is 10,000 characters.")
                 return
                 
             # Step 3: Process through ChatGPT
             print("[AI GEN] Processing with ChatGPT...")
+            self._update_status(f"Generating AI text ({char_count} chars)...")
             chatgpt_response = self._call_chatgpt(captured_text)
             
             if not chatgpt_response:
+                self._update_status("Ready")
                 return  # Error already shown
             
             # Step 4: Check if humanizer is enabled
@@ -65,24 +75,38 @@ class AITextGenerator:
             final_text = chatgpt_response
             if humanizer_enabled:
                 print("[AI GEN] Processing with AIUndetect humanizer...")
+                self._update_status("Humanizing text with AI...")
                 humanized_text = self._call_humanizer(chatgpt_response)
                 if humanized_text:
                     final_text = humanized_text
                 else:
                     # Humanizer failed - ask user what to do
+                    self._update_status("Humanizer failed - awaiting user choice")
                     self._handle_humanizer_failure(chatgpt_response)
                     return
             
-            # Step 5: Check review mode
+            # Step 5: Check if learning mode is enabled and generate lesson
+            learning_mode = self.app.cfg.get('settings', {}).get('learning_mode', False)
+            
+            if learning_mode:
+                print("[AI GEN] Generating educational lesson...")
+                self._update_status("Generating educational lesson...")
+                # Generate lesson but don't switch tabs yet - let user finish typing first
+                self._generate_lesson_async(captured_text, switch_tab=False)
+            
+            # Step 6: Check review mode
             review_mode = self.app.cfg.get('settings', {}).get('review_mode', False)
             
             if review_mode:
+                self._update_status("Review required - awaiting user approval")
                 self._show_review_dialog(final_text, humanizer_enabled)
             else:
+                self._update_status("Starting typing simulation...")
                 self._start_typing(final_text)
                 
         except Exception as e:
             print(f"[AI GEN] Unexpected error: {e}")
+            self._update_status("Ready")
             self._show_error("Unexpected Error", f"An error occurred: {str(e)}")
         finally:
             self.is_processing = False
@@ -274,10 +298,12 @@ class AITextGenerator:
         """Handle case where humanizer fails - show warning and let user choose"""
         def on_proceed():
             dialog.destroy()
+            self._update_status("Starting typing simulation...")
             self._start_typing(original_text)
         
         def on_cancel():
             dialog.destroy()
+            self._update_status("Ready")
             # Still charge for the words since API was used
             self._update_usage_tracking(original_text)
             messagebox.showinfo("Words Deducted", 
@@ -319,11 +345,13 @@ class AITextGenerator:
         def on_accept():
             self.review_window.destroy()
             self.review_window = None
+            self._update_status("Starting typing simulation...")
             self._start_typing(text)
         
         def on_decline():
             self.review_window.destroy()
             self.review_window = None
+            self._update_status("Ready")
             # Still charge for the words
             messagebox.showinfo("Words Deducted", 
                               "Your word count has been updated since we used AI services. "
@@ -400,13 +428,19 @@ class AITextGenerator:
             self.app.typing_tab.text_input.delete('1.0', 'end')
             self.app.typing_tab.text_input.insert('1.0', text)
             
-            # Start typing
+            # Start typing (this will handle its own overlay updates)
             self.app.typing_tab.start_typing()
             
             print(f"[AI GEN] Started typing {len(text)} characters")
             
+            # If lesson was generated, switch to Learn tab after a delay
+            if self.lesson_generated:
+                # Wait 3 seconds then switch to Learn tab
+                self.app.after(3000, self._switch_to_learn_tab)
+            
         except Exception as e:
             print(f"[AI GEN] Error starting typing: {e}")
+            self._update_status("Ready")
             self._show_error("Typing Error", f"Error starting typing simulation: {str(e)}")
     
     def _update_usage_tracking(self, text):
@@ -436,6 +470,98 @@ class AITextGenerator:
                     
         except Exception as e:
             print(f"[AI GEN] Error updating usage: {e}")
+    
+    def _update_status(self, status_text):
+        """Update overlay status (thread-safe)"""
+        try:
+            # Use tkinter's after method for thread-safe UI updates
+            if hasattr(self.app, 'overlay_tab') and self.app.overlay_tab:
+                self.app.after_idle(lambda: self.app.overlay_tab.update_overlay_text(status_text))
+        except Exception as e:
+            print(f"[AI GEN] Error updating status: {e}")
+    
+    def _generate_lesson_async(self, original_question, switch_tab=True):
+        """Generate educational lesson in background thread"""
+        def lesson_worker():
+            try:
+                # Get learning preferences from config
+                learning_prefs = self.app.cfg.get('settings', {}).get('learning_preferences', {})
+                explanation_style = learning_prefs.get('explanation_style', 'casual')
+                difficulty_level = learning_prefs.get('difficulty_level', 'intermediate')
+                
+                # Make API call to generate lesson
+                lesson_data = self._call_lesson_api(original_question, explanation_style, difficulty_level)
+                
+                if lesson_data:
+                    # Add lesson to Learn tab (thread-safe)
+                    self.app.after_idle(lambda: self._add_lesson_to_tab(lesson_data))
+                    # Mark that lesson was generated for later tab switch
+                    self.lesson_generated = True
+                    # Switch to Learn tab if requested (thread-safe)  
+                    if switch_tab:
+                        self.app.after_idle(lambda: self._switch_to_learn_tab())
+                    print("[AI GEN] Lesson generated and added to Learn tab")
+                else:
+                    print("[AI GEN] Failed to generate lesson")
+                    
+            except Exception as e:
+                print(f"[AI GEN] Error generating lesson: {e}")
+        
+        # Start background thread for lesson generation
+        lesson_thread = threading.Thread(target=lesson_worker, daemon=True)
+        lesson_thread.start()
+    
+    def _call_lesson_api(self, original_question, explanation_style, difficulty_level):
+        """Call server endpoint to generate educational lesson"""
+        try:
+            data = {
+                'original_question': original_question,
+                'explanation_style': explanation_style,
+                'difficulty_level': difficulty_level,
+                'user_id': getattr(self.app, 'user_id', None)
+            }
+            
+            response = requests.post(
+                'https://slywriterapp.onrender.com/ai_generate_lesson',
+                json=data,
+                timeout=45
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    return result.get('lesson')
+                else:
+                    print(f"[AI GEN] Lesson API error: {result.get('error', 'Unknown error')}")
+                    return None
+            else:
+                print(f"[AI GEN] Lesson API HTTP error: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            print(f"[AI GEN] Exception calling lesson API: {e}")
+            return None
+    
+    def _add_lesson_to_tab(self, lesson_data):
+        """Add lesson to Learn tab (must be called from main thread)"""
+        try:
+            if hasattr(self.app, 'learn_tab') and self.app.learn_tab:
+                self.app.learn_tab.add_new_lesson(lesson_data)
+        except Exception as e:
+            print(f"[AI GEN] Error adding lesson to tab: {e}")
+    
+    def _switch_to_learn_tab(self):
+        """Switch to Learn tab (must be called from main thread)"""
+        try:
+            if hasattr(self.app, 'notebook') and hasattr(self.app, 'tabs'):
+                # Find the Learn tab index
+                for i in range(self.app.notebook.index('end')):
+                    tab_text = self.app.notebook.tab(i, 'text')
+                    if 'Learn' in tab_text:
+                        self.app.notebook.select(i)
+                        break
+        except Exception as e:
+            print(f"[AI GEN] Error switching to Learn tab: {e}")
     
     def _show_error(self, title, message):
         """Show error dialog to user"""

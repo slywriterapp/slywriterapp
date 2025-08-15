@@ -31,6 +31,8 @@ def apply_app_theme(app):
     app.stats_tab.set_theme(dark)
     app.humanizer_tab.set_theme(dark)
     app.account_tab.set_theme(dark)
+    app.overlay_tab.set_theme(dark)
+    app.learn_tab.set_theme(dark)
 
     # Force idle update to refresh widgets fully
     app.update_idletasks()

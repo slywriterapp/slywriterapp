@@ -13,6 +13,7 @@ from tab_typing import TypingTab
 from tab_hotkeys import HotkeysTab
 from tab_stats import StatsTab
 from tab_overlay import OverlayTab
+from tab_learn import LearnTab
 from auth import get_saved_user
 from utils import Tooltip
 import keyboard
@@ -227,7 +228,7 @@ class TypingApp(tb.Window):
         apply_modern_notebook_style(self.notebook, is_dark)
         
         self.tabs = {}
-        for name in ['Account', 'Typing', 'Hotkeys', 'Diagnostics', 'Humanizer', 'Overlay']:
+        for name in ['Account', 'Typing', 'Hotkeys', 'Diagnostics', 'Humanizer', 'Overlay', 'Learn']:
             f = tb.Frame(self.notebook)
             # Add tab with icon
             icon = TAB_ICONS.get(name, "")
@@ -241,6 +242,7 @@ class TypingApp(tb.Window):
         self.stats_tab     = StatsTab(self.tabs['Diagnostics'], self); self.stats_tab.pack(fill='both', expand=True)
         self.humanizer_tab = HumanizerTab(self.tabs['Humanizer'], self);self.humanizer_tab.pack(fill='both', expand=True)
         self.overlay_tab   = OverlayTab(self.tabs['Overlay'], self); self.overlay_tab.pack(fill='both', expand=True)
+        self.learn_tab     = LearnTab(self.tabs['Learn'], self); self.learn_tab.pack(fill='both', expand=True)
         engine.set_stats_tab_reference(self.stats_tab)
         engine.set_overlay_tab_reference(self.overlay_tab)
 
