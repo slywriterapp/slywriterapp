@@ -123,7 +123,8 @@ class TypingApp(tb.Window):
             self.account_tab.update_for_login(saved_user)
             self.typing_tab.update_from_config()  # Ensure TypingTab picks up premium
             
-            # Force immediate UI update for words left bar
+            # Load usage data from server and update display
+            self.account_tab.usage_mgr.load_usage()
             self.account_tab.usage_mgr.update_usage_display()
             self.update_idletasks()  # Force UI refresh
 

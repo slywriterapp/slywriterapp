@@ -10,7 +10,24 @@ class HumanizerTab(tk.Frame):
         self.build_ui()
 
     def build_ui(self):
-        self.columnconfigure(1, weight=1)
+        # Create main scrollable frame
+        self.canvas = tk.Canvas(self, highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = tk.Frame(self.canvas)
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        
+        # Make scrollable_frame the main container and configure its columns
+        self.scrollable_frame.columnconfigure(1, weight=1)
         saved = self.app.cfg["settings"].get("humanizer", {})
 
         self.options = {
@@ -28,6 +45,9 @@ class HumanizerTab(tk.Frame):
         self.humanizer_enabled = tk.BooleanVar(value=self.app.cfg["settings"].get("humanizer_enabled", True))
         self.review_mode = tk.BooleanVar(value=self.app.cfg["settings"].get("review_mode", False))
         self.learning_mode = tk.BooleanVar(value=self.app.cfg["settings"].get("learning_mode", False))
+        
+        # Response type switch
+        self.response_type = tk.StringVar(value=saved.get("response_type", "short_response"))
 
         self.widgets_to_style = []
         self.dynamic_labels = []
@@ -44,37 +64,138 @@ class HumanizerTab(tk.Frame):
 
         # AI Generation Settings
         self.label("── AI Text Generation Settings ──", row=5, style="header")
-        self.slider("Response Length", "response_length", 1, 5, row=6, left="Very Short", right="Very Long")
-        self.length_info_label = tk.Label(self, text="", font=("Segoe UI", 9), fg="gray")
-        self.length_info_label.grid(row=6, column=1, sticky="s", padx=10, pady=(0, 5))
-        self.widgets_to_style.append(self.length_info_label)
         
-        # Academic Format Settings
-        self.dropdown("Academic Format", "academic_format", ["None", "MLA", "APA", "Chicago", "IEEE"], row=7)
-        self.slider("Required Pages", "required_pages", 1, 20, row=8, left="1 page", right="20 pages")
-        self.page_info_label = tk.Label(self, text="", font=("Segoe UI", 9), fg="gray")
-        self.page_info_label.grid(row=8, column=1, sticky="s", padx=10, pady=(0, 5))
-        self.widgets_to_style.append(self.page_info_label)
+        # Response Type Switch
+        self.response_type_section(row=6)
+        
+        # Settings Info Display Area
+        self.info_display_section(row=7)
+        
+        # Response Length (for short responses)
+        self.slider("Response Length", "response_length", 1, 5, row=8, left="Very Short", right="Very Long")
+        
+        # Academic Format Settings (for essays)
+        self.dropdown("Academic Format", "academic_format", ["None", "MLA", "APA", "Chicago", "IEEE"], row=9)
+        self.slider("Required Pages", "required_pages", 1, 20, row=10, left="1 page", right="20 pages")
 
         # Original Humanizer Settings
-        self.label("── Traditional Humanizer Settings ──", row=9, style="header")
-        self.slider("Grade Level", "grade_level", 3, 16, row=10, left="3rd", right="16th")
-        self.dropdown("Tone", "tone", ["Neutral", "Formal", "Casual", "Witty"], row=11)
-        self.slider("Depth of Answer", "depth", 1, 5, row=12, left="Shallow", right="Deep")
-        self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=13)
-        self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=14)
+        self.label("── Traditional Humanizer Settings ──", row=11, style="header")
+        self.slider("Grade Level", "grade_level", 3, 16, row=12, left="3rd", right="16th")
+        self.dropdown("Tone", "tone", ["Neutral", "Formal", "Casual", "Witty"], row=13)
+        self.slider("Depth of Answer", "depth", 1, 5, row=14, left="Shallow", right="Deep")
+        self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=15)
+        self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=16)
 
-        self.humanize_btn = tk.Button(self, text="Run Humanizer", command=self.run_humanizer)
-        self.humanize_btn.grid(row=15, column=0, columnspan=2, pady=15)
+        self.humanize_btn = tk.Button(self.scrollable_frame, text="Run Humanizer", command=self.run_humanizer)
+        self.humanize_btn.grid(row=17, column=0, columnspan=2, pady=15)
         self.widgets_to_style.append(self.humanize_btn)
         
         # Update dynamic labels on startup
-        self._update_length_info()
-        self._update_page_info()
+        self._update_info_display()
+        self._toggle_sections_visibility()
+
+    def response_type_section(self, row):
+        """Create response type selection (Short Response vs Essay)"""
+        type_frame = tk.Frame(self.scrollable_frame)
+        type_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        type_frame.columnconfigure((0, 1), weight=1)
+        
+        tk.Label(type_frame, text="Response Type:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w")
+        
+        # Radio buttons for response type
+        radio_frame = tk.Frame(type_frame)
+        radio_frame.grid(row=0, column=1, sticky="w")
+        
+        short_radio = tk.Radiobutton(
+            radio_frame, text="Short Response", 
+            variable=self.response_type, value="short_response",
+            command=self._on_response_type_change
+        )
+        short_radio.pack(side='left', padx=(0, 20))
+        
+        essay_radio = tk.Radiobutton(
+            radio_frame, text="Essay/Document", 
+            variable=self.response_type, value="essay",
+            command=self._on_response_type_change
+        )
+        essay_radio.pack(side='left')
+        
+        self.widgets_to_style.extend([type_frame, radio_frame, short_radio, essay_radio])
+
+    def info_display_section(self, row):
+        """Create a dedicated area for displaying length/page information"""
+        info_frame = tk.LabelFrame(self.scrollable_frame, text="Current Settings Preview", font=("Segoe UI", 9, "bold"))
+        info_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        info_frame.columnconfigure(0, weight=1)
+        
+        self.info_text = tk.Text(info_frame, height=3, wrap="word", state="disabled", 
+                                font=("Segoe UI", 9), relief="flat")
+        self.info_text.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        
+        self.widgets_to_style.extend([info_frame, self.info_text])
+
+    def _on_response_type_change(self):
+        """Handle response type change"""
+        self.update_setting("response_type", self.response_type.get())
+        self._toggle_sections_visibility()
+        self._update_info_display()
+
+    def _toggle_sections_visibility(self):
+        """Show/hide sections based on response type"""
+        is_essay = self.response_type.get() == "essay"
+        
+        # Show/hide response length slider
+        if hasattr(self, 'response_length_scale'):
+            self.response_length_scale.grid_remove() if is_essay else self.response_length_scale.grid()
+        
+        # Show/hide academic format and pages
+        if hasattr(self, 'academic_format_combo'):
+            self.academic_format_combo.grid_remove() if not is_essay else self.academic_format_combo.grid()
+        if hasattr(self, 'required_pages_scale'):
+            self.required_pages_scale.grid_remove() if not is_essay else self.required_pages_scale.grid()
+
+    def _update_info_display(self):
+        """Update the central info display with current settings"""
+        if not hasattr(self, 'info_text'):
+            return
+            
+        self.info_text.config(state="normal")
+        self.info_text.delete("1.0", "end")
+        
+        if self.response_type.get() == "short_response":
+            length = self.options["response_length"].get()
+            length_info = {
+                1: "Very Short: ~1-2 sentences (~15-30 words)",
+                2: "Short: ~2-4 sentences (~30-80 words)", 
+                3: "Medium: ~4-8 sentences (~80-160 words)",
+                4: "Long: ~8-15 sentences (~160-300 words)",
+                5: "Very Long: ~15+ sentences (~300+ words)"
+            }
+            info = length_info.get(length, "Medium length")
+            self.info_text.insert("1.0", f"📝 {info}\n\n💡 Perfect for quick responses and answers")
+        else:  # essay
+            pages = self.options["required_pages"].get()
+            format_type = self.options["academic_format"].get()
+            
+            format_estimates = {
+                "MLA": {"words_per_page": 275}, "APA": {"words_per_page": 260},
+                "Chicago": {"words_per_page": 250}, "IEEE": {"words_per_page": 280},
+                "None": {"words_per_page": 250}
+            }
+            
+            est = format_estimates.get(format_type, {"words_per_page": 250})
+            total_words = est["words_per_page"] * pages
+            
+            format_text = f" ({format_type} format)" if format_type != "None" else ""
+            page_text = "page" if pages == 1 else "pages"
+            
+            self.info_text.insert("1.0", f"📄 {pages} {page_text}: ~{total_words} words{format_text}\n\n🎓 Perfect for essays, reports, and documents")
+        
+        self.info_text.config(state="disabled")
 
     def toggle_section(self, row):
         """Create toggle switches for main AI features"""
-        toggle_frame = tk.Frame(self)
+        toggle_frame = tk.Frame(self.scrollable_frame)
         toggle_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
         
         # First row with 3 toggles
@@ -135,25 +256,25 @@ class HumanizerTab(tk.Frame):
 
     def label(self, text, row, style="normal"):
         if style == "header":
-            lbl = tk.Label(self, text=text, anchor="center", font=("Segoe UI", 11, "bold"))
+            lbl = tk.Label(self.scrollable_frame, text=text, anchor="center", font=("Segoe UI", 11, "bold"))
             lbl.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
         else:
-            lbl = tk.Label(self, text=text, anchor="w")
+            lbl = tk.Label(self.scrollable_frame, text=text, anchor="w")
             lbl.grid(row=row, column=0, columnspan=2, sticky="w", padx=10)
         self.widgets_to_style.append(lbl)
 
     def textbox(self, row, state="normal"):
-        box = tk.Text(self, height=6, wrap="word", state=state)
+        box = tk.Text(self.scrollable_frame, height=6, wrap="word", state=state)
         box.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10)
         self.widgets_to_style.append(box)
         return box
 
     def slider(self, label, key, frm, to, row, left=None, right=None):
-        lbl = tk.Label(self, text=label)
+        lbl = tk.Label(self.scrollable_frame, text=label)
         lbl.grid(row=row, column=0, sticky="w", padx=10)
         self.widgets_to_style.append(lbl)
 
-        frame = tk.Frame(self)
+        frame = tk.Frame(self.scrollable_frame)
         frame.grid(row=row, column=1, sticky="ew", padx=10)
         frame.columnconfigure(0, weight=1)
 
@@ -187,11 +308,8 @@ class HumanizerTab(tk.Frame):
             center_label.config(text=str(val))
             self.update_setting(key, val)
             
-            # Update dynamic info labels
-            if key == "response_length":
-                self._update_length_info()
-            elif key == "required_pages":
-                self._update_page_info()
+            # Update central info display
+            self._update_info_display()
 
         scale.config(command=update)
 
@@ -202,15 +320,14 @@ class HumanizerTab(tk.Frame):
         setattr(self, f"{key}_scale", scale)
 
     def dropdown(self, label, key, choices, row):
-        lbl = tk.Label(self, text=label)
+        lbl = tk.Label(self.scrollable_frame, text=label)
         lbl.grid(row=row, column=0, sticky="w", padx=10)
-        combo = ttk.Combobox(self, textvariable=self.options[key], values=choices, state="readonly")
+        combo = ttk.Combobox(self.scrollable_frame, textvariable=self.options[key], values=choices, state="readonly")
         combo.grid(row=row, column=1, sticky="ew", padx=10, pady=5)
         def dropdown_update(e, k=key):
             self.update_setting(k, self.options[k].get())
-            # Update page info when academic format changes
-            if k == "academic_format":
-                self._update_page_info()
+            # Update central info display
+            self._update_info_display()
                 
         combo.bind("<<ComboboxSelected>>", dropdown_update)
         self.widgets_to_style.append(lbl)
@@ -225,49 +342,6 @@ class HumanizerTab(tk.Frame):
         self.app.cfg["settings"][key] = value
         save_config(self.app.cfg)
     
-    def _update_length_info(self):
-        """Update the response length information label"""
-        length = self.options["response_length"].get()
-        
-        # Estimate sentences and words
-        length_info = {
-            1: "~1-2 sentences (~15-30 words)",
-            2: "~2-4 sentences (~30-80 words)", 
-            3: "~4-8 sentences (~80-160 words)",
-            4: "~8-15 sentences (~160-300 words)",
-            5: "~15+ sentences (~300+ words)"
-        }
-        
-        info_text = length_info.get(length, "Medium length")
-        if hasattr(self, 'length_info_label'):
-            self.length_info_label.config(text=info_text)
-    
-    def _update_page_info(self):
-        """Update the page requirement information based on academic format"""
-        pages = self.options["required_pages"].get()
-        format_type = self.options["academic_format"].get()
-        
-        # Academic format word/character estimates per page
-        format_estimates = {
-            "MLA": {"words_per_page": 275, "chars_per_page": 1800},
-            "APA": {"words_per_page": 260, "chars_per_page": 1700},
-            "Chicago": {"words_per_page": 250, "chars_per_page": 1650},
-            "IEEE": {"words_per_page": 280, "chars_per_page": 1850},
-            "None": {"words_per_page": 250, "chars_per_page": 1650}
-        }
-        
-        if format_type in format_estimates:
-            est = format_estimates[format_type]
-            total_words = est["words_per_page"] * pages
-            total_chars = est["chars_per_page"] * pages
-            
-            if pages == 1:
-                info_text = f"~{total_words} words (~{total_chars} chars)"
-            else:
-                info_text = f"~{total_words} words (~{total_chars} chars) for {pages} pages"
-                
-            if hasattr(self, 'page_info_label'):
-                self.page_info_label.config(text=info_text)
 
     def run_humanizer(self):
         raw_text = self.input_box.get("1.0", "end-1c").strip()
@@ -295,6 +369,10 @@ class HumanizerTab(tk.Frame):
         trough_color_light = "#cccccc"  # lighter gray for light mode to increase visibility
 
         self.configure(bg=bg)
+        if hasattr(self, 'canvas'):
+            self.canvas.configure(bg=bg)
+        if hasattr(self, 'scrollable_frame'):
+            self.scrollable_frame.configure(bg=bg)
         for widget in self.widgets_to_style:
             try:
                 widget.configure(bg=bg, fg=fg)

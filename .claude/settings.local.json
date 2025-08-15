@@ -6,6 +6,7 @@
       "Bash(timeout 30 python gui_main.py)",
       "Bash(timeout:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

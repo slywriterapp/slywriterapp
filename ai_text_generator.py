@@ -210,19 +210,37 @@ class AITextGenerator:
     def _build_chatgpt_prompt(self, input_text, settings):
         """Build detailed prompt based on user's humanizer settings"""
         
-        # Get response length setting (will be added in Stage 3)
-        response_length = settings.get('response_length', 3)  # Default to medium
+        # Check response type to determine length approach
+        response_type = settings.get('response_type', 'short_response')
         
-        # Map response length to descriptive terms - ensure all lengths are substantial
-        length_mapping = {
-            1: "concise but detailed (3-5 sentences, minimum 150 words)",
-            2: "moderate length (5-8 sentences, minimum 200 words)", 
-            3: "comprehensive (8-12 sentences, minimum 300 words)",
-            4: "extensive (12-20 sentences, minimum 500 words)",
-            5: "very detailed and thorough (20+ sentences, minimum 700 words)"
-        }
-        
-        length_instruction = length_mapping.get(response_length, "medium length")
+        if response_type == 'essay':
+            # Use essay settings
+            pages = settings.get('required_pages', 1)
+            academic_format = settings.get('academic_format', 'None')
+            
+            # Calculate word targets based on academic format
+            format_estimates = {
+                "MLA": 275, "APA": 260, "Chicago": 250, "IEEE": 280, "None": 250
+            }
+            words_per_page = format_estimates.get(academic_format, 250)
+            target_words = words_per_page * pages
+            
+            format_text = f" in {academic_format} format" if academic_format != "None" else ""
+            length_instruction = f"approximately {pages} page{'s' if pages > 1 else ''} (~{target_words} words){format_text}"
+        else:
+            # Use response length settings for short responses
+            response_length = settings.get('response_length', 3)
+            
+            # Updated mapping to match the humanizer tab preview
+            length_mapping = {
+                1: "very short (1-2 sentences, 15-30 words)",
+                2: "short (2-4 sentences, 30-80 words)", 
+                3: "medium (4-8 sentences, 80-160 words)",
+                4: "long (8-15 sentences, 160-300 words)",
+                5: "very long (15+ sentences, 300+ words)"
+            }
+            
+            length_instruction = length_mapping.get(response_length, "medium length")
         
         # Base prompt construction
         prompt_parts = []
@@ -267,16 +285,17 @@ class AITextGenerator:
         else:
             prompt_parts.append("- May include examples where helpful")
         
-        # Academic format (will be enhanced in Stage 3)
-        academic_format = settings.get('academic_format', None)
-        if academic_format:
-            prompt_parts.append(f"- Follows {academic_format} formatting guidelines")
-        
-        # Ensure adequate length based on setting
-        min_words = {1: 150, 2: 200, 3: 300, 4: 500, 5: 700}.get(response_length, 300)
-        prompt_parts.append(f"- CRITICAL: Ensure the response is at least {min_words} words long with substantial detail and depth")
-        prompt_parts.append("- Never provide brief, short, or summary responses")
-        prompt_parts.append("- Always expand with examples, explanations, and thorough coverage")
+        # Final length enforcement based on response type
+        if response_type == 'essay':
+            prompt_parts.append(f"- Follows {academic_format} formatting guidelines" if academic_format != "None" else "- Uses standard academic formatting")
+            prompt_parts.append(f"- CRITICAL: Write exactly {target_words} words (±50 words) to meet the {pages}-page requirement")
+            prompt_parts.append("- Structure as a formal document with proper introduction, body, and conclusion")
+        else:
+            # Short response enforcement with realistic word counts
+            min_words = {1: 15, 2: 30, 3: 80, 4: 160, 5: 300}.get(response_length, 80)
+            max_words = {1: 30, 2: 80, 3: 160, 4: 300, 5: 500}.get(response_length, 160)
+            prompt_parts.append(f"- CRITICAL: Write between {min_words}-{max_words} words ONLY")
+            prompt_parts.append("- Do NOT exceed the maximum word count - stay concise within the range")
         
         return "\n".join(prompt_parts)
     

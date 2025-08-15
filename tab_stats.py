@@ -286,8 +286,15 @@ class StatsTab(tk.Frame):
         bg_color = config.DARK_BG if dark else config.LIGHT_BG
         fg_color = config.DARK_FG if dark else config.LIGHT_FG
         
+        # Get user-specific log file
+        log_file = self._get_user_log_file()
+        if not log_file:
+            no_data_label = tk.Label(frame, text="Please log in to view your analytics.", font=('Segoe UI', 12), bg=bg_color, fg=fg_color)
+            no_data_label.pack(pady=50)
+            return
+            
         try:
-            with open(config.LOG_FILE, 'r', encoding='utf-8') as logf:
+            with open(log_file, 'r', encoding='utf-8') as logf:
                 lines = logf.readlines()
         except FileNotFoundError:
             no_data_label = tk.Label(frame, text="No usage data available yet.", font=('Segoe UI', 12), bg=bg_color, fg=fg_color)
@@ -371,8 +378,15 @@ class StatsTab(tk.Frame):
         bg_color = config.DARK_BG if dark else config.LIGHT_BG
         fg_color = config.DARK_FG if dark else config.LIGHT_FG
         
+        # Get user-specific log file
+        log_file = self._get_user_log_file()
+        if not log_file:
+            no_data_label = tk.Label(frame, text="Please log in to view your usage chart.", font=('Segoe UI', 12), bg=bg_color, fg=fg_color)
+            no_data_label.pack(pady=50)
+            return
+            
         try:
-            with open(config.LOG_FILE, 'r', encoding='utf-8') as logf:
+            with open(log_file, 'r', encoding='utf-8') as logf:
                 lines = logf.readlines()
         except FileNotFoundError:
             no_data_label = tk.Label(frame, text="No usage data available yet.", font=('Segoe UI', 12), bg=bg_color, fg=fg_color)
@@ -482,15 +496,19 @@ class StatsTab(tk.Frame):
             peak_label.pack()
 
     def update_stats(self, alltime_only=False):
-        # --- ALL-TIME STATS (from log) ---
+        # --- ALL-TIME STATS (from user-specific log) ---
         total_sessions = 0
         total_words = 0
         lines = []
-        try:
-            with open(config.LOG_FILE, 'r', encoding='utf-8') as logf:
-                lines = logf.readlines()
-        except FileNotFoundError:
-            lines = []
+        
+        # Get user-specific log file
+        log_file = self._get_user_log_file()
+        if log_file:
+            try:
+                with open(log_file, 'r', encoding='utf-8') as logf:
+                    lines = logf.readlines()
+            except FileNotFoundError:
+                lines = []
         total_sessions = len(lines)
         for line in lines:
             line = line.strip()
