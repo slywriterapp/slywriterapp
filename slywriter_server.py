@@ -293,8 +293,15 @@ def ai_generate_text():
         if not response:
             raise Exception("All AI models failed to respond")
         
-        generated_text = response.choices[0].message.content.strip()
-        print(f"[AI] OpenAI response using {model_to_use}: '{generated_text[:100]}...' (length: {len(generated_text)})")
+        generated_text = response.choices[0].message.content
+        print(f"[AI] Raw OpenAI response using {model_to_use}: '{generated_text}'")
+        
+        if generated_text is None:
+            print(f"[AI] WARNING: OpenAI returned None content")
+            generated_text = ""
+        else:
+            generated_text = generated_text.strip()
+            print(f"[AI] After strip - length: {len(generated_text)}")
         
         # Only retry once if text is very short (under 100 chars) - faster approach
         if len(generated_text) < 100:
@@ -327,8 +334,15 @@ REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and 
             except Exception as retry_error:
                 print(f"[AI] Retry failed: {retry_error}, using original")
         
-        # Log final result but don't block on length
+        # Log final result and check if we actually have content
         print(f"[AI] Final text length: {len(generated_text)} chars")
+        
+        if len(generated_text) == 0:
+            print(f"[AI] ERROR: Final generated text is empty after all attempts")
+            return jsonify({
+                "success": False,
+                "error": f"AI model {model_to_use} returned empty content after retries"
+            })
         
         return jsonify({
             "success": True,
