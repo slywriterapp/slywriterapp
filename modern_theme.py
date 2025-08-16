@@ -318,7 +318,7 @@ def _replace_buttons_with_modern(tab, dark):
     button_font = (config.FONT_PRIMARY, config.FONT_SIZE_BASE, 'bold')
     
     # All buttons same size with dark blue interior and distinctive border colors
-    border_width = 5  # Thicker border for better visibility
+    border_width = 2  # Minimalist border for clean modern look
     button_width = 12  # Same width for all buttons
     
     # START BUTTON - Use Frame wrapper approach for guaranteed visible borders
@@ -443,17 +443,15 @@ def _replace_buttons_with_modern(tab, dark):
     
     # Multiple force updates to ensure colors appear on startup
     tab.ctrl.update_idletasks()
-    tab.ctrl.update()
+    tab.update_idletasks()
     
-    # Force another refresh after a brief delay
-    tab.ctrl.after(5, lambda: [
-        start_wrapper.configure(bg=config.LIME_GREEN),
-        pause_wrapper.configure(bg=config.WARNING_ORANGE),
-        stop_wrapper.configure(bg=config.DANGER_RED)
-    ])
+    # Immediate second update with no delay
+    start_wrapper.configure(bg=config.LIME_GREEN)
+    pause_wrapper.configure(bg=config.WARNING_ORANGE)
+    stop_wrapper.configure(bg=config.DANGER_RED)
     
-    # Force an even later refresh to be absolutely sure
-    tab.ctrl.after(50, lambda: [
+    # Force delayed refresh to catch any late initialization
+    tab.after_idle(lambda: [
         start_wrapper.configure(bg=config.LIME_GREEN),
         pause_wrapper.configure(bg=config.WARNING_ORANGE),
         stop_wrapper.configure(bg=config.DANGER_RED)

@@ -96,7 +96,17 @@ class AITextGenerator:
                 # Generate lesson but don't switch tabs yet - let user finish typing first
                 self._generate_lesson_async(captured_text, switch_tab=False)
             
-            # Step 6: Check review mode
+            # Step 6: Auto-capture for learning (if enabled)
+            learning_mode = self.app.cfg.get('settings', {}).get('learning_mode', False)
+            if learning_mode and hasattr(self.app, 'learn_tab'):
+                # Automatically create lesson from this generation
+                try:
+                    print("[AI GEN] Auto-capturing for learning...")
+                    self.app.learn_tab.create_lesson_from_content(captured_text, final_text)
+                except Exception as e:
+                    print(f"[AI GEN] Auto-capture failed: {e}")
+            
+            # Step 7: Check review mode
             review_mode = self.app.cfg.get('settings', {}).get('review_mode', False)
             
             if review_mode:

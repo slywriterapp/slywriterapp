@@ -758,5 +758,42 @@ def _parse_quiz_content(content, quiz_type, original_question):
 
 # ---------------- MAIN ----------------
 
+# ---------------- ADMIN ENDPOINTS ----------------
+
+@app.route("/admin/set_user_pro", methods=["GET"])
+def admin_set_user_pro():
+    """Quick admin endpoint to set a user to pro plan"""
+    uid = request.args.get("user_id")
+    if not uid:
+        return jsonify({"error": "Missing user_id parameter"}), 400
+    
+    plans = load_data(PLAN_FILE)
+    plans[uid] = "pro"
+    save_data(PLAN_FILE, plans)
+    
+    return jsonify({"status": "success", "user_id": uid, "plan": "pro", "message": f"User {uid} set to PRO plan"})
+
+@app.route("/admin/user_status", methods=["GET"])  
+def admin_user_status():
+    """Get complete user status"""
+    uid = request.args.get("user_id")
+    if not uid:
+        return jsonify({"error": "Missing user_id parameter"}), 400
+    
+    # Get usage
+    usage_data = load_data(USAGE_FILE)
+    words = usage_data.get(uid, 0)
+    
+    # Get plan
+    plan_data = load_data(PLAN_FILE)
+    plan = plan_data.get(uid, "free")
+    
+    return jsonify({
+        "user_id": uid,
+        "plan": plan, 
+        "words_used": words,
+        "status": "active"
+    })
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)

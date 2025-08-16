@@ -15,10 +15,6 @@ class HumanizerTab(tk.Frame):
         self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.scrollable_frame = tk.Frame(self.canvas)
         
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        )
         
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
@@ -26,8 +22,19 @@ class HumanizerTab(tk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
         
-        # Make scrollable_frame the main container and configure its columns
-        self.scrollable_frame.columnconfigure(1, weight=1)
+        # Bind to configure the scroll region and make scrollable_frame expand to canvas width
+        def _on_canvas_configure(event):
+            # Update scroll region
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            # Make the scrollable frame fill the canvas width
+            canvas_width = event.width
+            self.canvas.itemconfig(self.canvas.find_all()[0], width=canvas_width)
+        
+        self.canvas.bind('<Configure>', _on_canvas_configure)
+        
+        # Make scrollable_frame the main container and configure its columns for full width
+        self.scrollable_frame.columnconfigure(0, weight=1)
+        self.scrollable_frame.columnconfigure(1, weight=2)  # Give more weight to the right column
         saved = self.app.cfg["settings"].get("humanizer", {})
 
         self.options = {
@@ -86,9 +93,14 @@ class HumanizerTab(tk.Frame):
         self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=15)
         self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=16)
 
-        self.humanize_btn = tk.Button(self.scrollable_frame, text="Run Humanizer", command=self.run_humanizer)
-        self.humanize_btn.grid(row=17, column=0, columnspan=2, pady=15)
-        self.widgets_to_style.append(self.humanize_btn)
+        # Button container for centering
+        btn_frame = tk.Frame(self.scrollable_frame)
+        btn_frame.grid(row=17, column=0, columnspan=2, pady=15, padx=(10, 20))
+        
+        self.humanize_btn = tk.Button(btn_frame, text="Run Humanizer", command=self.run_humanizer, width=20)
+        self.humanize_btn.pack()
+        
+        self.widgets_to_style.extend([btn_frame, self.humanize_btn])
         
         # Update dynamic labels on startup
         self._update_info_display()
@@ -96,22 +108,16 @@ class HumanizerTab(tk.Frame):
 
     def response_type_section(self, row):
         """Create response type selection (Short Response vs Essay)"""
-        type_frame = tk.Frame(self.scrollable_frame)
-        type_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-        type_frame.columnconfigure((0, 1), weight=1)
-        
-        tk.Label(type_frame, text="Response Type:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w")
-        
-        # Radio buttons for response type
-        radio_frame = tk.Frame(type_frame)
-        radio_frame.grid(row=0, column=1, sticky="w")
+        # Center the radio buttons directly under the header
+        radio_frame = tk.Frame(self.scrollable_frame)
+        radio_frame.grid(row=row, column=0, columnspan=2, pady=5)
         
         short_radio = tk.Radiobutton(
             radio_frame, text="Short Response", 
             variable=self.response_type, value="short_response",
             command=self._on_response_type_change
         )
-        short_radio.pack(side='left', padx=(0, 20))
+        short_radio.pack(side='left', padx=(0, 15))
         
         essay_radio = tk.Radiobutton(
             radio_frame, text="Essay/Document", 
@@ -120,17 +126,17 @@ class HumanizerTab(tk.Frame):
         )
         essay_radio.pack(side='left')
         
-        self.widgets_to_style.extend([type_frame, radio_frame, short_radio, essay_radio])
+        self.widgets_to_style.extend([radio_frame, short_radio, essay_radio])
 
     def info_display_section(self, row):
         """Create a dedicated area for displaying length/page information"""
         info_frame = tk.LabelFrame(self.scrollable_frame, text="Current Settings Preview", font=("Segoe UI", 9, "bold"))
-        info_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        info_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=5)
         info_frame.columnconfigure(0, weight=1)
         
         self.info_text = tk.Text(info_frame, height=3, wrap="word", state="disabled", 
                                 font=("Segoe UI", 9), relief="flat")
-        self.info_text.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        self.info_text.grid(row=0, column=0, sticky="ew", padx=10, pady=8)
         
         self.widgets_to_style.extend([info_frame, self.info_text])
 
@@ -196,7 +202,7 @@ class HumanizerTab(tk.Frame):
     def toggle_section(self, row):
         """Create toggle switches for main AI features"""
         toggle_frame = tk.Frame(self.scrollable_frame)
-        toggle_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        toggle_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=5)
         
         # First row with 3 toggles
         first_row = tk.Frame(toggle_frame)
@@ -257,25 +263,25 @@ class HumanizerTab(tk.Frame):
     def label(self, text, row, style="normal"):
         if style == "header":
             lbl = tk.Label(self.scrollable_frame, text=text, anchor="center", font=("Segoe UI", 11, "bold"))
-            lbl.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 5))
+            lbl.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=(10, 5))
         else:
             lbl = tk.Label(self.scrollable_frame, text=text, anchor="w")
-            lbl.grid(row=row, column=0, columnspan=2, sticky="w", padx=10)
+            lbl.grid(row=row, column=0, columnspan=2, sticky="w", padx=(10, 20))
         self.widgets_to_style.append(lbl)
 
     def textbox(self, row, state="normal"):
         box = tk.Text(self.scrollable_frame, height=6, wrap="word", state=state)
-        box.grid(row=row, column=0, columnspan=2, sticky="ew", padx=10)
+        box.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20))
         self.widgets_to_style.append(box)
         return box
 
     def slider(self, label, key, frm, to, row, left=None, right=None):
         lbl = tk.Label(self.scrollable_frame, text=label)
-        lbl.grid(row=row, column=0, sticky="w", padx=10)
+        lbl.grid(row=row, column=0, sticky="w", padx=(10, 20))
         self.widgets_to_style.append(lbl)
 
         frame = tk.Frame(self.scrollable_frame)
-        frame.grid(row=row, column=1, sticky="ew", padx=10)
+        frame.grid(row=row, column=1, sticky="ew", padx=(10, 20))
         frame.columnconfigure(0, weight=1)
 
         label_frame = tk.Frame(frame)
@@ -321,9 +327,9 @@ class HumanizerTab(tk.Frame):
 
     def dropdown(self, label, key, choices, row):
         lbl = tk.Label(self.scrollable_frame, text=label)
-        lbl.grid(row=row, column=0, sticky="w", padx=10)
+        lbl.grid(row=row, column=0, sticky="w", padx=(10, 20))
         combo = ttk.Combobox(self.scrollable_frame, textvariable=self.options[key], values=choices, state="readonly")
-        combo.grid(row=row, column=1, sticky="ew", padx=10, pady=5)
+        combo.grid(row=row, column=1, sticky="ew", padx=(10, 20), pady=5)
         def dropdown_update(e, k=key):
             self.update_setting(k, self.options[k].get())
             # Update central info display
