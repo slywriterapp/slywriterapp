@@ -5,10 +5,22 @@ import ttkbootstrap as tb
 import config
 
 def register_hotkeys(app):
+    # Clear ALL existing hotkeys first to prevent conflicts
+    try:
+        keyboard.unhook_all_hotkeys()
+        print("[HOTKEYS] Cleared all existing hotkeys")
+    except Exception as e:
+        print(f"[HOTKEYS] Warning: Could not clear all hotkeys: {e}")
+    
+    # Also try to remove specific hotkeys as backup
     for name in ['start', 'stop', 'pause', 'overlay', 'ai_generation']:
         try:
-            keyboard.remove_hotkey(app.cfg['settings']['hotkeys'].get(name, ''))
-        except Exception:
+            hotkey = app.cfg['settings']['hotkeys'].get(name, '')
+            if hotkey:
+                keyboard.remove_hotkey(hotkey)
+                print(f"[HOTKEYS] Removed old {name} hotkey: {hotkey}")
+        except Exception as e:
+            print(f"[HOTKEYS] Could not remove {name} hotkey: {e}")
             pass
     keyboard.add_hotkey(app.cfg['settings']['hotkeys']['start'],
                         lambda: None if getattr(app.hotkeys_tab.start_rec, 'recording', False) else app.typing_tab.start_typing())

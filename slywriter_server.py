@@ -1,13 +1,35 @@
 from flask import Flask, request, jsonify, redirect
+from flask_cors import CORS
 import json
 import os
 import hashlib
+import jwt
+import datetime
+import bcrypt
+import secrets
+import smtplib
+from email.mime.text import MimeText
+from email.mime.multipart import MimeMultipart
+import uuid
+import re
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for web app
 
+# Security
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'your-jwt-secret-change-this')
+
+# Data files
 USAGE_FILE = "word_data.json"
 PLAN_FILE = "plan_data.json"
 REFERRAL_FILE = "referral_data.json"
+USERS_FILE = "users.json"
+USER_SETTINGS_FILE = "user_settings.json"
+SESSIONS_FILE = "sessions.json"
+PASSWORD_RESETS_FILE = "password_resets.json"
+TYPING_PROJECTS_FILE = "typing_projects.json"
+ANALYTICS_FILE = "analytics.json"
 
 def load_data(filepath):
     if os.path.exists(filepath):
@@ -18,6 +40,543 @@ def load_data(filepath):
 def save_data(filepath, data):
     with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
+
+# ---------------- SECURITY & AUTH UTILITIES ----------------
+
+def hash_password(password):
+    """Hash a password with bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, hashed):
+    """Verify password against hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def generate_jwt_token(user_id, email):
+    """Generate JWT token for user"""
+    payload = {
+        'user_id': user_id,
+        'email': email,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30),
+        'iat': datetime.datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+def verify_jwt_token(token):
+    """Verify JWT token and return user data"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+def validate_email(email):
+    """Validate email format"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_password(password):
+    """Validate password strength"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one number"
+    return True, "Password is valid"
+
+def require_auth(f):
+    """Decorator to require authentication"""
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Missing authorization header"}), 401
+        
+        try:
+            token = auth_header.split(' ')[1]  # Remove 'Bearer ' prefix
+        except IndexError:
+            return jsonify({"error": "Invalid authorization header format"}), 401
+        
+        user_data = verify_jwt_token(token)
+        if not user_data:
+            return jsonify({"error": "Invalid or expired token"}), 401
+        
+        request.current_user = user_data
+        return f(*args, **kwargs)
+    
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+def send_email(to_email, subject, body, is_html=False):
+    """Send email via SMTP"""
+    try:
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_username = os.environ.get('SMTP_USERNAME')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        
+        if not smtp_username or not smtp_password:
+            print("SMTP credentials not configured")
+            return False
+        
+        msg = MimeMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = smtp_username
+        msg['To'] = to_email
+        
+        if is_html:
+            msg.attach(MimeText(body, 'html'))
+        else:
+            msg.attach(MimeText(body, 'plain'))
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Email send failed: {e}")
+        return False
+
+def log_analytics_event(user_id, event_type, event_data=None):
+    """Log analytics event"""
+    analytics = load_data(ANALYTICS_FILE)
+    if 'events' not in analytics:
+        analytics['events'] = []
+    
+    event = {
+        'user_id': user_id,
+        'event_type': event_type,
+        'event_data': event_data or {},
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+        'date': datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    }
+    
+    analytics['events'].append(event)
+    save_data(ANALYTICS_FILE, analytics)
+
+# ---------------- AUTHENTICATION ----------------
+
+@app.route("/auth/register", methods=["POST"])
+def register():
+    """Register new user account"""
+    data = request.get_json()
+    email = data.get('email', '').lower().strip()
+    password = data.get('password', '')
+    name = data.get('name', '').strip()
+    referral_code = data.get('referral_code', '').strip()
+    
+    # Validation
+    if not email or not password or not name:
+        return jsonify({"success": False, "error": "Missing required fields"}), 400
+    
+    if not validate_email(email):
+        return jsonify({"success": False, "error": "Invalid email format"}), 400
+    
+    password_valid, password_message = validate_password(password)
+    if not password_valid:
+        return jsonify({"success": False, "error": password_message}), 400
+    
+    # Check if user already exists
+    users = load_data(USERS_FILE)
+    if email in users:
+        return jsonify({"success": False, "error": "Email already registered"}), 400
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    hashed_password = hash_password(password)
+    
+    user_data = {
+        'user_id': user_id,
+        'email': email,
+        'name': name,
+        'password_hash': hashed_password,
+        'created_at': datetime.datetime.utcnow().isoformat(),
+        'verified': False,
+        'verification_token': secrets.token_urlsafe(32),
+        'last_login': None,
+        'status': 'active'
+    }
+    
+    users[email] = user_data
+    save_data(USERS_FILE, users)
+    
+    # Set default plan
+    plans = load_data(PLAN_FILE)
+    plans[user_id] = "free"
+    save_data(PLAN_FILE, plans)
+    
+    # Initialize usage
+    usage = load_data(USAGE_FILE)
+    usage[user_id] = 0
+    save_data(USAGE_FILE, usage)
+    
+    # Apply referral if provided
+    if referral_code:
+        try:
+            ref_data = load_data(REFERRAL_FILE)
+            code_map = ref_data.get("code_map", {})
+            referrer_id = code_map.get(referral_code)
+            
+            if referrer_id and referrer_id != user_id:
+                ref_by_uid = ref_data.get("by_uid", {})
+                ref_by_uid[user_id] = referrer_id
+                ref_data["by_uid"] = ref_by_uid
+                save_data(REFERRAL_FILE, ref_data)
+        except Exception as e:
+            print(f"Referral application failed: {e}")
+    
+    # Generate token
+    token = generate_jwt_token(user_id, email)
+    
+    # Send verification email
+    verification_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/verify-email?token={user_data['verification_token']}"
+    send_email(
+        email,
+        "Welcome to SlyWriter - Verify Your Email",
+        f"""
+        Welcome to SlyWriter, {name}!
+        
+        Please verify your email address by clicking this link:
+        {verification_link}
+        
+        If you didn't create this account, please ignore this email.
+        
+        Best regards,
+        The SlyWriter Team
+        """
+    )
+    
+    # Log registration
+    log_analytics_event(user_id, 'user_registered', {'email': email, 'referral_code': referral_code})
+    
+    return jsonify({
+        "success": True,
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "token": token,
+        "verified": False
+    })
+
+@app.route("/auth/login", methods=["POST"])
+def login():
+    """Login existing user"""
+    data = request.get_json()
+    email = data.get('email', '').lower().strip()
+    password = data.get('password', '')
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Missing email or password"}), 400
+    
+    # Find user
+    users = load_data(USERS_FILE)
+    user_data = users.get(email)
+    
+    if not user_data or not verify_password(password, user_data['password_hash']):
+        return jsonify({"success": False, "error": "Invalid email or password"}), 401
+    
+    if user_data.get('status') != 'active':
+        return jsonify({"success": False, "error": "Account is deactivated"}), 401
+    
+    # Update last login
+    user_data['last_login'] = datetime.datetime.utcnow().isoformat()
+    users[email] = user_data
+    save_data(USERS_FILE, users)
+    
+    # Generate token
+    token = generate_jwt_token(user_data['user_id'], email)
+    
+    # Get user plan
+    plans = load_data(PLAN_FILE)
+    user_plan = plans.get(user_data['user_id'], 'free')
+    
+    # Get usage
+    usage = load_data(USAGE_FILE)
+    words_used = usage.get(user_data['user_id'], 0)
+    
+    # Log login
+    log_analytics_event(user_data['user_id'], 'user_login')
+    
+    return jsonify({
+        "success": True,
+        "user_id": user_data['user_id'],
+        "email": email,
+        "name": user_data['name'],
+        "token": token,
+        "verified": user_data.get('verified', False),
+        "plan": user_plan,
+        "words_used": words_used
+    })
+
+@app.route("/auth/logout", methods=["POST"])
+@require_auth
+def logout():
+    """Logout user"""
+    # In a full implementation, you'd invalidate the token in a blacklist
+    log_analytics_event(request.current_user['user_id'], 'user_logout')
+    return jsonify({"success": True, "message": "Logged out successfully"})
+
+@app.route("/auth/profile", methods=["GET"])
+@require_auth
+def get_profile():
+    """Get current user profile"""
+    user_id = request.current_user['user_id']
+    email = request.current_user['email']
+    
+    # Get user data
+    users = load_data(USERS_FILE)
+    user_data = None
+    for user_email, data in users.items():
+        if data['user_id'] == user_id:
+            user_data = data
+            break
+    
+    if not user_data:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Get plan and usage
+    plans = load_data(PLAN_FILE)
+    usage = load_data(USAGE_FILE)
+    
+    return jsonify({
+        "user_id": user_id,
+        "email": email,
+        "name": user_data['name'],
+        "verified": user_data.get('verified', False),
+        "plan": plans.get(user_id, 'free'),
+        "words_used": usage.get(user_id, 0),
+        "created_at": user_data.get('created_at'),
+        "last_login": user_data.get('last_login')
+    })
+
+@app.route("/auth/verify-email", methods=["POST"])
+def verify_email():
+    """Verify user email address"""
+    data = request.get_json()
+    token = data.get('token')
+    
+    if not token:
+        return jsonify({"success": False, "error": "Missing verification token"}), 400
+    
+    # Find user with this token
+    users = load_data(USERS_FILE)
+    user_email = None
+    user_data = None
+    
+    for email, data in users.items():
+        if data.get('verification_token') == token:
+            user_email = email
+            user_data = data
+            break
+    
+    if not user_data:
+        return jsonify({"success": False, "error": "Invalid verification token"}), 400
+    
+    # Mark as verified
+    user_data['verified'] = True
+    user_data['verification_token'] = None
+    users[user_email] = user_data
+    save_data(USERS_FILE, users)
+    
+    log_analytics_event(user_data['user_id'], 'email_verified')
+    
+    return jsonify({"success": True, "message": "Email verified successfully"})
+
+@app.route("/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    """Request password reset"""
+    data = request.get_json()
+    email = data.get('email', '').lower().strip()
+    
+    if not email:
+        return jsonify({"success": False, "error": "Missing email"}), 400
+    
+    users = load_data(USERS_FILE)
+    user_data = users.get(email)
+    
+    # Always return success to prevent email enumeration
+    if user_data:
+        # Generate reset token
+        reset_token = secrets.token_urlsafe(32)
+        reset_data = load_data(PASSWORD_RESETS_FILE)
+        reset_data[reset_token] = {
+            'email': email,
+            'user_id': user_data['user_id'],
+            'created_at': datetime.datetime.utcnow().isoformat(),
+            'expires_at': (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).isoformat()
+        }
+        save_data(PASSWORD_RESETS_FILE, reset_data)
+        
+        # Send reset email
+        reset_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token={reset_token}"
+        send_email(
+            email,
+            "SlyWriter Password Reset",
+            f"""
+            Hi {user_data['name']},
+            
+            You requested a password reset for your SlyWriter account.
+            
+            Click this link to reset your password:
+            {reset_link}
+            
+            This link will expire in 1 hour.
+            
+            If you didn't request this reset, please ignore this email.
+            
+            Best regards,
+            The SlyWriter Team
+            """
+        )
+    
+    return jsonify({"success": True, "message": "If the email exists, a reset link has been sent"})
+
+@app.route("/auth/reset-password", methods=["POST"])
+def reset_password():
+    """Reset password with token"""
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('new_password')
+    
+    if not token or not new_password:
+        return jsonify({"success": False, "error": "Missing token or password"}), 400
+    
+    # Validate password
+    password_valid, password_message = validate_password(new_password)
+    if not password_valid:
+        return jsonify({"success": False, "error": password_message}), 400
+    
+    # Check token
+    reset_data = load_data(PASSWORD_RESETS_FILE)
+    token_data = reset_data.get(token)
+    
+    if not token_data:
+        return jsonify({"success": False, "error": "Invalid reset token"}), 400
+    
+    # Check expiration
+    expires_at = datetime.datetime.fromisoformat(token_data['expires_at'])
+    if datetime.datetime.utcnow() > expires_at:
+        return jsonify({"success": False, "error": "Reset token has expired"}), 400
+    
+    # Update password
+    users = load_data(USERS_FILE)
+    email = token_data['email']
+    user_data = users.get(email)
+    
+    if user_data:
+        user_data['password_hash'] = hash_password(new_password)
+        users[email] = user_data
+        save_data(USERS_FILE, users)
+        
+        # Remove used token
+        del reset_data[token]
+        save_data(PASSWORD_RESETS_FILE, reset_data)
+        
+        log_analytics_event(user_data['user_id'], 'password_reset')
+        
+        return jsonify({"success": True, "message": "Password reset successfully"})
+    
+    return jsonify({"success": False, "error": "User not found"}), 404
+
+@app.route("/auth/change-password", methods=["POST"])
+@require_auth
+def change_password():
+    """Change password for authenticated user"""
+    data = request.get_json()
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not current_password or not new_password:
+        return jsonify({"success": False, "error": "Missing current or new password"}), 400
+    
+    # Validate new password
+    password_valid, password_message = validate_password(new_password)
+    if not password_valid:
+        return jsonify({"success": False, "error": password_message}), 400
+    
+    # Get user
+    users = load_data(USERS_FILE)
+    email = request.current_user['email']
+    user_data = users.get(email)
+    
+    if not user_data:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    # Verify current password
+    if not verify_password(current_password, user_data['password_hash']):
+        return jsonify({"success": False, "error": "Current password is incorrect"}), 400
+    
+    # Update password
+    user_data['password_hash'] = hash_password(new_password)
+    users[email] = user_data
+    save_data(USERS_FILE, users)
+    
+    log_analytics_event(user_data['user_id'], 'password_changed')
+    
+    return jsonify({"success": True, "message": "Password changed successfully"})
+
+# ---------------- USER SETTINGS ----------------
+
+@app.route("/settings", methods=["GET"])
+@require_auth
+def get_user_settings():
+    """Get user settings"""
+    user_id = request.current_user['user_id']
+    settings = load_data(USER_SETTINGS_FILE)
+    user_settings = settings.get(user_id, {})
+    
+    # Default settings
+    default_settings = {
+        'typing_settings': {
+            'min_delay': 0.05,
+            'max_delay': 0.15,
+            'enable_typos': True,
+            'pause_frequency': 50,
+            'wpm': 60
+        },
+        'hotkeys': {
+            'start': 'ctrl+alt+s',
+            'stop': 'ctrl+alt+x',
+            'pause': 'ctrl+alt+p',
+            'overlay': 'ctrl+alt+o',
+            'ai_generation': 'ctrl+alt+g'
+        },
+        'ai_settings': {
+            'default_model': 'gpt-4o-mini',
+            'humanizer_model': '1',
+            'learning_mode': True,
+            'review_mode': False
+        },
+        'theme': 'dark',
+        'notifications': {
+            'email_updates': True,
+            'usage_alerts': True
+        }
+    }
+    
+    # Merge with user settings
+    merged_settings = {**default_settings, **user_settings}
+    return jsonify({"success": True, "settings": merged_settings})
+
+@app.route("/settings", methods=["POST"])
+@require_auth
+def update_user_settings():
+    """Update user settings"""
+    user_id = request.current_user['user_id']
+    new_settings = request.get_json()
+    
+    settings = load_data(USER_SETTINGS_FILE)
+    settings[user_id] = new_settings
+    save_data(USER_SETTINGS_FILE, settings)
+    
+    log_analytics_event(user_id, 'settings_updated')
+    
+    return jsonify({"success": True, "message": "Settings updated successfully"})
 
 # ---------------- WORD USAGE ----------------
 
@@ -794,6 +1353,393 @@ def admin_user_status():
         "words_used": words,
         "status": "active"
     })
+
+# ---------------- TYPING PROJECTS ----------------
+
+@app.route("/projects", methods=["GET"])
+@require_auth
+def get_user_projects():
+    """Get user's typing projects"""
+    user_id = request.current_user['user_id']
+    projects = load_data(TYPING_PROJECTS_FILE)
+    user_projects = projects.get(user_id, [])
+    
+    return jsonify({"success": True, "projects": user_projects})
+
+@app.route("/projects", methods=["POST"])
+@require_auth
+def create_project():
+    """Create new typing project"""
+    user_id = request.current_user['user_id']
+    data = request.get_json()
+    
+    project = {
+        'id': str(uuid.uuid4()),
+        'name': data.get('name', 'Untitled Project'),
+        'content': data.get('content', ''),
+        'status': 'draft',
+        'created_at': datetime.datetime.utcnow().isoformat(),
+        'updated_at': datetime.datetime.utcnow().isoformat(),
+        'word_count': len(data.get('content', '').split()),
+        'typing_settings': data.get('typing_settings', {}),
+        'tags': data.get('tags', [])
+    }
+    
+    projects = load_data(TYPING_PROJECTS_FILE)
+    if user_id not in projects:
+        projects[user_id] = []
+    
+    projects[user_id].append(project)
+    save_data(TYPING_PROJECTS_FILE, projects)
+    
+    log_analytics_event(user_id, 'project_created', {'project_id': project['id']})
+    
+    return jsonify({"success": True, "project": project})
+
+@app.route("/projects/<project_id>", methods=["GET"])
+@require_auth
+def get_project(project_id):
+    """Get specific project"""
+    user_id = request.current_user['user_id']
+    projects = load_data(TYPING_PROJECTS_FILE)
+    user_projects = projects.get(user_id, [])
+    
+    project = next((p for p in user_projects if p['id'] == project_id), None)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+    
+    return jsonify({"success": True, "project": project})
+
+@app.route("/projects/<project_id>", methods=["PUT"])
+@require_auth
+def update_project(project_id):
+    """Update project"""
+    user_id = request.current_user['user_id']
+    data = request.get_json()
+    
+    projects = load_data(TYPING_PROJECTS_FILE)
+    user_projects = projects.get(user_id, [])
+    
+    project_index = next((i for i, p in enumerate(user_projects) if p['id'] == project_id), None)
+    if project_index is None:
+        return jsonify({"error": "Project not found"}), 404
+    
+    # Update project
+    project = user_projects[project_index]
+    project.update({
+        'name': data.get('name', project['name']),
+        'content': data.get('content', project['content']),
+        'status': data.get('status', project['status']),
+        'updated_at': datetime.datetime.utcnow().isoformat(),
+        'word_count': len(data.get('content', project['content']).split()),
+        'typing_settings': data.get('typing_settings', project.get('typing_settings', {})),
+        'tags': data.get('tags', project.get('tags', []))
+    })
+    
+    user_projects[project_index] = project
+    projects[user_id] = user_projects
+    save_data(TYPING_PROJECTS_FILE, projects)
+    
+    log_analytics_event(user_id, 'project_updated', {'project_id': project_id})
+    
+    return jsonify({"success": True, "project": project})
+
+@app.route("/projects/<project_id>", methods=["DELETE"])
+@require_auth
+def delete_project(project_id):
+    """Delete project"""
+    user_id = request.current_user['user_id']
+    
+    projects = load_data(TYPING_PROJECTS_FILE)
+    user_projects = projects.get(user_id, [])
+    
+    project_index = next((i for i, p in enumerate(user_projects) if p['id'] == project_id), None)
+    if project_index is None:
+        return jsonify({"error": "Project not found"}), 404
+    
+    # Remove project
+    removed_project = user_projects.pop(project_index)
+    projects[user_id] = user_projects
+    save_data(TYPING_PROJECTS_FILE, projects)
+    
+    log_analytics_event(user_id, 'project_deleted', {'project_id': project_id})
+    
+    return jsonify({"success": True, "message": "Project deleted successfully"})
+
+# ---------------- BILLING & SUBSCRIPTION ----------------
+
+@app.route("/billing/plans", methods=["GET"])
+def get_billing_plans():
+    """Get available billing plans"""
+    plans = {
+        "free": {
+            "name": "Free",
+            "price": 0,
+            "words_per_month": 1000,
+            "features": ["Basic typing automation", "Limited AI generation", "5 projects"]
+        },
+        "pro": {
+            "name": "Pro",
+            "price": 9.99,
+            "words_per_month": 50000,
+            "features": ["Advanced typing automation", "Unlimited AI generation", "Unlimited projects", "Priority support"]
+        },
+        "premium": {
+            "name": "Premium", 
+            "price": 19.99,
+            "words_per_month": 200000,
+            "features": ["Everything in Pro", "Advanced humanization", "Learning mode", "Custom hotkeys", "Analytics"]
+        },
+        "enterprise": {
+            "name": "Enterprise",
+            "price": "Contact us",
+            "words_per_month": "Unlimited",
+            "features": ["Everything in Premium", "Team management", "SSO", "Custom integrations", "SLA"]
+        }
+    }
+    
+    return jsonify({"success": True, "plans": plans})
+
+@app.route("/billing/subscribe", methods=["POST"])
+@require_auth
+def create_subscription():
+    """Create new subscription (integrate with Stripe)"""
+    user_id = request.current_user['user_id']
+    data = request.get_json()
+    plan_id = data.get('plan_id')
+    
+    if plan_id not in ['pro', 'premium', 'enterprise']:
+        return jsonify({"success": False, "error": "Invalid plan"}), 400
+    
+    # In a real implementation, integrate with Stripe here
+    # For now, just update the plan
+    plans = load_data(PLAN_FILE)
+    plans[user_id] = plan_id
+    save_data(PLAN_FILE, plans)
+    
+    log_analytics_event(user_id, 'subscription_created', {'plan': plan_id})
+    
+    return jsonify({
+        "success": True,
+        "message": f"Subscribed to {plan_id} plan",
+        "plan": plan_id
+    })
+
+@app.route("/billing/usage", methods=["GET"])
+@require_auth
+def get_billing_usage():
+    """Get current month's usage and limits"""
+    user_id = request.current_user['user_id']
+    
+    # Get plan and usage
+    plans = load_data(PLAN_FILE)
+    usage = load_data(USAGE_FILE)
+    
+    plan = plans.get(user_id, 'free')
+    words_used = usage.get(user_id, 0)
+    
+    # Plan limits
+    limits = {
+        'free': 1000,
+        'pro': 50000,
+        'premium': 200000,
+        'enterprise': float('inf')
+    }
+    
+    limit = limits.get(plan, 1000)
+    
+    return jsonify({
+        "success": True,
+        "plan": plan,
+        "words_used": words_used,
+        "words_limit": limit if limit != float('inf') else "unlimited",
+        "usage_percentage": (words_used / limit * 100) if limit != float('inf') else 0
+    })
+
+# ---------------- ANALYTICS & REPORTING ----------------
+
+@app.route("/analytics/dashboard", methods=["GET"])
+@require_auth
+def get_user_analytics():
+    """Get user analytics dashboard data"""
+    user_id = request.current_user['user_id']
+    
+    analytics = load_data(ANALYTICS_FILE)
+    user_events = [e for e in analytics.get('events', []) if e['user_id'] == user_id]
+    
+    # Calculate metrics
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    this_week = [(datetime.datetime.utcnow() - datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+    
+    dashboard_data = {
+        'words_today': sum(e.get('event_data', {}).get('words', 0) for e in user_events if e['date'] == today),
+        'words_this_week': sum(e.get('event_data', {}).get('words', 0) for e in user_events if e['date'] in this_week),
+        'projects_count': len(load_data(TYPING_PROJECTS_FILE).get(user_id, [])),
+        'login_streak': calculate_login_streak(user_events),
+        'activity_chart': generate_activity_chart(user_events, 30)  # Last 30 days
+    }
+    
+    return jsonify({"success": True, "analytics": dashboard_data})
+
+def calculate_login_streak(events):
+    """Calculate consecutive login days"""
+    login_dates = set()
+    for event in events:
+        if event['event_type'] == 'user_login':
+            login_dates.add(event['date'])
+    
+    if not login_dates:
+        return 0
+    
+    # Sort dates and check for consecutive days
+    sorted_dates = sorted(login_dates, reverse=True)
+    streak = 0
+    current_date = datetime.datetime.utcnow().date()
+    
+    for date_str in sorted_dates:
+        date_obj = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        if (current_date - date_obj).days == streak:
+            streak += 1
+            current_date = date_obj
+        else:
+            break
+    
+    return streak
+
+def generate_activity_chart(events, days):
+    """Generate daily activity chart data"""
+    chart_data = []
+    for i in range(days):
+        date = (datetime.datetime.utcnow() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+        day_events = [e for e in events if e['date'] == date]
+        words = sum(e.get('event_data', {}).get('words', 0) for e in day_events)
+        chart_data.append({'date': date, 'words': words})
+    
+    return list(reversed(chart_data))
+
+@app.route("/analytics/export", methods=["GET"])
+@require_auth
+def export_user_data():
+    """Export user data"""
+    user_id = request.current_user['user_id']
+    
+    # Gather all user data
+    users = load_data(USERS_FILE)
+    projects = load_data(TYPING_PROJECTS_FILE)
+    settings = load_data(USER_SETTINGS_FILE)
+    analytics = load_data(ANALYTICS_FILE)
+    
+    # Find user data
+    user_data = None
+    for email, data in users.items():
+        if data['user_id'] == user_id:
+            user_data = data
+            break
+    
+    export_data = {
+        'user_profile': user_data,
+        'projects': projects.get(user_id, []),
+        'settings': settings.get(user_id, {}),
+        'analytics': [e for e in analytics.get('events', []) if e['user_id'] == user_id],
+        'exported_at': datetime.datetime.utcnow().isoformat()
+    }
+    
+    return jsonify({"success": True, "data": export_data})
+
+# ---------------- ENHANCED ADMIN ENDPOINTS ----------------
+
+@app.route("/admin/dashboard", methods=["GET"])
+def admin_dashboard():
+    """Admin dashboard with key metrics"""
+    # Basic auth check - in production use proper admin authentication
+    api_key = request.headers.get('X-Admin-Key')
+    if api_key != os.environ.get('ADMIN_API_KEY'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    users = load_data(USERS_FILE)
+    usage = load_data(USAGE_FILE)
+    plans = load_data(PLAN_FILE)
+    analytics = load_data(ANALYTICS_FILE)
+    
+    metrics = {
+        'total_users': len(users),
+        'active_users_today': len([e for e in analytics.get('events', []) if e['event_type'] == 'user_login' and e['date'] == datetime.datetime.utcnow().strftime('%Y-%m-%d')]),
+        'total_words': sum(usage.values()),
+        'plan_distribution': {plan: len([u for u in plans.values() if u == plan]) for plan in ['free', 'pro', 'premium', 'enterprise']},
+        'recent_registrations': len([u for u in users.values() if (datetime.datetime.utcnow() - datetime.datetime.fromisoformat(u['created_at'])).days <= 7])
+    }
+    
+    return jsonify({"success": True, "metrics": metrics})
+
+@app.route("/admin/users", methods=["GET"])
+def admin_list_users():
+    """List all users with pagination"""
+    api_key = request.headers.get('X-Admin-Key')
+    if api_key != os.environ.get('ADMIN_API_KEY'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    search = request.args.get('search', '')
+    
+    users = load_data(USERS_FILE)
+    plans = load_data(PLAN_FILE)
+    usage = load_data(USAGE_FILE)
+    
+    # Convert to list and add extra data
+    user_list = []
+    for email, user_data in users.items():
+        user_id = user_data['user_id']
+        user_info = {
+            **user_data,
+            'plan': plans.get(user_id, 'free'),
+            'words_used': usage.get(user_id, 0)
+        }
+        # Remove sensitive data
+        user_info.pop('password_hash', None)
+        user_info.pop('verification_token', None)
+        
+        # Apply search filter
+        if search.lower() in email.lower() or search.lower() in user_data.get('name', '').lower():
+            user_list.append(user_info)
+    
+    # Pagination
+    total = len(user_list)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_users = user_list[start:end]
+    
+    return jsonify({
+        "success": True,
+        "users": paginated_users,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "pages": (total + per_page - 1) // per_page
+        }
+    })
+
+@app.route("/admin/users/<user_id>/plan", methods=["POST"])
+def admin_update_user_plan(user_id):
+    """Update user's plan"""
+    api_key = request.headers.get('X-Admin-Key')
+    if api_key != os.environ.get('ADMIN_API_KEY'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    new_plan = data.get('plan')
+    
+    if new_plan not in ['free', 'pro', 'premium', 'enterprise']:
+        return jsonify({"error": "Invalid plan"}), 400
+    
+    plans = load_data(PLAN_FILE)
+    plans[user_id] = new_plan
+    save_data(PLAN_FILE, plans)
+    
+    log_analytics_event(user_id, 'plan_updated_by_admin', {'new_plan': new_plan})
+    
+    return jsonify({"success": True, "user_id": user_id, "plan": new_plan})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)

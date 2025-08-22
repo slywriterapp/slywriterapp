@@ -100,6 +100,15 @@ def build_typing_ui(tab):
     tab.wpm_label = tk.Label(tab.sf, textvariable=tab.wpm_var, font=('Segoe UI', 11, 'bold'), fg=config.SUCCESS_GREEN)
     tab.wpm_label.grid(row=0, column=1, sticky='w')
     tab.widgets_to_style.append(tab.wpm_label)
+    
+    # Add Find Your WPM button
+    tab.find_wpm_btn = tk.Button(tab.sf, text="📊 Find Your WPM", 
+                                command=tab.show_wpm_test,
+                                font=('Segoe UI', 9), 
+                                cursor='hand2',
+                                padx=8, pady=2)
+    tab.find_wpm_btn.grid(row=0, column=2, sticky='w', padx=(10, 0))
+    tab.widgets_to_style.append(tab.find_wpm_btn)
 
     # Min delay with tooltip
     min_delay_label = tk.Label(tab.sf, text="Min delay (sec):", font=('Segoe UI', 11))

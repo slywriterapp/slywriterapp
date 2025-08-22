@@ -62,6 +62,42 @@ class AccountTab(tk.Frame):
 
         self.referral_label = tk.Label(self, text="", wraplength=280, justify="center", bg=bg)
         self.referral_label.pack(pady=5)
+        
+        # Upgrade/Referral Progress Panel
+        self.upgrade_frame = tk.LabelFrame(self, text="🚀 Upgrade & Referrals", 
+                                          font=('Segoe UI', 10, 'bold'), bg=bg)
+        self.upgrade_frame.pack(fill='x', padx=20, pady=15)
+        
+        # Referral Pass Progress
+        self.referral_progress_frame = tk.Frame(self.upgrade_frame, bg=bg)
+        self.referral_progress_frame.pack(fill='x', padx=10, pady=8)
+        
+        self.referral_status_label = tk.Label(self.referral_progress_frame, 
+                                             text="🎯 Referral Pass Progress", 
+                                             font=('Segoe UI', 9, 'bold'), bg=bg)
+        self.referral_status_label.pack(anchor='w')
+        
+        self.referral_details_label = tk.Label(self.referral_progress_frame, 
+                                              text="", wraplength=280, justify="left", bg=bg)
+        self.referral_details_label.pack(anchor='w', pady=(2, 5))
+        
+        # Upgrade recommendations
+        self.upgrade_recommendation = tk.Label(self.upgrade_frame, text="", 
+                                              wraplength=280, justify="center", 
+                                              font=('Segoe UI', 9), bg=bg)
+        self.upgrade_recommendation.pack(pady=5)
+        
+        # Action buttons
+        self.upgrade_buttons_frame = tk.Frame(self.upgrade_frame, bg=bg)
+        self.upgrade_buttons_frame.pack(pady=5)
+        
+        self.view_plans_btn = ttk.Button(self.upgrade_buttons_frame, text="💎 View Plans", 
+                                        command=self.show_plans_comparison)
+        self.view_plans_btn.pack(side='left', padx=5)
+        
+        self.referral_info_btn = ttk.Button(self.upgrade_buttons_frame, text="🎯 Referral Pass Info", 
+                                           command=self.show_referral_pass_info)
+        self.referral_info_btn.pack(side='left', padx=5)
 
     def set_theme(self, dark):
         bg = "#181816" if dark else "#ffffff"
@@ -69,7 +105,9 @@ class AccountTab(tk.Frame):
         canvas_bg = bg
 
         for widget in [
-            self, self.status_label, self.usage_label, self.referral_label
+            self, self.status_label, self.usage_label, self.referral_label,
+            self.upgrade_frame, self.referral_progress_frame, self.referral_status_label,
+            self.referral_details_label, self.upgrade_recommendation, self.upgrade_buttons_frame
         ]:
             try:
                 widget.configure(bg=bg, fg=fg)
@@ -224,3 +262,153 @@ class AccountTab(tk.Frame):
         fill_px = int(self.bar_width * percent)
         self.canvas.coords(self.progress_bar, 0, 0, fill_px, self.bar_height)
         # Border always stays as full bar
+        
+        # Update referral progress display
+        self.update_referral_progress_display()
+    
+    def update_referral_progress_display(self):
+        """Update the referral pass progress display"""
+        if not self.google_info:
+            self.referral_details_label.config(text="Sign in to track referral progress")
+            self.upgrade_recommendation.config(text="")
+            return
+        
+        # Get referral pass status
+        status = self.usage_mgr.get_referral_pass_status()
+        recommendation = self.usage_mgr.get_upgrade_recommendations()
+        
+        # Update referral progress
+        progress_text = f"Referrals: {status['referrals_progress']} • Usage: {status['usage_progress']}"
+        if status['qualified']:
+            progress_text = "✅ " + progress_text + " - QUALIFIED!"
+        else:
+            progress_text = "📊 " + progress_text
+            
+        self.referral_details_label.config(text=progress_text)
+        
+        # Update recommendation
+        self.upgrade_recommendation.config(text=recommendation['message'])
+    
+    def show_plans_comparison(self):
+        """Show detailed plans comparison window"""
+        plans_window = tk.Toplevel(self.app)
+        plans_window.title("💎 SlyWriter Plans Comparison")
+        plans_window.geometry("800x600")
+        plans_window.resizable(False, False)
+        plans_window.transient(self.app)
+        plans_window.grab_set()
+        
+        # Center window
+        plans_window.update_idletasks()
+        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (plans_window.winfo_width() // 2)
+        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (plans_window.winfo_height() // 2)
+        plans_window.geometry(f"+{x}+{y}")
+        
+        # Header
+        header_frame = tk.Frame(plans_window)
+        header_frame.pack(fill='x', padx=20, pady=15)
+        
+        tk.Label(header_frame, text="💎 Choose Your SlyWriter Plan", 
+                font=('Segoe UI', 18, 'bold')).pack()
+        tk.Label(header_frame, text="Compare features and find the perfect plan for your needs",
+                font=('Segoe UI', 11), wraplength=700).pack(pady=(5, 0))
+        
+        # Plans comparison
+        plans_frame = tk.Frame(plans_window)
+        plans_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        
+        plans = ['free', 'pro', 'premium', 'enterprise']
+        plan_colors = {'free': '#E3F2FD', 'pro': '#E8F5E8', 'premium': '#FFF3E0', 'enterprise': '#F3E5F5'}
+        plan_names = {'free': 'Free', 'pro': 'Pro', 'premium': 'Premium', 'enterprise': 'Enterprise'}
+        plan_prices = {'free': 'Free', 'pro': '$9.99/mo', 'premium': '$19.99/mo', 'enterprise': 'Contact Us'}
+        
+        for i, plan in enumerate(plans):
+            plan_frame = tk.LabelFrame(plans_frame, text=f"{plan_names[plan]} - {plan_prices[plan]}", 
+                                      font=('Segoe UI', 12, 'bold'), bg=plan_colors[plan])
+            plan_frame.grid(row=0, column=i, sticky='nsew', padx=5, pady=5)
+            plans_frame.columnconfigure(i, weight=1)
+            
+            # Plan benefits
+            benefits = self.usage_mgr.get_plan_benefits(plan)
+            for benefit in benefits:
+                benefit_label = tk.Label(plan_frame, text=f"✓ {benefit}", 
+                                       font=('Segoe UI', 10), bg=plan_colors[plan],
+                                       anchor='w', justify='left')
+                benefit_label.pack(fill='x', padx=10, pady=2)
+            
+            # Current plan indicator
+            if self.usage_mgr.plan == plan:
+                current_label = tk.Label(plan_frame, text="🌟 Current Plan", 
+                                        font=('Segoe UI', 10, 'bold'), 
+                                        bg=plan_colors[plan], fg='green')
+                current_label.pack(pady=5)
+        
+        # Referral Pass section
+        referral_frame = tk.LabelFrame(plans_window, text="🎯 Referral Pass - Free Premium Access", 
+                                      font=('Segoe UI', 12, 'bold'))
+        referral_frame.pack(fill='x', padx=20, pady=(0, 20))
+        
+        referral_text = tk.Text(referral_frame, height=6, wrap='word', font=('Segoe UI', 10))
+        referral_text.pack(fill='x', padx=10, pady=10)
+        referral_text.insert('1.0', self.usage_mgr.get_referral_pass_explanation())
+        referral_text.config(state='disabled')
+        
+        # Close button
+        close_btn = tk.Button(plans_window, text="Close", command=plans_window.destroy,
+                             font=('Segoe UI', 11), padx=20, pady=5)
+        close_btn.pack(pady=(0, 15))
+    
+    def show_referral_pass_info(self):
+        """Show detailed referral pass information"""
+        info_window = tk.Toplevel(self.app)
+        info_window.title("🎯 Referral Pass System")
+        info_window.geometry("600x500")
+        info_window.resizable(False, False)
+        info_window.transient(self.app)
+        info_window.grab_set()
+        
+        # Center window
+        info_window.update_idletasks()
+        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (info_window.winfo_width() // 2)
+        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (info_window.winfo_height() // 2)
+        info_window.geometry(f"+{x}+{y}")
+        
+        # Header
+        header_frame = tk.Frame(info_window)
+        header_frame.pack(fill='x', padx=20, pady=15)
+        
+        tk.Label(header_frame, text="🎯 Referral Pass System", 
+                font=('Segoe UI', 16, 'bold')).pack()
+        tk.Label(header_frame, text="Earn free Premium access by growing our community",
+                font=('Segoe UI', 11), wraplength=550).pack(pady=(5, 0))
+        
+        # Current status
+        if self.google_info:
+            status_frame = tk.LabelFrame(info_window, text="📊 Your Current Progress", 
+                                        font=('Segoe UI', 12, 'bold'))
+            status_frame.pack(fill='x', padx=20, pady=10)
+            
+            status = self.usage_mgr.get_referral_pass_status()
+            
+            progress_text = f"""Referrals: {status['referrals_progress']}
+Usage: {status['usage_progress']}
+
+{f"🎉 Congratulations! You qualify for free Premium access!" if status['qualified'] else f"Keep going! You need {status['referrals_needed']} more referrals and {status['usage_needed']} more words."}"""
+            
+            tk.Label(status_frame, text=progress_text, font=('Segoe UI', 10), 
+                    justify='left').pack(padx=10, pady=10)
+        
+        # Explanation
+        explanation_frame = tk.LabelFrame(info_window, text="ℹ️ How It Works", 
+                                         font=('Segoe UI', 12, 'bold'))
+        explanation_frame.pack(fill='both', expand=True, padx=20, pady=10)
+        
+        explanation_text = tk.Text(explanation_frame, wrap='word', font=('Segoe UI', 10))
+        explanation_text.pack(fill='both', expand=True, padx=10, pady=10)
+        explanation_text.insert('1.0', self.usage_mgr.get_referral_pass_explanation())
+        explanation_text.config(state='disabled')
+        
+        # Close button
+        close_btn = tk.Button(info_window, text="Close", command=info_window.destroy,
+                             font=('Segoe UI', 11), padx=20, pady=5)
+        close_btn.pack(pady=(0, 15))

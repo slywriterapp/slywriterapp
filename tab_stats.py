@@ -259,9 +259,27 @@ class StatsTab(tk.Frame):
         # Make window non-resizable for clean layout
         analytics_window.resizable(False, False)
         
+        # Add refresh button at top
+        button_frame = tk.Frame(analytics_window, bg=bg_color)
+        button_frame.pack(fill='x', padx=10, pady=(10, 5))
+        
+        refresh_btn = tk.Button(button_frame, text="🔄 Refresh Data", 
+                               command=lambda: self._refresh_analytics_data(notebook),
+                               font=(config.FONT_PRIMARY, 10), bg=config.PRIMARY_BLUE, fg="white",
+                               cursor="hand2", padx=15, pady=5)
+        refresh_btn.pack(side='right')
+        
+        # Auto-refresh every 30 seconds
+        def auto_refresh():
+            if analytics_window.winfo_exists():
+                self._refresh_analytics_data(notebook)
+                analytics_window.after(30000, auto_refresh)  # 30 seconds
+        
+        analytics_window.after(30000, auto_refresh)  # Start auto-refresh
+        
         # Create notebook for different analytics views
         notebook = ttk.Notebook(analytics_window, style="Analytics.TNotebook")
-        notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        notebook.pack(fill='both', expand=True, padx=10, pady=5)
         
         # Daily Activity Tab
         daily_frame = ttk.Frame(notebook, style="Analytics.TFrame")
@@ -278,6 +296,31 @@ class StatsTab(tk.Frame):
         self._populate_daily_analytics(daily_frame)
         self._populate_weekly_analytics(weekly_frame)
         self._populate_usage_chart(chart_frame)
+    
+    def _refresh_analytics_data(self, notebook):
+        """Refresh all analytics data in the popup"""
+        try:
+            # Clear existing data from all tabs
+            for tab_id in range(notebook.index("end")):
+                tab_frame = notebook.nametowidget(notebook.tabs()[tab_id])
+                
+                # Clear all widgets in the tab
+                for widget in tab_frame.winfo_children():
+                    widget.destroy()
+            
+            # Repopulate all tabs with fresh data
+            daily_frame = notebook.nametowidget(notebook.tabs()[0])
+            weekly_frame = notebook.nametowidget(notebook.tabs()[1])
+            chart_frame = notebook.nametowidget(notebook.tabs()[2])
+            
+            self._populate_daily_analytics(daily_frame)
+            self._populate_weekly_analytics(weekly_frame)
+            self._populate_usage_chart(chart_frame)
+            
+            print("[STATS] Analytics data refreshed")
+            
+        except Exception as e:
+            print(f"[STATS] Error refreshing analytics: {e}")
     
     def _populate_daily_analytics(self, frame):
         """Populate daily analytics tab"""

@@ -228,22 +228,31 @@ def apply_modern_theme(tab, dark):
         relief='flat'
     )
     
-    # Modern text widgets with enhanced card-like appearance
+    # Modern text widgets with enhanced card-like appearance and better dark mode contrast
     for t in tab.text_widgets:
+        # Enhanced contrast for dark mode
+        text_bg = config.DARK_ENTRY_BG if dark else config.LIGHT_ENTRY_BG
+        text_fg = "#ffffff" if dark else "#222222"  # Pure white for dark mode, dark gray for light
+        cursor_color = "#ffffff" if dark else "#000000"  # White cursor in dark mode
+        
         t.configure(
-            bg=entry_bg,
-            fg=entry_fg,
-            insertbackground=entry_fg,
+            bg=text_bg,
+            fg=text_fg,
+            insertbackground=cursor_color,
             font=modern_font,
             relief='flat',
-            borderwidth=0,
+            borderwidth=1,
             highlightthickness=2,
             highlightcolor=config.PRIMARY_BLUE,
-            highlightbackground=config.GRAY_300 if not dark else config.GRAY_600,
-            selectbackground=config.PRIMARY_BLUE_LIGHT if not dark else config.PRIMARY_BLUE,
+            highlightbackground=config.GRAY_500 if dark else config.GRAY_300,
+            selectbackground=config.PRIMARY_BLUE if dark else config.PRIMARY_BLUE_LIGHT,
             selectforeground="white",
             padx=config.SPACING_BASE,
-            pady=config.SPACING_SM
+            pady=config.SPACING_SM,
+            # Enhanced readability
+            wrap='word',
+            spacing1=2,  # Extra line spacing for readability
+            spacing3=2
         )
     
     # Update placeholder colors
@@ -285,8 +294,9 @@ def apply_modern_theme(tab, dark):
         if child.__class__.__name__ == "Label":
             child.configure(bg=bg, fg=fg, font=modern_font)
     
-    # Status label and WPM label - CRITICAL FINAL OVERRIDE
-    tab.status_label.configure(bg=bg, fg=fg, font=modern_font)
+    # Status label with enhanced contrast - CRITICAL FINAL OVERRIDE
+    status_fg = "#ffffff" if dark else "#222222"  # Enhanced contrast
+    tab.status_label.configure(bg=bg, fg=status_fg, font=modern_font)
     # FORCE WMP LABEL TO GREEN WITH MULTIPLE METHODS
     tab.wpm_label.configure(bg=bg, fg=config.SUCCESS_GREEN, font=modern_font_bold)
     
@@ -578,14 +588,15 @@ def _apply_modern_ttk_styles(tab, dark, bg, fg, entry_bg, entry_fg, modern_font,
               ])
 
 def update_placeholder_color(tab, dark):
-    """Update placeholder colors with modern palette"""
-    placeholder_fg = config.GRAY_400 if not dark else config.GRAY_500
-    entry_fg = config.DARK_FG if dark else config.LIGHT_FG
+    """Update placeholder colors with modern palette and enhanced visibility"""
+    # Better contrast for placeholders in dark mode
+    placeholder_fg = config.GRAY_500 if not dark else config.GRAY_400  # Lighter gray for dark mode
+    entry_fg = "#ffffff" if dark else "#222222"  # Match the enhanced text colors
     
     tab.text_input.tag_configure("placeholder", foreground=placeholder_fg)
     tab.live_preview.tag_configure("placeholder", foreground=placeholder_fg)
     
-    # Apply current state
+    # Apply current state with enhanced contrast
     if tab.text_input.get('1.0', 'end').strip() == tab.PLACEHOLDER_INPUT:
         tab.text_input.config(fg=placeholder_fg)
     else:

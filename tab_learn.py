@@ -261,11 +261,23 @@ class LearnTab(tk.Frame):
         explanation_combo.pack(fill="x", pady=(2, 0))
         explanation_combo.bind("<<ComboboxSelected>>", self.update_learning_preferences)
         
-        # Advanced Options
+        # Quiz and Advanced Options
         advanced_frame = tk.Frame(settings_frame)
         advanced_frame.grid(row=0, column=3, sticky="ew", padx=(15, 0))
         
-        tk.Label(advanced_frame, text="🔬 Advanced", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        tk.Label(advanced_frame, text="🧭 Personalize", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        # Learning Style Quiz Button
+        self.quiz_btn = tk.Button(
+            advanced_frame,
+            text="📝 Take Quiz",
+            command=self.show_learning_style_quiz,
+            font=('Segoe UI', 8),
+            bg='lightblue',
+            width=12,
+            cursor='hand2'
+        )
+        self.quiz_btn.pack(fill="x", pady=(2, 5))
         
         self.interleaving_var = tk.BooleanVar(value=True)
         interleaving_check = tk.Checkbutton(
@@ -274,7 +286,7 @@ class LearnTab(tk.Frame):
             variable=self.interleaving_var,
             font=('Segoe UI', 8)
         )
-        interleaving_check.pack(anchor="w", pady=(2, 0))
+        interleaving_check.pack(anchor="w")
         
         self.elaboration_var = tk.BooleanVar(value=True)
         elaboration_check = tk.Checkbutton(
@@ -1167,6 +1179,353 @@ Focus on understanding WHY things work, not just memorizing facts."""
             except Exception:
                 pass
     
+    def show_learning_style_quiz(self):
+        """Show learning style assessment quiz"""
+        quiz_window = tk.Toplevel(self.app)
+        quiz_window.title("🧭 Learning Style Assessment")
+        quiz_window.geometry("700x600")
+        quiz_window.resizable(False, False)
+        quiz_window.transient(self.app)
+        quiz_window.grab_set()
+        
+        # Center the window
+        quiz_window.update_idletasks()
+        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (quiz_window.winfo_width() // 2)
+        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (quiz_window.winfo_height() // 2)
+        quiz_window.geometry(f"+{x}+{y}")
+        
+        # Header
+        header_frame = tk.Frame(quiz_window)
+        header_frame.pack(fill='x', padx=20, pady=15)
+        
+        tk.Label(header_frame, text="🧭 Discover Your Learning Style", 
+                font=('Segoe UI', 16, 'bold')).pack()
+        tk.Label(header_frame, text="Answer these questions to personalize your learning experience",
+                font=('Segoe UI', 10), wraplength=600).pack(pady=(5, 0))
+        
+        # Scrollable quiz area
+        canvas = tk.Canvas(quiz_window, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(quiz_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=(20, 0), pady=(0, 20))
+        scrollbar.pack(side="right", fill="y", padx=(0, 20), pady=(0, 20))
+        
+        # Quiz questions with scientific backing
+        self.quiz_responses = {}
+        questions = self._get_learning_style_questions()
+        
+        for i, question_data in enumerate(questions):
+            self._create_quiz_question(scrollable_frame, i, question_data)
+        
+        # Update scroll region
+        def update_scroll():
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        scrollable_frame.bind('<Configure>', lambda e: update_scroll())
+        
+        # Submit button
+        submit_frame = tk.Frame(quiz_window)
+        submit_frame.pack(fill='x', padx=20, pady=(0, 20))
+        
+        submit_btn = tk.Button(submit_frame, text="📊 Analyze My Learning Style",
+                              command=lambda: self._process_quiz_results(quiz_window),
+                              font=('Segoe UI', 12, 'bold'), bg='#4CAF50', fg='white',
+                              cursor='hand2', pady=8)
+        submit_btn.pack()
+    
+    def _get_learning_style_questions(self):
+        """Get research-based learning style assessment questions"""
+        return [
+            {
+                'text': "When learning something new, I prefer to:",
+                'options': [
+                    ('A', "See diagrams, charts, or visual demonstrations", 'visual'),
+                    ('B', "Listen to explanations or discuss it with others", 'auditory'), 
+                    ('C', "Read detailed written instructions", 'reading'),
+                    ('D', "Try it hands-on and learn by doing", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "I remember information best when:",
+                'options': [
+                    ('A', "I can see it written down or in pictures", 'visual'),
+                    ('B', "I hear it explained or repeat it out loud", 'auditory'),
+                    ('C', "I read about it in detail", 'reading'),
+                    ('D', "I practice using it myself", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "When studying, I find it most helpful to:",
+                'options': [
+                    ('A', "Create mind maps, flowcharts, or highlight in colors", 'visual'),
+                    ('B', "Record lectures or study with background music", 'auditory'),
+                    ('C', "Take detailed notes and read textbooks", 'reading'),
+                    ('D', "Use flashcards or practice exercises", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "When someone gives me directions, I prefer:",
+                'options': [
+                    ('A', "A map or visual landmarks", 'visual'),
+                    ('B', "Verbal step-by-step instructions", 'auditory'),
+                    ('C', "Written directions I can refer back to", 'reading'),
+                    ('D', "To walk through it once myself", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "I concentrate best when:",
+                'options': [
+                    ('A', "My workspace is organized and visually clean", 'visual'),
+                    ('B', "There's some background noise or music", 'auditory'),
+                    ('C', "I have all my materials and references ready", 'reading'),
+                    ('D', "I can move around or fidget while thinking", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "When explaining something to others, I tend to:",
+                'options': [
+                    ('A', "Draw pictures or use gestures", 'visual'),
+                    ('B', "Tell stories or use verbal examples", 'auditory'),
+                    ('C', "Write it down or send detailed explanations", 'reading'),
+                    ('D', "Show them how to do it step by step", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "I learn a new skill fastest by:",
+                'options': [
+                    ('A', "Watching demonstrations or tutorials", 'visual'),
+                    ('B', "Having someone explain it to me", 'auditory'),
+                    ('C', "Reading manuals or guides", 'reading'),
+                    ('D', "Jumping in and experimenting", 'kinesthetic')
+                ]
+            },
+            {
+                'text': "When solving problems, I prefer to:",
+                'options': [
+                    ('A', "Visualize the solution or draw it out", 'visual'),
+                    ('B', "Talk through it with others", 'auditory'),
+                    ('C', "Research and read about similar problems", 'reading'),
+                    ('D', "Try different approaches until something works", 'kinesthetic')
+                ]
+            }
+        ]
+    
+    def _create_quiz_question(self, parent, question_num, question_data):
+        """Create a single quiz question with radio buttons"""
+        question_frame = tk.LabelFrame(parent, text=f"Question {question_num + 1}",
+                                      font=('Segoe UI', 10, 'bold'), padx=15, pady=10)
+        question_frame.pack(fill='x', padx=10, pady=8)
+        
+        # Question text
+        question_label = tk.Label(question_frame, text=question_data['text'],
+                                 font=('Segoe UI', 11), wraplength=600, justify='left')
+        question_label.pack(anchor='w', pady=(0, 10))
+        
+        # Response variable
+        self.quiz_responses[question_num] = tk.StringVar()
+        
+        # Options
+        for letter, text, style in question_data['options']:
+            option_frame = tk.Frame(question_frame)
+            option_frame.pack(fill='x', pady=2)
+            
+            radio = tk.Radiobutton(option_frame, text=f"{letter}) {text}",
+                                  variable=self.quiz_responses[question_num],
+                                  value=style, font=('Segoe UI', 10),
+                                  wraplength=550, justify='left')
+            radio.pack(anchor='w')
+    
+    def _process_quiz_results(self, quiz_window):
+        """Process quiz results and update learning preferences"""
+        # Count responses for each learning style
+        style_counts = {'visual': 0, 'auditory': 0, 'reading': 0, 'kinesthetic': 0}
+        total_responses = 0
+        
+        for response_var in self.quiz_responses.values():
+            style = response_var.get()
+            if style:
+                style_counts[style] += 1
+                total_responses += 1
+        
+        if total_responses < len(self.quiz_responses) * 0.7:  # At least 70% answered
+            messagebox.showwarning("Incomplete Quiz", 
+                                 "Please answer at least 70% of the questions for accurate results.")
+            return
+        
+        # Find dominant style
+        dominant_style = max(style_counts, key=style_counts.get)
+        
+        # Calculate percentages
+        percentages = {style: (count / total_responses * 100) if total_responses > 0 else 0 
+                      for style, count in style_counts.items()}
+        
+        # Close quiz window
+        quiz_window.destroy()
+        
+        # Show results
+        self._show_quiz_results(dominant_style, percentages, style_counts)
+        
+        # Update learning preferences
+        self._apply_quiz_results(dominant_style)
+    
+    def _show_quiz_results(self, dominant_style, percentages, style_counts):
+        """Show quiz results in a detailed window"""
+        results_window = tk.Toplevel(self.app)
+        results_window.title("🎯 Your Learning Style Results")
+        results_window.geometry("600x500")
+        results_window.resizable(False, False)
+        results_window.transient(self.app)
+        results_window.grab_set()
+        
+        # Center window
+        results_window.update_idletasks()
+        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (results_window.winfo_width() // 2)
+        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (results_window.winfo_height() // 2)
+        results_window.geometry(f"+{x}+{y}")
+        
+        # Results content
+        main_frame = tk.Frame(results_window)
+        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        # Header
+        style_icons = {'visual': '👁️', 'auditory': '👂', 'reading': '📚', 'kinesthetic': '🤲'}
+        style_names = {'visual': 'Visual', 'auditory': 'Auditory', 'reading': 'Reading/Writing', 'kinesthetic': 'Kinesthetic'}
+        
+        header_text = f"{style_icons[dominant_style]} Your Primary Learning Style: {style_names[dominant_style]}"
+        tk.Label(main_frame, text=header_text, font=('Segoe UI', 16, 'bold')).pack(pady=(0, 20))
+        
+        # Style breakdown
+        tk.Label(main_frame, text="📊 Style Breakdown:", font=('Segoe UI', 12, 'bold')).pack(anchor='w')
+        
+        breakdown_frame = tk.Frame(main_frame)
+        breakdown_frame.pack(fill='x', pady=10)
+        
+        for style in ['visual', 'auditory', 'reading', 'kinesthetic']:
+            style_frame = tk.Frame(breakdown_frame)
+            style_frame.pack(fill='x', pady=2)
+            
+            icon = style_icons[style]
+            name = style_names[style]
+            percentage = percentages[style]
+            
+            # Create a simple progress bar effect
+            bar_length = int(percentage / 5)  # Scale to 20 chars max
+            bar = "█" * bar_length + "░" * (20 - bar_length)
+            
+            tk.Label(style_frame, text=f"{icon} {name}: {bar} {percentage:.1f}%",
+                    font=('Segoe UI', 10)).pack(anchor='w')
+        
+        # Recommendations
+        tk.Label(main_frame, text="💡 Personalized Recommendations:", 
+                font=('Segoe UI', 12, 'bold')).pack(anchor='w', pady=(20, 10))
+        
+        recommendations = self._get_style_recommendations(dominant_style)
+        rec_text = tk.Text(main_frame, height=8, wrap='word', font=('Segoe UI', 10))
+        rec_text.pack(fill='both', expand=True)
+        rec_text.insert('1.0', recommendations)
+        rec_text.config(state='disabled')
+        
+        # Apply button
+        apply_btn = tk.Button(main_frame, text="✅ Apply These Settings",
+                             command=lambda: [self._apply_quiz_results(dominant_style), results_window.destroy()],
+                             font=('Segoe UI', 12, 'bold'), bg='#4CAF50', fg='white',
+                             cursor='hand2', pady=8)
+        apply_btn.pack(pady=(20, 0))
+    
+    def _get_style_recommendations(self, style):
+        """Get personalized recommendations based on learning style"""
+        recommendations = {
+            'visual': """🎨 VISUAL LEARNER RECOMMENDATIONS:
+
+• Use mind maps, diagrams, and flowcharts in lessons
+• Enable visual elements in lesson generation
+• Highlight key concepts with colors and formatting
+• Create concept maps to connect related topics
+• Use charts and graphs to represent data
+• Watch video demonstrations when available
+• Organize information spatially on the screen
+
+Your lessons will now include more visual representations, diagrams, and color-coded information to match your visual learning preference.""",
+
+            'auditory': """🎵 AUDITORY LEARNER RECOMMENDATIONS:
+
+• Read lessons aloud or use text-to-speech
+• Discuss concepts with others when possible
+• Use rhythmic patterns to remember key points
+• Listen to background music while studying
+• Record yourself explaining concepts
+• Use verbal associations and word play
+• Study in environments with some ambient sound
+
+Your lessons will now include more verbal explanations, discussion prompts, and audio-friendly formatting to match your auditory learning preference.""",
+
+            'reading': """📖 READING/WRITING LEARNER RECOMMENDATIONS:
+
+• Take detailed written notes during lessons
+• Create written summaries of key concepts
+• Use lists, bullet points, and structured text
+• Read additional resources on topics
+• Write practice questions and answers
+• Keep a learning journal or glossary
+• Use written reflection exercises
+
+Your lessons will now include more detailed text, structured information, and writing exercises to match your reading/writing learning preference.""",
+
+            'kinesthetic': """🤲 KINESTHETIC LEARNER RECOMMENDATIONS:
+
+• Use hands-on practice exercises and simulations
+• Take breaks to move around while studying
+• Use physical objects or models when possible
+• Try real-world applications of concepts
+• Break learning into active, shorter sessions
+• Use gestures and movement to reinforce learning
+• Practice skills immediately after learning them
+
+Your lessons will now include more interactive exercises, practical applications, and activity-based learning to match your kinesthetic learning preference."""
+        }
+        
+        return recommendations.get(style, "No specific recommendations available.")
+    
+    def _apply_quiz_results(self, dominant_style):
+        """Apply quiz results to learning preferences"""
+        # Map quiz results to preference values
+        style_mapping = {
+            'visual': 'Visual',
+            'auditory': 'Auditory', 
+            'reading': 'Reading/Writing',
+            'kinesthetic': 'Kinesthetic'
+        }
+        
+        # Update the learning style preference
+        mapped_style = style_mapping.get(dominant_style, 'Adaptive')
+        self.learning_style = mapped_style
+        self.learning_style_var.set(mapped_style)
+        
+        # Also update explanation style based on learning style
+        explanation_mapping = {
+            'visual': 'Examples',
+            'auditory': 'Step-by-Step',
+            'reading': 'Academic',
+            'kinesthetic': 'Feynman (Simple)'
+        }
+        
+        explanation_style = explanation_mapping.get(dominant_style, 'Feynman (Simple)')
+        self.explanation_style = explanation_style
+        self.explanation_var.set(explanation_style)
+        
+        # Save preferences
+        self.save_learning_data()
+        
+        # Show confirmation
+        messagebox.showinfo("Settings Applied", 
+                          f"Your learning preferences have been updated!\n\n"
+                          f"Learning Style: {mapped_style}\n"
+                          f"Explanation Style: {explanation_style}\n\n"
+                          f"Future lessons will be personalized to your learning style.")
+
     def _show_quiz_type_dialog(self):
         """Show dialog to select quiz type"""
         dialog = tk.Toplevel(self.app)

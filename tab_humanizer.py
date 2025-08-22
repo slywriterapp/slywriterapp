@@ -60,47 +60,35 @@ class HumanizerTab(tk.Frame):
         self.dynamic_labels = []
         self.scale_label_frames = []
 
-        # AI Text Generation toggles
-        self.toggle_section(row=0)
+        # Workflow explanation
+        self.workflow_section(row=0)
         
-        self.label("Text to Humanize:", row=1)
-        self.input_box = self.textbox(row=2)
-
-        self.label("Humanized Output:", row=3)
-        self.output_box = self.textbox(row=4, state="disabled")
+        # Prominent mode toggles
+        self.prominent_modes_section(row=1)
 
         # AI Generation Settings
-        self.label("── AI Text Generation Settings ──", row=5, style="header")
+        self.label("── AI Text Generation Settings ──", row=2, style="header")
         
         # Response Type Switch
-        self.response_type_section(row=6)
+        self.response_type_section(row=3)
         
         # Settings Info Display Area
-        self.info_display_section(row=7)
+        self.info_display_section(row=4)
         
         # Response Length (for short responses)
-        self.slider("Response Length", "response_length", 1, 5, row=8, left="Very Short", right="Very Long")
+        self.slider("Response Length", "response_length", 1, 5, row=5, left="Very Short", right="Very Long")
         
         # Academic Format Settings (for essays)
-        self.dropdown("Academic Format", "academic_format", ["None", "MLA", "APA", "Chicago", "IEEE"], row=9)
-        self.slider("Required Pages", "required_pages", 1, 20, row=10, left="1 page", right="20 pages")
+        self.dropdown("Academic Format", "academic_format", ["None", "MLA", "APA", "Chicago", "IEEE"], row=6)
+        self.slider("Required Pages", "required_pages", 1, 20, row=7, left="1 page", right="20 pages")
 
         # Original Humanizer Settings
-        self.label("── Traditional Humanizer Settings ──", row=11, style="header")
-        self.slider("Grade Level", "grade_level", 3, 16, row=12, left="3rd", right="16th")
-        self.dropdown("Tone", "tone", ["Neutral", "Formal", "Casual", "Witty"], row=13)
-        self.slider("Depth of Answer", "depth", 1, 5, row=14, left="Shallow", right="Deep")
-        self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=15)
-        self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=16)
-
-        # Button container for centering
-        btn_frame = tk.Frame(self.scrollable_frame)
-        btn_frame.grid(row=17, column=0, columnspan=2, pady=15, padx=(10, 20))
-        
-        self.humanize_btn = tk.Button(btn_frame, text="Run Humanizer", command=self.run_humanizer, width=20)
-        self.humanize_btn.pack()
-        
-        self.widgets_to_style.extend([btn_frame, self.humanize_btn])
+        self.label("── Traditional Humanizer Settings ──", row=8, style="header")
+        self.slider("Grade Level", "grade_level", 3, 16, row=9, left="3rd", right="16th")
+        self.dropdown("Tone", "tone", ["Neutral", "Formal", "Casual", "Witty"], row=10)
+        self.slider("Depth of Answer", "depth", 1, 5, row=11, left="Shallow", right="Deep")
+        self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=12)
+        self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=13)
         
         # Update dynamic labels on startup
         self._update_info_display()
@@ -198,6 +186,103 @@ class HumanizerTab(tk.Frame):
             self.info_text.insert("1.0", f"📄 {pages} {page_text}: ~{total_words} words{format_text}\n\n🎓 Perfect for essays, reports, and documents")
         
         self.info_text.config(state="disabled")
+
+    def workflow_section(self, row):
+        """Create clear workflow explanation"""
+        workflow_frame = tk.LabelFrame(self.scrollable_frame, text="🔄 SlyWriter Workflow", 
+                                      font=("Segoe UI", 12, "bold"), padx=15, pady=10)
+        workflow_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=15)
+        
+        # Workflow steps
+        workflow_text = """✨ How SlyWriter Works:
+
+1️⃣ Highlight text anywhere on your computer
+2️⃣ Press AI hotkey (Ctrl+Alt+G by default) 
+3️⃣ Text gets enhanced by AI
+4️⃣ Text gets humanized (if enabled)
+5️⃣ Final text is typed out automatically
+
+💡 No copy-pasting needed! Works in any application."""
+        
+        workflow_label = tk.Label(workflow_frame, text=workflow_text, 
+                                 font=("Segoe UI", 10), justify="left", wraplength=600)
+        workflow_label.pack(anchor="w")
+        
+        self.widgets_to_style.extend([workflow_frame, workflow_label])
+    
+    def prominent_modes_section(self, row):
+        """Create prominent mode toggles with enhanced styling"""
+        modes_frame = tk.LabelFrame(self.scrollable_frame, text="⚙️ AI Enhancement Modes", 
+                                   font=("Segoe UI", 12, "bold"), padx=15, pady=15)
+        modes_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=15)
+        modes_frame.columnconfigure((0, 1, 2), weight=1)
+        
+        # AI Humanizer Mode
+        humanizer_card = tk.Frame(modes_frame, relief="solid", bd=2, padx=15, pady=12)
+        humanizer_card.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        
+        tk.Label(humanizer_card, text="🤖 AI Humanizer", 
+                font=("Segoe UI", 11, "bold")).pack()
+        tk.Label(humanizer_card, text="Makes AI text sound natural", 
+                font=("Segoe UI", 9)).pack()
+        
+        humanizer_check = tk.Checkbutton(humanizer_card, text="Enable", 
+                                        variable=self.humanizer_enabled,
+                                        command=lambda: self.update_bool_setting("humanizer_enabled", self.humanizer_enabled.get()),
+                                        font=("Segoe UI", 10, "bold"))
+        humanizer_check.pack(pady=5)
+        
+        # Review Mode  
+        review_card = tk.Frame(modes_frame, relief="solid", bd=2, padx=15, pady=12)
+        review_card.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        
+        tk.Label(review_card, text="👁️ Review Mode", 
+                font=("Segoe UI", 11, "bold")).pack()
+        tk.Label(review_card, text="Preview before typing", 
+                font=("Segoe UI", 9)).pack()
+        
+        review_check = tk.Checkbutton(review_card, text="Enable", 
+                                     variable=self.review_mode,
+                                     command=lambda: self.update_bool_setting("review_mode", self.review_mode.get()),
+                                     font=("Segoe UI", 10, "bold"))
+        review_check.pack(pady=5)
+        
+        # Learning Mode with Recommended tag
+        learning_card = tk.Frame(modes_frame, relief="solid", bd=2, padx=15, pady=12)
+        learning_card.grid(row=0, column=2, sticky="nsew", padx=5, pady=5)
+        
+        # Header with recommended tag
+        header_frame = tk.Frame(learning_card)
+        header_frame.pack()
+        
+        tk.Label(header_frame, text="🎓 Learning Mode", 
+                font=("Segoe UI", 11, "bold")).pack()
+        
+        recommended_label = tk.Label(header_frame, text="✨ RECOMMENDED", 
+                                    font=("Segoe UI", 8, "bold"), 
+                                    fg="gold", bg="navy", padx=6, pady=2)
+        recommended_label.pack(pady=(2, 0))
+        
+        tk.Label(learning_card, text="Auto-creates lessons", 
+                font=("Segoe UI", 9)).pack()
+        
+        learning_check = tk.Checkbutton(learning_card, text="Enable", 
+                                       variable=self.learning_mode,
+                                       command=lambda: self.update_bool_setting("learning_mode", self.learning_mode.get()),
+                                       font=("Segoe UI", 10, "bold"))
+        learning_check.pack(pady=5)
+        
+        # Warning about word costs
+        warning_label = tk.Label(modes_frame, 
+                               text="⚠️ Words deducted even if review declined (API costs apply)",
+                               font=("Segoe UI", 9, "italic"), fg="orange")
+        warning_label.grid(row=1, column=0, columnspan=3, pady=(10, 0))
+        
+        # Add to styling
+        self.widgets_to_style.extend([
+            modes_frame, humanizer_card, review_card, learning_card, header_frame,
+            humanizer_check, review_check, learning_check, warning_label, recommended_label
+        ])
 
     def toggle_section(self, row):
         """Create toggle switches for main AI features"""
@@ -349,23 +434,6 @@ class HumanizerTab(tk.Frame):
         save_config(self.app.cfg)
     
 
-    def run_humanizer(self):
-        raw_text = self.input_box.get("1.0", "end-1c").strip()
-        if not raw_text:
-            messagebox.showwarning("Missing Text", "Please enter text to humanize.")
-            return
-
-        settings = {k: v.get() for k, v in self.options.items()}
-        print("▶ Humanizer settings selected:", settings)
-        print("▶ Input text:", raw_text)
-
-        output = f"[Humanized text at grade {settings['grade_level']}, tone: {settings['tone']}]"
-
-        self.output_box.config(state="normal")
-        self.output_box.delete("1.0", "end")
-        self.output_box.insert("1.0", output)
-        self.output_box.config(state="disabled")
-
     def set_theme(self, dark):
         bg = config.DARK_BG if dark else config.LIGHT_BG
         fg = config.DARK_FG if dark else config.LIGHT_FG
@@ -387,9 +455,6 @@ class HumanizerTab(tk.Frame):
 
         for label in self.dynamic_labels:
             label.configure(bg=bg, fg=fg)
-
-        self.input_box.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
-        self.output_box.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
 
         # Apply slider style without border and with visible rail color depending on theme
         for key in ["grade_level", "depth"]:

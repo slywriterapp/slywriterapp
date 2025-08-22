@@ -12,7 +12,15 @@ class AccountUsageManager:
     plan_limits = {
         'free': 4000,
         'pro': 40000,
+        'premium': 100000,
         'enterprise': None
+    }
+    
+    # Requirements for free premium access
+    REFERRAL_PASS_REQUIREMENTS = {
+        'min_referrals': 5,        # Need 5 successful referrals
+        'min_usage': 2000,         # Must have used at least 2000 words
+        'grace_period_days': 30    # 30 days of free premium after qualifying
     }
 
     def __init__(self, account_tab):
@@ -165,3 +173,112 @@ class AccountUsageManager:
             })
         except Exception as e:
             print("⚠️ Failed to sync to server:", e)
+    
+    def is_premium(self):
+        """Check if user has premium features"""
+        return self.plan in ['pro', 'premium', 'enterprise'] or self.has_referral_pass()
+    
+    def has_referral_pass(self):
+        """Check if user qualifies for free premium via referrals"""
+        return (self.referral_mgr.referrals >= self.REFERRAL_PASS_REQUIREMENTS['min_referrals'] and 
+                self.words_used >= self.REFERRAL_PASS_REQUIREMENTS['min_usage'])
+    
+    def get_referral_pass_status(self):
+        """Get detailed referral pass qualification status"""
+        req = self.REFERRAL_PASS_REQUIREMENTS
+        current_referrals = self.referral_mgr.referrals
+        current_usage = self.words_used
+        
+        return {
+            'qualified': self.has_referral_pass(),
+            'referrals_progress': f"{current_referrals}/{req['min_referrals']}",
+            'usage_progress': f"{current_usage}/{req['min_usage']}",
+            'referrals_met': current_referrals >= req['min_referrals'],
+            'usage_met': current_usage >= req['min_usage'],
+            'referrals_needed': max(0, req['min_referrals'] - current_referrals),
+            'usage_needed': max(0, req['min_usage'] - current_usage)
+        }
+    
+    def get_upgrade_recommendations(self):
+        """Get personalized upgrade recommendations"""
+        status = self.get_referral_pass_status()
+        
+        if status['qualified']:
+            return {
+                'message': "🎉 Congratulations! You've earned free Premium access through referrals!",
+                'type': 'success',
+                'action': 'claim_premium'
+            }
+        elif not status['referrals_met'] and not status['usage_met']:
+            return {
+                'message': f"📈 Keep using SlyWriter and refer friends! You need {status['referrals_needed']} more referrals and {status['usage_needed']} more words for free Premium.",
+                'type': 'progress',
+                'action': 'continue_both'
+            }
+        elif not status['referrals_met']:
+            return {
+                'message': f"🤝 You're almost there! Refer {status['referrals_needed']} more friends to unlock free Premium access.",
+                'type': 'referrals',
+                'action': 'focus_referrals'
+            }
+        else:  # usage not met
+            return {
+                'message': f"💪 Keep writing! Use {status['usage_needed']} more words to unlock free Premium access.",
+                'type': 'usage', 
+                'action': 'focus_usage'
+            }
+    
+    def get_plan_benefits(self, plan):
+        """Get benefits description for each plan"""
+        benefits = {
+            'free': [
+                "4,000 words per month",
+                "Basic AI text generation",
+                "Standard humanizer features",
+                "Basic learning mode"
+            ],
+            'pro': [
+                "40,000 words per month", 
+                "Advanced AI models",
+                "Premium humanizer features",
+                "Advanced learning system",
+                "Priority support"
+            ],
+            'premium': [
+                "100,000 words per month",
+                "All AI models & features", 
+                "Unlimited humanizer options",
+                "Full learning system access",
+                "24/7 priority support",
+                "Beta feature access"
+            ],
+            'enterprise': [
+                "Unlimited words",
+                "Custom AI model training",
+                "White-label solutions", 
+                "Dedicated account manager",
+                "SLA guarantees",
+                "Custom integrations"
+            ]
+        }
+        return benefits.get(plan, [])
+    
+    def get_referral_pass_explanation(self):
+        """Get explanation of referral pass system"""
+        req = self.REFERRAL_PASS_REQUIREMENTS
+        return f"""🎯 REFERRAL PASS - Free Premium Access
+
+Earn free Premium access by being an active SlyWriter advocate:
+
+📋 REQUIREMENTS:
+• Refer {req['min_referrals']} friends who sign up and use SlyWriter
+• Use at least {req['min_usage']:,} words yourself to show engagement
+• Both you and referred friends get 1000 bonus words each
+
+🏆 REWARDS:
+• {req['grace_period_days']} days of free Premium access
+• Access to all Premium features
+• Can be renewed by maintaining referral activity
+
+💡 WHY THIS SYSTEM?
+We reward users who genuinely love SlyWriter and help grow our community. Quality referrals from engaged users are more valuable than one-time payments."""
