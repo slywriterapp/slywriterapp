@@ -107,7 +107,7 @@ export default function GlobalHotkeys() {
         setIsPaused(false)
         toast.success('▶️ Typing resumed!')
       } else {
-        toast.info('No active typing session')
+        toast('No active typing session', { icon: 'ℹ️' })
       }
     } catch (error) {
       console.error('Global pause API error:', error)
