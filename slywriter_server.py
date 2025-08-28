@@ -8,8 +8,8 @@ import datetime
 import bcrypt
 import secrets
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import uuid
 import re
 
@@ -122,15 +122,15 @@ def send_email(to_email, subject, body, is_html=False):
             print("SMTP credentials not configured")
             return False
         
-        msg = MimeMultipart('alternative')
+        msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = smtp_username
         msg['To'] = to_email
         
         if is_html:
-            msg.attach(MimeText(body, 'html'))
+            msg.attach(MIMEText(body, 'html'))
         else:
-            msg.attach(MimeText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain'))
         
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
