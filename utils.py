@@ -100,19 +100,37 @@ class HotkeyRecorder(tk.Frame):
         self.label.configure(bg=self.bg, fg=self.fg)
         self.configure(bg=self.bg)
         self.btns_frame.configure(bg=self.bg)
-        # Modern button colors
+        # Modern button colors - use purple theme
         import config
-        btn_bg = config.PRIMARY_BLUE if dark else config.PRIMARY_BLUE_LIGHT
-        btn_fg = "white"  # White text on blue background
+        btn_bg = config.ACCENT_PURPLE  # Use purple for all buttons
+        btn_fg = "white"  # White text on purple background
+        hover_bg = '#7C3AED'  # Darker purple for hover
+        
         for b in [self.btn_record, self.btn_confirm, self.btn_cancel]:
-            b.configure(bg=btn_bg, fg=btn_fg, activebackground=btn_bg, activeforeground=btn_fg)
-        # Entry: "Recording..." should be WHITE box, BLACK text in dark mode!
-        if self.recording:
-            self.entry.configure(bg="#ffffff", fg="#000000", insertbackground="#000000")
-        else:
-            entry_bg = "#242424" if dark else "#ffffff"
-            entry_fg = "#ffffff" if dark else "#000000"
-            self.entry.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
+            b.configure(
+                bg=btn_bg, 
+                fg=btn_fg, 
+                activebackground=hover_bg, 
+                activeforeground=btn_fg,
+                relief='flat',
+                bd=0,
+                cursor='hand2',
+                font=('Segoe UI', 9, 'bold')
+            )
+            
+            # Add hover effects
+            def make_hover_handlers(btn):
+                def on_enter(event):
+                    btn.config(bg=hover_bg)
+                def on_leave(event):  
+                    btn.config(bg=btn_bg)
+                return on_enter, on_leave
+            
+            enter_handler, leave_handler = make_hover_handlers(b)
+            b.bind('<Enter>', enter_handler)
+            b.bind('<Leave>', leave_handler)
+        # Entry: WHITE background with BLACK text for maximum visibility  
+        self.entry.configure(bg="#ffffff", fg="#000000", insertbackground="#000000")
 
     def start(self):
         if self.recording:

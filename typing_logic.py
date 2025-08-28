@@ -21,17 +21,11 @@ def toggle_pause(tab):
         tab.pause_btn.config(text='Pause Typing')
         tab.paused = False
         update_status(tab, 'Resumed typing...')
-        # Update overlay
-        if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
-            tab.app.overlay_tab.update_overlay_text('Resumed typing...')
     else:
         engine.pause_typing()
         tab.pause_btn.config(text='Resume Typing')
         tab.paused = True
         update_status(tab, 'Paused typing!')
-        # Update overlay
-        if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
-            tab.app.overlay_tab.update_overlay_text('Paused')
 
 def clear_input_placeholder(tab, event=None):
     if tab.text_input.get('1.0', 'end').strip() == tab.PLACEHOLDER_INPUT:
@@ -57,7 +51,11 @@ def update_wpm(tab):
     tab.wpm_var.set(f"WPM: {wpm}")
 
     # Update label background/foreground with modern colors and enhanced styling
-    dark = tab.app.cfg['settings'].get('dark_mode', False)
+    try:
+        safe_app = tab._get_safe_app() if hasattr(tab, '_get_safe_app') else tab.app
+        dark = safe_app.cfg['settings'].get('dark_mode', False)
+    except Exception:
+        dark = False  # Default fallback
     bg   = config.DARK_BG if dark else config.LIGHT_BG
     tab.wpm_label.config(
         bg=bg, 
@@ -120,17 +118,52 @@ def start_typing(tab, use_adv_antidetect=False, preview_only=False):
             pause_freq=tab.pause_freq_var.get(),
             preview_only=preview_only
         )
-    tab.start_btn.config(bg='#003366')
-    tab.stop_btn.config(bg='red')
+    
+    # Update button states for new TTK buttons
+    if hasattr(tab, 'start_btn') and tab.start_btn:
+        tab.start_btn.config(state='disabled', text="▶ Starting...")
+    if hasattr(tab, 'pause_btn') and tab.pause_btn:
+        tab.pause_btn.config(state='normal')
+    if hasattr(tab, 'stop_btn') and tab.stop_btn:
+        tab.stop_btn.config(state='normal')
+    
+    # Legacy button styling for old buttons
+    if hasattr(tab, 'start_btn') and hasattr(tab.start_btn, 'config') and 'bg' in tab.start_btn.keys():
+        tab.start_btn.config(bg='#003366')
+    if hasattr(tab, 'stop_btn') and hasattr(tab.stop_btn, 'config') and 'bg' in tab.stop_btn.keys():
+        tab.stop_btn.config(bg='red')
+
+def pause_typing(tab):
+    """Pause the current typing operation"""
+    engine.pause_typing()
+    update_status(tab, 'Typing paused')
+    # Enable/disable appropriate buttons
+    if hasattr(tab, 'start_btn') and tab.start_btn:
+        tab.start_btn.config(text="▶ Resume", state='normal')
+    if hasattr(tab, 'pause_btn') and tab.pause_btn:
+        tab.pause_btn.config(state='disabled')
+    if hasattr(tab, 'stop_btn') and tab.stop_btn:
+        tab.stop_btn.config(state='normal')
+
+def stop_typing(tab):
+    """Stop the current typing operation"""
+    engine.stop_typing_func()
+    update_status(tab, 'Typing stopped!')
+    # Reset buttons
+    if hasattr(tab, 'start_btn') and tab.start_btn:
+        tab.start_btn.config(text="▶ Start Typing", state='normal')
+    if hasattr(tab, 'pause_btn') and tab.pause_btn:
+        tab.pause_btn.config(state='disabled')
+    if hasattr(tab, 'stop_btn') and tab.stop_btn:
+        tab.stop_btn.config(state='disabled')
 
 def stop_typing_hotkey(tab):
     engine.stop_typing_func()
     update_status(tab, 'Typing stopped!')
-    # Update overlay
-    if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
-        tab.app.overlay_tab.update_overlay_text('Stopped')
-    tab.start_btn.config(bg='#003366')
-    tab.stop_btn.config(bg='red')
+    if hasattr(tab, 'start_btn') and tab.start_btn:
+        tab.start_btn.config(bg='#003366')
+    if hasattr(tab, 'stop_btn') and tab.stop_btn:
+        tab.stop_btn.config(bg='red')
 
 def update_live_preview(tab, text):
     entry_fg = tab._get_entry_fg()
@@ -168,17 +201,40 @@ def update_live_preview(tab, text):
 def update_status(tab, text):
     tab.status_label.config(text=text)
     
+    # Get safe app reference
+    safe_app = tab._get_safe_app() if hasattr(tab, '_get_safe_app') else tab.app
+    
     # Update overlay with status
-    if hasattr(tab.app, 'overlay_tab') and tab.app.overlay_tab:
-        tab.app.overlay_tab.update_overlay_text(text)
+    try:
+        if hasattr(safe_app, 'overlay_tab') and safe_app.overlay_tab:
+            safe_app.overlay_tab.update_overlay_text(text)
+    except Exception as e:
+        print(f"[TYPING] Error updating overlay: {e}")
     
     # Unlock profile selector when typing is done/cancelled/stopped
     if text in ["Done", "Stopped", "Cancelled"]:
-        tab.app.prof_box.configure(state='readonly')
+        try:
+            if hasattr(safe_app, 'prof_box'):
+                safe_app.prof_box.configure(state='readonly')
+        except Exception as e:
+            print(f"[TYPING] Error updating prof_box: {e}")
 
 def setup_traces(tab):
     # Whenever any slider or checkbox changes, persist + recalc WPM
-    tab.min_delay_var.trace_add('write', lambda *a: [tab.app.on_setting_change(), update_wpm(tab)])
-    tab.max_delay_var.trace_add('write', lambda *a: [tab.app.on_setting_change(), update_wpm(tab)])
-    tab.typos_var.trace_add('write', lambda *a: tab.app.on_setting_change())
-    tab.pause_freq_var.trace_add('write', lambda *a: [tab.app.on_setting_change(), update_wpm(tab)])
+    # Create safe callbacks to avoid tkinter corruption
+    def safe_on_setting_change():
+        try:
+            safe_app = tab._get_safe_app() if hasattr(tab, '_get_safe_app') else tab.app
+            if hasattr(safe_app, 'on_setting_change'):
+                safe_app.on_setting_change()
+        except Exception as e:
+            print(f"[TYPING] Error in on_setting_change: {e}")
+    
+    def safe_setting_and_wpm():
+        safe_on_setting_change()
+        update_wpm(tab)
+    
+    tab.min_delay_var.trace_add('write', lambda *a: safe_setting_and_wpm())
+    tab.max_delay_var.trace_add('write', lambda *a: safe_setting_and_wpm())
+    tab.typos_var.trace_add('write', lambda *a: safe_on_setting_change())
+    tab.pause_freq_var.trace_add('write', lambda *a: safe_setting_and_wpm())

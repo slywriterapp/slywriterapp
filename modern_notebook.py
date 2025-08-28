@@ -97,7 +97,8 @@ TAB_ICONS = {
     "Typing": "⌨️",
     "Hotkeys": "🎹", 
     "Diagnostics": "📊",
+    "Stats": "📊",  # Same as Diagnostics 
     "Humanizer": "🤖",
-    "Overlay": "📱",
+    "Overlay": "👁",
     "Learn": "🎓"
 }

@@ -13,7 +13,13 @@ class AccountTab(tk.Frame):
         bg = "#181816" if dark else "#ffffff"
         super().__init__(parent, bg=bg)
         self.app = app
-        self.google_info = None
+        # Check if user is already authenticated in the main app
+        if hasattr(app, 'user') and app.user:
+            self.google_info = app.user
+            print(f"[ACCOUNT TAB] Using existing authentication for {app.user.get('email', 'user')}")
+        else:
+            self.google_info = None
+            
         self._pending_auto_login = None
 
         self.usage_mgr = AccountUsageManager(self)
@@ -26,9 +32,11 @@ class AccountTab(tk.Frame):
 
         self.build_ui(bg)
 
-        saved = get_saved_user()
-        if saved:
-            self._pending_auto_login = saved
+        # If already authenticated, don't check for saved user again
+        if not self.google_info:
+            saved = get_saved_user()
+            if saved:
+                self._pending_auto_login = saved
 
         self.start_auto_update()
 
@@ -50,23 +58,40 @@ class AccountTab(tk.Frame):
         self.usage_label = tk.Label(self, text="", bg=bg)
         self.usage_label.pack(pady=(20, 2))
 
-        # Progress bar with border
-        self.canvas = tk.Canvas(self, width=self.bar_width, height=self.bar_height, bd=0, highlightthickness=0, bg=bg)
-        self.canvas.pack()
-        self.bar_border = self.canvas.create_rectangle(
-            0, 0, self.bar_width, self.bar_height, outline="#000000", width=2
+        # Progress bar with TTK Progressbar for proper theming
+        self.progress_frame = tk.Frame(self, bg=bg)
+        self.progress_frame.pack(pady=(5, 10))
+        
+        # Label for progress bar
+        self.progress_label = tk.Label(self.progress_frame, text="Usage Progress", 
+                                     font=('Segoe UI', 9), bg=bg)
+        self.progress_label.pack()
+        
+        # TTK Progressbar with purple theme
+        self.progress_bar = ttk.Progressbar(
+            self.progress_frame,
+            length=300,
+            mode='determinate',
+            value=0
         )
-        self.progress_bar = self.canvas.create_rectangle(
-            0, 0, 0, self.bar_height, fill="#66ff00", outline=""
-        )
+        self.progress_bar.pack(pady=(5, 0))
+        
+        # Keep canvas for compatibility with existing code
+        self.canvas = tk.Canvas(self, width=300, height=self.bar_height, 
+                               bd=0, highlightthickness=0, bg=bg)
+        # Hide canvas - we're using TTK progressbar instead
+        self.canvas.pack_forget()
+        self.bar_border = self.canvas.create_rectangle(0, 0, 300, self.bar_height, outline="#666", width=1)
+        self.canvas_progress_bar = self.canvas.create_rectangle(0, 0, 0, self.bar_height, fill="#4CAF50", outline="")
 
         self.referral_label = tk.Label(self, text="", wraplength=280, justify="center", bg=bg)
         self.referral_label.pack(pady=5)
         
-        # Upgrade/Referral Progress Panel
+        # Upgrade/Referral Progress Panel - HIDDEN
         self.upgrade_frame = tk.LabelFrame(self, text="🚀 Upgrade & Referrals", 
-                                          font=('Segoe UI', 10, 'bold'), bg=bg)
-        self.upgrade_frame.pack(fill='x', padx=20, pady=15)
+                                          font=('Segoe UI', 10, 'bold'), bg=bg,
+                                          bd=0, relief='flat')  # Remove border
+        self.upgrade_frame.pack_forget()  # Hide completely
         
         # Referral Pass Progress
         self.referral_progress_frame = tk.Frame(self.upgrade_frame, bg=bg)
@@ -246,6 +271,11 @@ class AccountTab(tk.Frame):
         self.update_idletasks()
 
     def start_auto_update(self):
+        # If we have existing authentication, render user status immediately
+        if self.google_info:
+            self.usage_mgr.load_usage()
+            self._render_user_status()
+            
         self.usage_mgr.update_usage_display()
         self.after(5000, self.start_auto_update)
 

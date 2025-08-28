@@ -22,16 +22,30 @@ def show_splash_screen(app, after_callback):
     logo_label.image = logo_img
     logo_label.pack(pady=(60, 20))
 
-    text_label = tb.Label(splash, text="", bootstyle="default", foreground="lime", background=sly_bg, font=("Courier", 28, "bold"))
+    text_label = tb.Label(splash, text="", bootstyle="default", foreground="#8B5CF6", background=sly_bg, font=("Courier", 28, "bold"))
     text_label.pack()
 
     def animate_typing():
-        for ch in "SlyWriter":
-            text_label.config(text=text_label.cget("text") + ch)
-            splash.update()
-            time.sleep(3 / len("SlyWriter"))
-        time.sleep(1.5)
-        splash.destroy()
-        app.after(10, after_callback)
+        try:
+            for ch in "SlyWriter":
+                if splash.winfo_exists():
+                    text_label.config(text=text_label.cget("text") + ch)
+                    splash.update()
+                else:
+                    return
+                time.sleep(3 / len("SlyWriter"))
+            time.sleep(1.5)
+            if splash.winfo_exists():
+                splash.destroy()
+            # Use thread-safe callback
+            app.after_idle(after_callback)
+        except Exception as e:
+            print(f"[SPLASH] Animation error: {e}")
+            try:
+                if splash.winfo_exists():
+                    splash.destroy()
+                app.after_idle(after_callback)
+            except:
+                pass
 
     threading.Thread(target=animate_typing, daemon=True).start()

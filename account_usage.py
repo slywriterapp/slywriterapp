@@ -48,8 +48,12 @@ class AccountUsageManager:
 
         if limit is None:
             self.account_tab.usage_label.config(text="Enterprise Plan – Unlimited words")
-            self.account_tab.canvas.itemconfig(self.account_tab.progress_bar, fill="", outline="")
-            self.account_tab.canvas.coords(self.account_tab.progress_bar, 0, 0, 300, 0)
+            # Hide progress bar for unlimited plans
+            if hasattr(self.account_tab, 'progress_frame'):
+                self.account_tab.progress_frame.pack_forget()
+            # Legacy canvas compatibility
+            self.account_tab.canvas.itemconfig(self.account_tab.canvas_progress_bar, fill="", outline="")
+            self.account_tab.canvas.coords(self.account_tab.canvas_progress_bar, 0, 0, 300, 0)
             self.account_tab.referral_label.config(text="")
             return
 
@@ -62,9 +66,24 @@ class AccountUsageManager:
             label_text += f" (+{bonus} from referrals)"
 
         self.account_tab.usage_label.config(text=label_text)
+        
+        # Update modern TTK progress bar
+        if hasattr(self.account_tab, 'progress_bar') and hasattr(self.account_tab, 'progress_frame'):
+            self.account_tab.progress_frame.pack(pady=(5, 10))  # Show progress bar
+            progress_value = percent * 100  # Keep as float for precision
+            self.account_tab.progress_bar.config(value=progress_value)
+            
+            # Update progress label with percentage - show 2 decimal places for values below 1%
+            if hasattr(self.account_tab, 'progress_label'):
+                if progress_value < 1:
+                    self.account_tab.progress_label.config(text=f"Usage: {progress_value:.2f}%")
+                else:
+                    self.account_tab.progress_label.config(text=f"Usage: {progress_value:.1f}%")
+        
+        # Legacy canvas compatibility
         bar_width = int(300 * percent)
-        self.account_tab.canvas.coords(self.account_tab.progress_bar, 0, 0, bar_width, 20)
-        self.account_tab.canvas.itemconfig(self.account_tab.progress_bar, fill=color)
+        self.account_tab.canvas.coords(self.account_tab.canvas_progress_bar, 0, 0, bar_width, 20)
+        self.account_tab.canvas.itemconfig(self.account_tab.canvas_progress_bar, fill=color)
 
         code = self.referral_mgr.referral_code
         if code:

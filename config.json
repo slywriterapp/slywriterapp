@@ -16,11 +16,11 @@
       "start": "9",
       "stop": "8",
       "pause": "7",
-      "overlay": "bracketleft",
+      "overlay": "bracketright",
       "ai_generation": "backslash"
     },
     "schedule": [],
-    "dark_mode": false,
+    "dark_mode": true,
     "humanizer": {
       "grade_level": 12,
       "tone": "Casual",
@@ -46,5 +46,24 @@
     "humanizer_enabled": true
   },
   "profile_settings": {},
-  "custom_presets": {}
+  "custom_presets": {},
+  "user_plan": "Premium",
+  "learning_history": [
+    {
+      "topic": "Next",
+      "original_question": "Learn about: Next",
+      "explanation": "\r\n \u2713 Starting...\r\nAttention: Next.js now collects completely anonymous telemetry regarding usage.\r\nThis information is used to shape Next.js' roadmap and prioritize features.\r\nYou can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:\r\nhttps://nextjs.org/telemetry\r\n\r\n \u2713 Ready in 850ms\r\n \u25cb Compiling / ...\r\n \u2713 Compiled / in 1450ms\r\n GET / 200 in 1684ms\r\n \u2713 Compiled /favicon.ico in 90ms\r\n GET /favicon.ico?favicon.0b3bf435.ico 200 in 355ms\r\n",
+      "auto_captured": true,
+      "timestamp": "2025-08-26T14:59:09.904531",
+      "source": "highlight"
+    },
+    {
+      "topic": "Local",
+      "original_question": "Learn about: Local",
+      "explanation": "  File \"C:\\Users\\brice\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\tkinter\\__init__.py\", line 2068, in __call__\r\n    return self.func(*args)\r\n           ~~~~~~~~~^^^^^^^\r\n  File \"C:\\Typing Project\\tab_learn.py\", line 971, in start_custom_topic\r\n    self.generate_lesson(topic, custom=True)\r\n    ^^^^^^^^^^^^^^^^^^^^\r\nAttributeError: 'LearnTab' object has no attribute 'generate_lesson'\r\n\r\n",
+      "auto_captured": true,
+      "timestamp": "2025-08-24T15:48:27.809579",
+      "source": "highlight"
+    }
+  ]
 }

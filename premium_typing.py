@@ -218,8 +218,9 @@ def premium_type_with_filler(
         last_space = 0
         words_since_last_pause = 0
         typing_start_time = time.time()  # Track when actual typing starts
-        status_callback("Typing…")
-        _update_overlay("Typing…")
+        status_text = "🤖 AI Typing…"
+        status_callback(status_text)
+        _update_overlay(status_text)
 
         while idx < length:
             # Check for stop flag
@@ -237,7 +238,7 @@ def premium_type_with_filler(
             ch = goal_text[idx]
             # ---- LONG ZONE-OUT BREAK ----
             if random.random() < LONG_BREAK_CHANCE:
-                status_text = "Thinking… (zoned out)"
+                status_text = "😴 Break…"
                 status_callback(status_text)
                 _update_overlay(status_text)
                 t = random.uniform(LONG_BREAK_MIN, LONG_BREAK_MAX)
@@ -247,11 +248,11 @@ def premium_type_with_filler(
                         _update_overlay("Stopped")
                         return
                     if i % 10 == 0:
-                        status_text = f"Thinking… ({t-i:.0f}s left)"
+                        status_text = f"😴 Break ({t-i:.0f}s)"
                         status_callback(status_text)
                         _update_overlay(status_text)
                     time.sleep(1)
-                status_text = "Resuming…"
+                status_text = "✍️ Typing…"
                 status_callback(status_text)
                 _update_overlay(status_text)
 
@@ -278,7 +279,7 @@ def premium_type_with_filler(
                         ch = goal_text[idx]
 
                     # --- Pause for "thinking" ---
-                    status_text = "Pausing to rethink…"
+                    status_text = "💭 Thinking…"
                     status_callback(status_text)
                     _update_overlay(status_text)
                     if stop_flag.is_set():
@@ -288,7 +289,9 @@ def premium_type_with_filler(
                     time.sleep(random.uniform(THINKING_PAUSE_MIN, THINKING_PAUSE_MAX))
 
                     # --- Generate & type a filler phrase ---
-                    _update_overlay("Generating AI filler…")
+                    status_text = "🤖 AI Filler…"
+                    status_callback(status_text)
+                    _update_overlay(status_text)
                     filler = generate_filler(goal_text, FILLER_MIN_WORDS, FILLER_MAX_WORDS, status_callback=status_callback, preceding_context=preview, stop_flag=stop_flag)
                     for fch in filler:
                         if stop_flag.is_set():
@@ -302,7 +305,7 @@ def premium_type_with_filler(
                                 status_callback("Stopped")
                                 return
                                 
-                    status_text = "Regretting…"
+                    status_text = "❌ Deleting…"
                     status_callback(status_text)
                     _update_overlay(status_text)
                     if stop_flag.is_set():
@@ -327,7 +330,7 @@ def premium_type_with_filler(
                         status_callback("Stopped")
                         return
                     time.sleep(random.uniform(THINKING_PAUSE_MIN, THINKING_PAUSE_MAX))
-                    status_callback("Resuming…")
+                    status_callback("✍️ Resuming…")
 
             # ---- TYPE ACTUAL CHARACTER (user text) ----
             preview = humanized_type_char(preview, ch)
@@ -338,7 +341,7 @@ def premium_type_with_filler(
                 premium_sentence_break_chance = 0.5  # 50% chance (vs 30% in normal)
                 if random.random() < premium_sentence_break_chance:
                     premium_break_duration = random.uniform(3.0, 8.0)  # 3-8 seconds (vs 2-5 in normal)
-                    status_text = f"Premium break - checking other tabs ({premium_break_duration:.1f}s)..."
+                    status_text = f"📱 Break ({premium_break_duration:.0f}s)"
                     status_callback(status_text)
                     _update_overlay(status_text)
                     
@@ -356,15 +359,15 @@ def premium_type_with_filler(
                             time.sleep(0.1)
                         time.sleep(0.1)
                     
-                    status_callback("Resuming premium typing...")
-                    _update_overlay("Resuming premium typing...")
+                    status_callback("✍️ Typing…")
+                    _update_overlay("✍️ Typing…")
 
             # ---- Handle human-like long pauses and word tracking ----
             if ch.isspace():
                 words_since_last_pause += 1
                 words_in_session += 1  # Track for stats
                 if pause_freq and words_since_last_pause >= pause_freq:
-                    status_callback("Thinking (pause)...")
+                    status_callback("⏸️ Pause…")
                     time.sleep(max_delay)
                     words_since_last_pause = 0
 

@@ -23,6 +23,8 @@ import tkinter as tk  # <-- for classic Tk widgets!
 
 from sly_splash import show_splash_screen
 from sly_theme import apply_app_theme, force_theme_refresh
+from purple_button_theme import apply_purple_ttk_theme, style_all_buttons_purple, setup_popup_theming
+from mousewheel_scroll import setup_mousewheel_scrolling_for_tab
 from modern_notebook import apply_modern_notebook_style, TAB_ICONS
 from sly_config import (
     load_config, save_config, BUILTIN_PROFILES,
@@ -108,6 +110,18 @@ class TypingApp(tb.Window):
         self.setup_ui()
         self.apply_theme()  # Will now style the top bar too!
         force_theme_refresh(self)
+
+        # Apply purple button theme to all tabs
+        apply_purple_ttk_theme(self)
+        
+        # Setup popup window theming
+        setup_popup_theming()
+        
+        # Style all existing buttons purple with hover effects
+        self.after(50, lambda: style_all_buttons_purple(self))
+        
+        # Add mousewheel scrolling to tabs that need it
+        self.after(75, lambda: self._setup_mousewheel_scrolling())
 
         on_profile_change(self)
         self.deiconify()
@@ -311,16 +325,36 @@ class TypingApp(tb.Window):
         self.typing_tab.update_from_config()  # Lock out premium on logout
 
     # ─── Hotkeys & Settings ─────────────────
-    def set_start_hotkey(self, hk):     set_start_hotkey(self, hk)
-    def set_stop_hotkey(self, hk):      set_stop_hotkey(self, hk)
-    def set_pause_hotkey(self, hk):     set_pause_hotkey(self, hk)
-    def set_overlay_hotkey(self, hk):   set_overlay_hotkey(self, hk)
-    def set_ai_generation_hotkey(self, hk): set_ai_generation_hotkey(self, hk)
-    def _validate_and_set_hotkey(self, hk, k): validate_and_set_hotkey(self, hk, k)
-    def reset_hotkeys(self):            reset_hotkeys(self)
-    def reset_typing_settings(self):    reset_typing_settings(self)
-    def on_setting_change(self):        on_setting_change(self)
-    def on_profile_change(self, _=None):on_profile_change(self)
+    def set_start_hotkey(self, hk):
+        set_start_hotkey(self, hk)
+        
+    def set_stop_hotkey(self, hk):
+        set_stop_hotkey(self, hk)
+        
+    def set_pause_hotkey(self, hk):
+        set_pause_hotkey(self, hk)
+        
+    def set_overlay_hotkey(self, hk):
+        set_overlay_hotkey(self, hk)
+        
+    def set_ai_generation_hotkey(self, hk):
+        set_ai_generation_hotkey(self, hk)
+        
+    def _validate_and_set_hotkey(self, hk, k):
+        validate_and_set_hotkey(self, hk, k)
+        
+    def reset_hotkeys(self):
+        reset_hotkeys(self)
+        
+    def reset_typing_settings(self):
+        reset_typing_settings(self)
+        
+    def on_setting_change(self):
+        from sly_config import on_setting_change as config_on_setting_change
+        config_on_setting_change(self)
+        
+    def on_profile_change(self, _=None):
+        on_profile_change(self)
 
     # ─── Theme toggling ────────────────────
     def toggle_dark(self, is_dark):
@@ -417,6 +451,24 @@ class TypingApp(tb.Window):
 
     def force_theme_refresh(self):
         force_theme_refresh(self)
+    
+    def _setup_mousewheel_scrolling(self):
+        """Setup mousewheel scrolling for tabs that need it"""
+        try:
+            # Learn tab has scrollable content
+            if hasattr(self, 'learn_tab'):
+                setup_mousewheel_scrolling_for_tab(self.learn_tab)
+            
+            # Humanizer tab has scrollable content  
+            if hasattr(self, 'humanizer_tab'):
+                setup_mousewheel_scrolling_for_tab(self.humanizer_tab)
+            
+            # Stats tab might have scrollable content
+            if hasattr(self, 'stats_tab'):
+                setup_mousewheel_scrolling_for_tab(self.stats_tab)
+            
+        except Exception as e:
+            print(f"Error setting up mousewheel scrolling: {e}")
     
     def _force_startup_theme_refresh(self):
         """Force TTK theme refresh after startup to fix checkbox styling issues"""

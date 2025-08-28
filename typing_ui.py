@@ -85,11 +85,31 @@ def build_typing_ui(tab):
     ttk.Button(tab.ctrl, text='Paste Clipboard', command=tab.paste_clipboard).pack(side='left', padx=5)
     ttk.Button(tab.ctrl, text='Clear All', command=tab.clear_text_areas).pack(side='left', padx=5)
 
-    # Modern buttons will be created by the theme system
-    # Just create placeholders that will be replaced by ModernButton
-    tab.start_btn = None
-    tab.pause_btn = None  
-    tab.stop_btn = None
+    # Start/Stop/Pause buttons
+    action_frame = tk.Frame(tab.content)
+    action_frame.pack(fill='x', padx=10, pady=(0, 10))
+    
+    tab.start_btn = ttk.Button(action_frame, text="▶ Start Typing", 
+                              command=tab.start_typing, width=15)
+    tab.start_btn.pack(side='left', padx=(0, 5))
+    
+    tab.pause_btn = ttk.Button(action_frame, text="⏸ Pause", 
+                              command=tab.pause_typing, width=15, state='disabled')
+    tab.pause_btn.pack(side='left', padx=5)
+    
+    tab.stop_btn = ttk.Button(action_frame, text="⏹ Stop", 
+                             command=tab.stop_typing, width=15, state='disabled')
+    tab.stop_btn.pack(side='left', padx=5)
+
+    # Status display
+    tab.status_frame = tk.Frame(tab.content)
+    tab.status_frame.pack(fill='x', padx=10, pady=(5, 10))
+    
+    tab.status_label = tk.Label(tab.status_frame, text="Status: Ready", 
+                               font=('Segoe UI', 10), fg='#8B5CF6', anchor='w')
+    tab.status_label.pack(side='left')
+    
+    tab.text_widgets.append(tab.status_label)
 
     # ─── Settings panel ──────────────────────────────────────
     tab.sf = tk.LabelFrame(tab.content, text="Settings", padx=10, pady=10, font=('Segoe UI', 11, 'bold'))
@@ -137,6 +157,6 @@ def build_typing_ui(tab):
     Tooltip(pause_freq_label, "How many characters to type before taking a brief pause - lower = more frequent pauses")
 
     # Reset button with tooltip
-    tab.reset_btn = ttk.Button(tab.sf, text="Reset to Defaults", command=tab.app.reset_typing_settings)
+    tab.reset_btn = ttk.Button(tab.sf, text="Reset to Defaults", command=lambda: tab._get_safe_app().reset_typing_settings())
     tab.reset_btn.grid(row=5, column=0, columnspan=2, pady=8)
     Tooltip(tab.reset_btn, "Reset all typing settings to their default values")

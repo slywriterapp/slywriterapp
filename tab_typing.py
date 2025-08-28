@@ -14,8 +14,19 @@ class TypingTab(tk.Frame):
 
     def __init__(self, parent, app):
         super().__init__(parent)
-        self.app = app
         self.paused = False
+        
+        # FIRST: Create safe app accessor immediately - before anything else uses it
+        def make_safe_app_accessor():
+            captured_app = app
+            def get_safe_app():
+                return captured_app
+            return get_safe_app
+        
+        self._get_safe_app = make_safe_app_accessor()
+        
+        # Store app reference for backward compatibility
+        self.app = app
 
         # --- CONTROL VARIABLES ---
         self.min_delay_var      = tk.DoubleVar()
@@ -31,13 +42,59 @@ class TypingTab(tk.Frame):
         self._add_preview_only_checkbox(self.sf)
         self._add_premium_setting(self.sf)
 
-        # Set up traces once
+        # Create closure-based callback that permanently captures app reference
+        def make_setting_change_callback():
+            # Capture app reference in closure - this can't be overridden by tkinter
+            captured_app = app
+            def setting_changed():
+                if self.loading_profile:
+                    return
+                # Use captured reference instead of any attribute
+                captured_app.on_setting_change()
+                self.update_wpm()
+            return setting_changed
+        
+        self._maybe_setting_changed = make_setting_change_callback()
+        
+        # Create closure-based config updater
+        def make_config_updater():
+            captured_app = app
+            def update_from_config():
+                s = captured_app.cfg['settings']
+                self.loading_profile = True
+
+                self.min_delay_var.set(s['min_delay'])
+                self.max_delay_var.set(s['max_delay'])
+                self.pause_freq_var.set(s['pause_freq'])
+                self.typos_var.set(s['typos_on'])
+                
+                # Premium features
+                self.preview_only_var.set(s.get('preview_only', False))
+                self.adv_antidetect_var.set(s.get('adv_antidetect', False))
+
+                # Update scales if they exist (from build_typing_ui)
+                if hasattr(self, 'min_delay_scale'):
+                    self.min_delay_scale.set(s['min_delay'])
+                if hasattr(self, 'max_delay_scale'):
+                    self.max_delay_scale.set(s['max_delay'])
+                if hasattr(self, 'pause_freq_scale'):
+                    self.pause_freq_scale.set(s['pause_freq'])
+
+                self.loading_profile = False
+                self.update_wpm()
+                self.update_placeholder_color()
+            return update_from_config
+        
+        self.update_from_config = make_config_updater()
+
+        # Note: _get_safe_app was created at the beginning of constructor
+        
         for var in [
             self.min_delay_var, self.max_delay_var,
             self.pause_freq_var, self.typos_var,
             self.preview_only_var, self.adv_antidetect_var
         ]:
-            var.trace_add('write', lambda *a: self._maybe_setting_changed())
+            var.trace_add('write', lambda *args: self._maybe_setting_changed())
 
         self.update_from_config()
 
@@ -71,7 +128,7 @@ class TypingTab(tk.Frame):
         plan, is_premium = self._get_premium_status()
 
         # Get theme colors for proper visibility
-        dark = self.app.cfg['settings'].get('dark_mode', False)
+        dark = self._get_safe_app().cfg['settings'].get('dark_mode', False)
         bg_color = "#181816" if dark else "#ffffff"
         fg_color = ("#ffffff" if dark else "#222") if is_premium else "#888"
         # Use contrasting color for checkbox interior
@@ -96,7 +153,7 @@ class TypingTab(tk.Frame):
         row += 1
         if is_premium:
             # Get theme colors for proper visibility - force explicit colors
-            dark = self.app.cfg['settings'].get('dark_mode', False)
+            dark = self._get_safe_app().cfg['settings'].get('dark_mode', False)
             bg_color = "#181816" if dark else "#ffffff"
             # Force bright green text that will show on both backgrounds
             text_color = "#00FF00" if dark else LIME_GREEN
@@ -112,38 +169,44 @@ class TypingTab(tk.Frame):
             self.premium_desc_msg.grid(row=row, column=0, columnspan=2, sticky='w', padx=(40, 0), pady=(0, 8))
         # Don't show upgrade message for premium users - feature leak prevention
 
-    def _maybe_setting_changed(self):
-        if self.loading_profile:
-            return
-        self.app.on_setting_change()
-        self.update_wpm()
+    def update_wpm(self):
+        """Update WPM display based on current settings"""
+        try:
+            min_delay = self.min_delay_var.get()
+            max_delay = self.max_delay_var.get()
+            if min_delay > 0 and max_delay > 0:
+                avg_delay = (min_delay + max_delay) / 2
+                wpm = int(60 / (avg_delay * 5))  # Approximate WPM calculation
+                if hasattr(self, 'wpm_label'):
+                    self.wpm_label.config(text=f"Estimated WPM: {wpm}")
+        except (tk.TclError, ZeroDivisionError):
+            if hasattr(self, 'wpm_label'):
+                self.wpm_label.config(text="Estimated WPM: --")
 
-    def update_from_config(self):
-        s = self.app.cfg['settings']
-        self.loading_profile = True
+    def update_placeholder_color(self):
+        """Update placeholder colors for theme changes"""
+        try:
+            update_placeholder_color(self, self._get_safe_app().cfg['settings'].get('dark_mode', False))
+        except:
+            pass  # Ignore errors during theme switching
 
-        self.min_delay_var.set(s['min_delay'])
-        self.max_delay_var.set(s['max_delay'])
-        self.pause_freq_var.set(s['pause_freq'])
-        self.typos_var.set(s['typos_on'])
-        self.preview_only_var.set(s.get('preview_only', False))
-        self.adv_antidetect_var.set(s.get('adv_antidetect', False))
+    def _get_premium_status(self):
+        """Get current premium status"""
+        try:
+            from utils import is_premium_user, get_user_plan
+            is_premium = is_premium_user(self.app)
+            plan = get_user_plan(self.app)
+            return plan, is_premium
+        except:
+            return 'free', False
 
-        # Update scales (from build_typing_ui)
-        self.min_delay_scale.set(s['min_delay'])
-        self.max_delay_scale.set(s['max_delay'])
-        self.pause_freq_scale.set(s['pause_freq'])
-
-        self.loading_profile = False
-
-        self.update_wpm()
-        self.update_placeholder_color()
-
+    def _refresh_premium_ui(self):
+        """Refresh the premium-related UI elements"""
         # Recompute premium state and update toggle/message with proper theme colors
         plan, is_premium = self._get_premium_status()
         
         # Apply proper theme colors
-        dark = self.app.cfg['settings'].get('dark_mode', False)
+        dark = self._get_safe_app().cfg['settings'].get('dark_mode', False)
         bg_color = "#181816" if dark else "#ffffff"
         fg_color = ("#ffffff" if dark else "#222") if is_premium else "#888"
         select_color = "#ffffff" if dark else "#f0f0f0"
@@ -165,6 +228,28 @@ class TypingTab(tk.Frame):
 
     def toggle_pause(self):
         typing_logic.toggle_pause(self)
+    
+    def pause_typing(self):
+        """Pause the current typing operation"""
+        typing_logic.pause_typing(self)
+        
+    def stop_typing(self):
+        """Stop the current typing operation"""  
+        typing_logic.stop_typing(self)
+        # Unlock profile selector after stopping
+        if hasattr(self._get_safe_app(), 'prof_box'):
+            self._get_safe_app().prof_box.configure(state='readonly')
+
+    def start_typing(self):
+        """Start the typing automation"""
+        # Lock profile selector during typing/countdown
+        if hasattr(self._get_safe_app(), 'prof_box'):
+            self._get_safe_app().prof_box.configure(state='disabled')
+        typing_logic.start_typing(self, use_adv_antidetect=self.adv_antidetect_var.get(), preview_only=self.preview_only_var.get())
+        
+    def find_wpm(self):
+        """Calculate and find optimal WPM"""  
+        typing_logic.find_wpm(self)
 
     def _clear_input_placeholder(self, event):
         typing_logic.clear_input_placeholder(self, event)
@@ -172,14 +257,27 @@ class TypingTab(tk.Frame):
     def _restore_input_placeholder(self, event):
         typing_logic.restore_input_placeholder(self, event)
 
-    def update_placeholder_color(self):
-        update_placeholder_color(self, self.app.cfg['settings'].get('dark_mode', False))
-
     def _get_entry_fg(self):
-        return get_entry_fg(self.app.cfg['settings'].get('dark_mode', False))
+        """Get entry foreground color based on theme"""
+        return get_entry_fg(self._get_safe_app().cfg['settings'].get('dark_mode', False))
+    
+    def _get_placeholder_fg(self):
+        """Get placeholder foreground color based on theme"""
+        return get_placeholder_fg(self._get_safe_app().cfg['settings'].get('dark_mode', False))
+    
+    def update_placeholder_color(self):
+        """Update placeholder colors for theme changes"""
+        try:
+            from modern_theme import update_placeholder_color as update_colors
+            update_colors(self, self._get_safe_app().cfg['settings'].get('dark_mode', False))
+        except:
+            pass  # Ignore errors during theme switching
+
+    def _get_entry_fg_old(self):
+        return get_entry_fg(self._get_safe_app().cfg['settings'].get('dark_mode', False))
 
     def _get_placeholder_fg(self):
-        return get_placeholder_fg(self.app.cfg['settings'].get('dark_mode', False))
+        return get_placeholder_fg(self._get_safe_app().cfg['settings'].get('dark_mode', False))
 
     def update_wpm(self):
         typing_logic.update_wpm(self)
@@ -246,15 +344,6 @@ class TypingTab(tk.Frame):
             pass
         return "break"  # Prevent default redo behavior
 
-    def start_typing(self):
-        # Lock profile selector during typing/countdown
-        self.app.prof_box.configure(state='disabled')
-        typing_logic.start_typing(self, use_adv_antidetect=self.adv_antidetect_var.get(), preview_only=self.preview_only_var.get())
-
-    def stop_typing_hotkey(self):
-        typing_logic.stop_typing_hotkey(self)
-        # Unlock profile selector after stopping
-        self.app.prof_box.configure(state='readonly')
 
     def update_live_preview(self, text):
         typing_logic.update_live_preview(self, text)
@@ -319,12 +408,12 @@ class TypingTab(tk.Frame):
         
         # Center window
         test_window.update_idletasks()
-        x = (self.app.winfo_x() + (self.app.winfo_width() // 2)) - (test_window.winfo_width() // 2)
-        y = (self.app.winfo_y() + (self.app.winfo_height() // 2)) - (test_window.winfo_height() // 2)
+        x = (self._get_safe_app().winfo_x() + (self._get_safe_app().winfo_width() // 2)) - (test_window.winfo_width() // 2)
+        y = (self._get_safe_app().winfo_y() + (self._get_safe_app().winfo_height() // 2)) - (test_window.winfo_height() // 2)
         test_window.geometry(f"+{x}+{y}")
         
         # Apply theme
-        dark = self.app.cfg['settings'].get('dark_mode', False)
+        dark = self._get_safe_app().cfg['settings'].get('dark_mode', False)
         bg_color = "#181816" if dark else "#ffffff"
         fg_color = "#ffffff" if dark else "#222222"
         test_window.configure(bg=bg_color)
@@ -727,10 +816,10 @@ class TypingTab(tk.Frame):
             self.wpm_var.set(f"WPM: {wpm}")
             
             # Save to config
-            self.app.cfg['settings']['min_delay'] = min_delay
-            self.app.cfg['settings']['max_delay'] = max_delay
+            self._get_safe_app().cfg['settings']['min_delay'] = min_delay
+            self._get_safe_app().cfg['settings']['max_delay'] = max_delay
             from sly_config import save_config
-            save_config(self.app.cfg)
+            save_config(self._get_safe_app().cfg)
             
             # Show confirmation
             import tkinter.messagebox as messagebox

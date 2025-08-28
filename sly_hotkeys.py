@@ -23,11 +23,11 @@ def register_hotkeys(app):
             print(f"[HOTKEYS] Could not remove {name} hotkey: {e}")
             pass
     keyboard.add_hotkey(app.cfg['settings']['hotkeys']['start'],
-                        lambda: None if getattr(app.hotkeys_tab.start_rec, 'recording', False) else app.typing_tab.start_typing())
+                        lambda: None if getattr(app.hotkeys_tab.start_rec, 'recording', False) else _start_typing_hotkey(app))
     keyboard.add_hotkey(app.cfg['settings']['hotkeys']['stop'],
-                        lambda: None if getattr(app.hotkeys_tab.stop_rec, 'recording', False) else app.typing_tab.stop_typing_hotkey())
+                        lambda: None if getattr(app.hotkeys_tab.stop_rec, 'recording', False) else _stop_typing_hotkey(app))
     keyboard.add_hotkey(app.cfg['settings']['hotkeys'].get('pause','ctrl+alt+p'),
-                        lambda: None if getattr(app.hotkeys_tab.start_rec, 'recording', False) else app.typing_tab.toggle_pause())
+                        lambda: None if getattr(app.hotkeys_tab.start_rec, 'recording', False) else _pause_typing_hotkey(app))
     keyboard.add_hotkey(app.cfg['settings']['hotkeys'].get('overlay','ctrl+alt+o'),
                         lambda: None if getattr(app.hotkeys_tab, 'overlay_rec', None) and getattr(app.hotkeys_tab.overlay_rec, 'recording', False) else _toggle_overlay_hotkey(app))
     keyboard.add_hotkey(app.cfg['settings']['hotkeys'].get('ai_generation','ctrl+alt+g'),
@@ -49,14 +49,22 @@ def set_ai_generation_hotkey(app, hk):
     _validate_and_set_hotkey(app, hk, 'ai_generation')
 
 def _validate_and_set_hotkey(app, hk, key_name):
+    print(f"[HOTKEYS] _validate_and_set_hotkey called: {key_name} = {hk}")
     try:
         keyboard.parse_hotkey(hk)
+        print(f"[HOTKEYS] Hotkey validated successfully: {hk}")
         app.cfg['settings']['hotkeys'][key_name] = hk
+        print(f"[HOTKEYS] Saved to config: {key_name} = {hk}")
         register_hotkeys(app)
+        print(f"[HOTKEYS] Re-registered all hotkeys")
         from sly_config import save_config
         save_config(app.cfg)
-    except ValueError:
+        print(f"[HOTKEYS] Config saved to disk")
+    except ValueError as e:
+        print(f"[HOTKEYS] Invalid hotkey error: {e}")
         tb.messagebox.showwarning("Invalid Hotkey", f"The hotkey '{hk}' is not valid.")
+    except Exception as e:
+        print(f"[HOTKEYS] Unexpected error in _validate_and_set_hotkey: {e}")
 
 def reset_hotkeys(app):
     app.cfg['settings']['hotkeys'] = config.DEFAULT_CONFIG['settings']['hotkeys'].copy()
@@ -76,9 +84,17 @@ def reset_hotkeys(app):
     save_config(app.cfg)
 
 def _toggle_overlay_hotkey(app):
+    # Check for overlay tab in different locations
+    overlay_tab = None
     if hasattr(app, 'overlay_tab'):
-        current = app.overlay_tab.overlay_enabled.get()
-        app.overlay_tab.overlay_enabled.set(not current)
+        overlay_tab = app.overlay_tab
+    elif hasattr(app, 'tabs') and 'Overlay' in app.tabs:
+        overlay_tab = app.tabs['Overlay']
+    
+    if overlay_tab:
+        current = overlay_tab.overlay_enabled.get()
+        overlay_tab.overlay_enabled.set(not current)
+        print(f"[HOTKEY] Toggled overlay: {not current}")
 
 def _ai_generation_hotkey(app):
     """Handle AI text generation hotkey press"""
@@ -88,6 +104,54 @@ def _ai_generation_hotkey(app):
         trigger_ai_text_generation(app)
     except Exception as e:
         print(f"[AI HOTKEY] Error triggering AI text generation: {e}")
+
+def _start_typing_hotkey(app):
+    """Handle start typing hotkey press"""
+    try:
+        # Check for typing tab in different locations
+        typing_tab = None
+        if hasattr(app, 'typing_tab'):
+            typing_tab = app.typing_tab
+        elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
+            typing_tab = app.tabs['Typing']
+        
+        if typing_tab and hasattr(typing_tab, 'start_typing'):
+            typing_tab.start_typing()
+            print("[HOTKEY] Started typing")
+    except Exception as e:
+        print(f"[START HOTKEY] Error starting typing: {e}")
+
+def _stop_typing_hotkey(app):
+    """Handle stop typing hotkey press"""
+    try:
+        # Check for typing tab in different locations
+        typing_tab = None
+        if hasattr(app, 'typing_tab'):
+            typing_tab = app.typing_tab
+        elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
+            typing_tab = app.tabs['Typing']
+        
+        if typing_tab and hasattr(typing_tab, 'stop_typing_hotkey'):
+            typing_tab.stop_typing_hotkey()
+            print("[HOTKEY] Stopped typing")
+    except Exception as e:
+        print(f"[STOP HOTKEY] Error stopping typing: {e}")
+
+def _pause_typing_hotkey(app):
+    """Handle pause typing hotkey press"""
+    try:
+        # Check for typing tab in different locations
+        typing_tab = None
+        if hasattr(app, 'typing_tab'):
+            typing_tab = app.typing_tab
+        elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
+            typing_tab = app.tabs['Typing']
+        
+        if typing_tab and hasattr(typing_tab, 'toggle_pause'):
+            typing_tab.toggle_pause()
+            print("[HOTKEY] Toggled pause")
+    except Exception as e:
+        print(f"[PAUSE HOTKEY] Error toggling pause: {e}")
 
 def validate_and_set_hotkey(app, hk, key_name):
     _validate_and_set_hotkey(app, hk, key_name)

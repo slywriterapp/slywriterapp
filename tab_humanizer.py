@@ -67,30 +67,12 @@ class HumanizerTab(tk.Frame):
         self.prominent_modes_section(row=1)
 
         # AI Generation Settings
-        self.label("── AI Text Generation Settings ──", row=2, style="header")
+        self.modern_ai_settings_section(row=2)
         
-        # Response Type Switch
-        self.response_type_section(row=3)
+        # Traditional Humanizer Settings
+        self.modern_humanizer_settings_section(row=3)
         
-        # Settings Info Display Area
-        self.info_display_section(row=4)
-        
-        # Response Length (for short responses)
-        self.slider("Response Length", "response_length", 1, 5, row=5, left="Very Short", right="Very Long")
-        
-        # Academic Format Settings (for essays)
-        self.dropdown("Academic Format", "academic_format", ["None", "MLA", "APA", "Chicago", "IEEE"], row=6)
-        self.slider("Required Pages", "required_pages", 1, 20, row=7, left="1 page", right="20 pages")
-
-        # Original Humanizer Settings
-        self.label("── Traditional Humanizer Settings ──", row=8, style="header")
-        self.slider("Grade Level", "grade_level", 3, 16, row=9, left="3rd", right="16th")
-        self.dropdown("Tone", "tone", ["Neutral", "Formal", "Casual", "Witty"], row=10)
-        self.slider("Depth of Answer", "depth", 1, 5, row=11, left="Shallow", right="Deep")
-        self.dropdown("Rewrite Style", "rewrite_style", ["Clear", "Concise", "Creative"], row=12)
-        self.dropdown("Use of Evidence", "use_of_evidence", ["None", "Optional", "Required"], row=13)
-        
-        # Update dynamic labels on startup
+        # Update dynamic labels on startup (after all widgets are created)
         self._update_info_display()
         self._toggle_sections_visibility()
 
@@ -138,15 +120,29 @@ class HumanizerTab(tk.Frame):
         """Show/hide sections based on response type"""
         is_essay = self.response_type.get() == "essay"
         
-        # Show/hide response length slider
+        # Show/hide response length frame (for short responses)
         if hasattr(self, 'response_length_scale'):
-            self.response_length_scale.grid_remove() if is_essay else self.response_length_scale.grid()
+            parent_frame = self.response_length_scale.master
+            if is_essay:
+                parent_frame.grid_remove()
+            else:
+                parent_frame.grid()  # Show for short responses
         
-        # Show/hide academic format and pages
+        # Show/hide academic format frame (for essays)
         if hasattr(self, 'academic_format_combo'):
-            self.academic_format_combo.grid_remove() if not is_essay else self.academic_format_combo.grid()
+            format_frame = self.academic_format_combo.master
+            if not is_essay:
+                format_frame.grid_remove()
+            else:
+                format_frame.grid()  # Show for essays
+                
+        # Show/hide required pages frame (for essays)
         if hasattr(self, 'required_pages_scale'):
-            self.required_pages_scale.grid_remove() if not is_essay else self.required_pages_scale.grid()
+            pages_frame = self.required_pages_scale.master
+            if not is_essay:
+                pages_frame.grid_remove()
+            else:
+                pages_frame.grid()  # Show for essays
 
     def _update_info_display(self):
         """Update the central info display with current settings"""
@@ -194,15 +190,15 @@ class HumanizerTab(tk.Frame):
         workflow_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=15)
         
         # Workflow steps
-        workflow_text = """✨ How SlyWriter Works:
+        workflow_text = """How SlyWriter Works:
 
-1️⃣ Highlight text anywhere on your computer
-2️⃣ Press AI hotkey (Ctrl+Alt+G by default) 
-3️⃣ Text gets enhanced by AI
-4️⃣ Text gets humanized (if enabled)
-5️⃣ Final text is typed out automatically
+1. Highlight text anywhere on your computer
+2. Press AI hotkey (Ctrl+Alt+G by default) 
+3. Text gets enhanced by AI
+4. Text gets humanized (if enabled)
+5. Final text is typed out automatically
 
-💡 No copy-pasting needed! Works in any application."""
+Note: No copy-pasting needed! Works in any application."""
         
         workflow_label = tk.Label(workflow_frame, text=workflow_text, 
                                  font=("Segoe UI", 10), justify="left", wraplength=600)
@@ -283,6 +279,216 @@ class HumanizerTab(tk.Frame):
             modes_frame, humanizer_card, review_card, learning_card, header_frame,
             humanizer_check, review_check, learning_check, warning_label, recommended_label
         ])
+    
+    def modern_ai_settings_section(self, row):
+        """Create modern AI text generation settings section"""
+        ai_frame = tk.LabelFrame(self.scrollable_frame, text="🤖 AI Text Generation Settings", 
+                                font=("Segoe UI", 12, "bold"), padx=15, pady=15)
+        ai_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=15)
+        ai_frame.columnconfigure((0, 1), weight=1)
+        
+        # Response Type Switch
+        self.response_type_section_modern(ai_frame, row=0)
+        
+        # Settings Info Display Area
+        self.info_display_section_modern(ai_frame, row=1)
+        
+        # Response Length (for short responses) - Learn tab style
+        response_frame = tk.Frame(ai_frame)
+        response_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(response_frame, text="📏 Response Length", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.response_length_scale = ttk.Scale(
+            response_frame,
+            from_=1, to=5,
+            variable=self.options["response_length"],
+            orient='horizontal',
+            command=lambda val: self.update_slider_value("response_length", val)
+        )
+        self.response_length_scale.pack(fill="x", pady=(2, 0))
+        
+        self.response_length_label = tk.Label(response_frame, text="Medium", font=('Segoe UI', 8))
+        self.response_length_label.pack()
+        setattr(self, "response_length_center_label", self.response_length_label)
+        
+        # Academic Format Settings (for essays)
+        format_frame = tk.Frame(ai_frame)  
+        format_frame.grid(row=2, column=1, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(format_frame, text="📄 Academic Format", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.academic_format_combo = ttk.Combobox(
+            format_frame,
+            textvariable=self.options["academic_format"],
+            values=["None", "MLA", "APA", "Chicago", "IEEE"],
+            state="readonly",
+            width=15
+        )
+        self.academic_format_combo.pack(fill="x", pady=(2, 0))
+        self.academic_format_combo.bind("<<ComboboxSelected>>", 
+                                       lambda e: self.update_combo_setting("academic_format"))
+        
+        # Required Pages (for essays)
+        pages_frame = tk.Frame(ai_frame)
+        pages_frame.grid(row=3, column=0, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(pages_frame, text="📃 Required Pages", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.required_pages_scale = ttk.Scale(
+            pages_frame,
+            from_=1, to=20,
+            variable=self.options["required_pages"],
+            orient='horizontal',
+            command=lambda val: self.update_slider_value("required_pages", val)
+        )
+        self.required_pages_scale.pack(fill="x", pady=(2, 0))
+        
+        self.required_pages_label = tk.Label(pages_frame, text="1 page", font=('Segoe UI', 8))
+        self.required_pages_label.pack()
+        setattr(self, "required_pages_center_label", self.required_pages_label)
+        
+        self.widgets_to_style.extend([ai_frame, response_frame, format_frame, pages_frame])
+    
+    def modern_humanizer_settings_section(self, row):
+        """Create modern traditional humanizer settings section"""
+        humanizer_frame = tk.LabelFrame(self.scrollable_frame, text="⚙️ Traditional Humanizer Settings", 
+                                       font=("Segoe UI", 12, "bold"), padx=15, pady=15)
+        humanizer_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(10, 20), pady=15)
+        humanizer_frame.columnconfigure((0, 1), weight=1)
+        
+        # Grade Level - Learn tab style
+        grade_frame = tk.Frame(humanizer_frame)
+        grade_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(grade_frame, text="📚 Grade Level", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.grade_level_scale = ttk.Scale(
+            grade_frame,
+            from_=3, to=16,
+            variable=self.options["grade_level"],
+            orient='horizontal',
+            command=lambda val: self.update_slider_value("grade_level", val)
+        )
+        self.grade_level_scale.pack(fill="x", pady=(2, 0))
+        
+        self.grade_level_label = tk.Label(grade_frame, text="11th Grade", font=('Segoe UI', 8))
+        self.grade_level_label.pack()
+        setattr(self, "grade_level_center_label", self.grade_level_label)
+        
+        # Depth of Answer - Learn tab style  
+        depth_frame = tk.Frame(humanizer_frame)
+        depth_frame.grid(row=0, column=1, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(depth_frame, text="🔍 Depth of Answer", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.depth_scale = ttk.Scale(
+            depth_frame,
+            from_=1, to=5,
+            variable=self.options["depth"],
+            orient='horizontal',
+            command=lambda val: self.update_slider_value("depth", val)
+        )
+        self.depth_scale.pack(fill="x", pady=(2, 0))
+        
+        self.depth_label = tk.Label(depth_frame, text="Medium", font=('Segoe UI', 8))
+        self.depth_label.pack()
+        setattr(self, "depth_center_label", self.depth_label)
+        
+        # Tone - Learn tab style
+        tone_frame = tk.Frame(humanizer_frame)
+        tone_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(tone_frame, text="🎵 Tone", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.tone_combo = ttk.Combobox(
+            tone_frame,
+            textvariable=self.options["tone"],
+            values=["Neutral", "Formal", "Casual", "Witty"],
+            state="readonly",
+            width=15
+        )
+        self.tone_combo.pack(fill="x", pady=(2, 0))
+        self.tone_combo.bind("<<ComboboxSelected>>", 
+                            lambda e: self.update_combo_setting("tone"))
+        
+        # Rewrite Style - Learn tab style
+        style_frame = tk.Frame(humanizer_frame)
+        style_frame.grid(row=1, column=1, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(style_frame, text="✍️ Rewrite Style", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.rewrite_style_combo = ttk.Combobox(
+            style_frame,
+            textvariable=self.options["rewrite_style"],
+            values=["Clear", "Concise", "Creative"],
+            state="readonly",
+            width=15
+        )
+        self.rewrite_style_combo.pack(fill="x", pady=(2, 0))
+        self.rewrite_style_combo.bind("<<ComboboxSelected>>", 
+                                     lambda e: self.update_combo_setting("rewrite_style"))
+        
+        # Use of Evidence - Learn tab style
+        evidence_frame = tk.Frame(humanizer_frame)
+        evidence_frame.grid(row=2, column=0, sticky="ew", padx=15, pady=5)
+        
+        tk.Label(evidence_frame, text="📊 Use of Evidence", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.use_of_evidence_combo = ttk.Combobox(
+            evidence_frame,
+            textvariable=self.options["use_of_evidence"],
+            values=["None", "Optional", "Required"],
+            state="readonly",
+            width=15
+        )
+        self.use_of_evidence_combo.pack(fill="x", pady=(2, 0))
+        self.use_of_evidence_combo.bind("<<ComboboxSelected>>", 
+                                       lambda e: self.update_combo_setting("use_of_evidence"))
+        
+        self.widgets_to_style.extend([humanizer_frame, grade_frame, depth_frame, tone_frame, style_frame, evidence_frame])
+    
+    def response_type_section_modern(self, parent_frame, row):
+        """Create modern response type selection"""
+        # Center the radio buttons
+        radio_frame = tk.Frame(parent_frame)
+        radio_frame.grid(row=row, column=0, columnspan=2, pady=(10, 5))
+        
+        tk.Label(radio_frame, text="🎯 Response Type", font=('Segoe UI', 10, 'bold')).pack()
+        
+        button_frame = tk.Frame(radio_frame)
+        button_frame.pack(pady=(5, 0))
+        
+        short_radio = tk.Radiobutton(
+            button_frame, text="📝 Short Response", 
+            variable=self.response_type, value="short_response",
+            command=self._on_response_type_change,
+            font=('Segoe UI', 9)
+        )
+        short_radio.pack(side='left', padx=(0, 15))
+        
+        essay_radio = tk.Radiobutton(
+            button_frame, text="📄 Essay/Document", 
+            variable=self.response_type, value="essay",
+            command=self._on_response_type_change,
+            font=('Segoe UI', 9)
+        )
+        essay_radio.pack(side='left')
+        
+        self.widgets_to_style.extend([radio_frame, button_frame, short_radio, essay_radio])
+    
+    def info_display_section_modern(self, parent_frame, row):
+        """Create modern settings preview area"""
+        info_frame = tk.Frame(parent_frame)
+        info_frame.grid(row=row, column=0, columnspan=2, sticky="ew", padx=15, pady=(5, 10))
+        
+        tk.Label(info_frame, text="📊 Current Settings Preview", font=('Segoe UI', 9, 'bold')).pack(anchor="w")
+        
+        self.info_text = tk.Text(info_frame, height=3, wrap="word", state="disabled", 
+                                font=("Segoe UI", 9), relief="sunken", bd=1)
+        self.info_text.pack(fill="x", pady=(2, 0))
+        
+        self.widgets_to_style.extend([info_frame, self.info_text])
 
     def toggle_section(self, row):
         """Create toggle switches for main AI features"""
@@ -385,30 +591,22 @@ class HumanizerTab(tk.Frame):
         center_label.grid(row=0, column=1)
         right_label.grid(row=0, column=2, sticky="e")
 
-        scale = tk.Scale(
+        scale = ttk.Scale(
             frame, from_=frm, to=to, orient="horizontal",
-            variable=self.options[key], showvalue=0,
-            resolution=1, sliderrelief="flat", highlightthickness=0,
-            borderwidth=0
+            variable=self.options[key],
+            command=lambda val, k=key: self.update_slider_value(k, val)
         )
         scale.grid(row=1, column=0, sticky="ew", pady=(0, 4))
 
-        def update(val):
-            val = int(float(val))
-            self.options[key].set(val)
-            center_label.config(text=str(val))
-            self.update_setting(key, val)
-            
-            # Update central info display
-            self._update_info_display()
-
-        scale.config(command=update)
+        # Store references for the update method
+        setattr(self, f"{key}_center_label", center_label)
 
         self.widgets_to_style += [
             left_label, center_label, right_label,
             scale
         ]
         setattr(self, f"{key}_scale", scale)
+        setattr(self, f"{key}_label", lbl)  # Store label reference for hiding
 
     def dropdown(self, label, key, choices, row):
         lbl = tk.Label(self.scrollable_frame, text=label)
@@ -423,6 +621,7 @@ class HumanizerTab(tk.Frame):
         combo.bind("<<ComboboxSelected>>", dropdown_update)
         self.widgets_to_style.append(lbl)
         setattr(self, f"{key}_combo", combo)
+        setattr(self, f"{key}_label", lbl)  # Store label reference for hiding
 
     def update_setting(self, key, value):
         self.app.cfg["settings"].setdefault("humanizer", {})[key] = value
@@ -432,6 +631,42 @@ class HumanizerTab(tk.Frame):
         """Update boolean settings in main settings section"""
         self.app.cfg["settings"][key] = value
         save_config(self.app.cfg)
+    
+    def update_slider_value(self, key, value):
+        """Update slider value and center label with better text"""
+        val = int(float(value))
+        self.options[key].set(val)
+        
+        # Update the center label with descriptive text
+        center_label = getattr(self, f"{key}_center_label", None)
+        if center_label:
+            if key == "response_length":
+                length_text = {1: "Very Short", 2: "Short", 3: "Medium", 4: "Long", 5: "Very Long"}
+                center_label.config(text=length_text.get(val, str(val)))
+            elif key == "required_pages":
+                page_text = "page" if val == 1 else "pages"
+                center_label.config(text=f"{val} {page_text}")
+            elif key == "grade_level":
+                if val <= 12:
+                    center_label.config(text=f"{val}th Grade")
+                else:
+                    grade_names = {13: "Freshman", 14: "Sophomore", 15: "Junior", 16: "Senior/Graduate"}
+                    center_label.config(text=grade_names.get(val, f"Grade {val}"))
+            elif key == "depth":
+                depth_names = {1: "Shallow", 2: "Basic", 3: "Medium", 4: "Deep", 5: "Comprehensive"}
+                center_label.config(text=depth_names.get(val, str(val)))
+            else:
+                center_label.config(text=str(val))
+        
+        self.update_setting(key, val)
+        
+        # Update central info display
+        self._update_info_display()
+    
+    def update_combo_setting(self, key):
+        """Update combobox setting and trigger info display update"""
+        self.update_setting(key, self.options[key].get())
+        self._update_info_display()
     
 
     def set_theme(self, dark):
@@ -456,18 +691,8 @@ class HumanizerTab(tk.Frame):
         for label in self.dynamic_labels:
             label.configure(bg=bg, fg=fg)
 
-        # Apply slider style without border and with visible rail color depending on theme
-        for key in ["grade_level", "depth"]:
-            scale = getattr(self, f"{key}_scale", None)
-            if scale:
-                scale.config(
-                    troughcolor=trough_color_dark if dark else trough_color_light,
-                    highlightbackground=bg,
-                    highlightcolor=bg,
-                    borderwidth=0,
-                    sliderrelief="flat",
-                    highlightthickness=0,
-                )
+        # TTK scales are themed automatically through ttk.Style
+        # No manual theming needed as they adapt to the current theme
 
         # Set background for label frames related to sliders
         for frame in self.scale_label_frames:

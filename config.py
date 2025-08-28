@@ -20,8 +20,8 @@ LONG_PAUSE_DEFAULT = 50
 # Log file (absolute)
 LOG_FILE = os.path.join(BASE_DIR, "typing_log.txt")
 
-# Brand color
-LIME_GREEN = "#32CD32"
+# Brand color - Changed to purple
+LIME_GREEN = "#8B5CF6"  # Purple - renamed for compatibility but now purple
 
 # ——————————————
 # Custom typos map: common misspellings → corrections
@@ -98,10 +98,10 @@ DEFAULT_CONFIG = {
 }
 
 # Dark/light theme colors (2025 modern palette)
-DARK_BG       = "#1A1A1A"  # Dark charcoal instead of pure black
+DARK_BG       = "#0F0F23"  # Very dark blue to match new premium theme
 DARK_FG       = "#E8E8E8"  # Softer white
-DARK_ENTRY_BG = "#363636"  # Lighter dark gray for better contrast
-DARK_CARD_BG  = "#2A2A2A"  # Slightly lighter card backgrounds
+DARK_ENTRY_BG = "#1A1B3E"  # Slightly lighter dark blue for better contrast
+DARK_CARD_BG  = "#2D2F5A"  # Lighter blue for card backgrounds
 LIGHT_BG      = "#FAFAFA"  # Off-white instead of pure white  
 LIGHT_FG      = "#2D2D30"  # Dark gray instead of pure black
 LIGHT_ENTRY_BG = "#FFFFFF"
@@ -114,7 +114,7 @@ PRIMARY_BLUE_LIGHT = "#003366"  # Same consistent dark navy for light mode
 PRIMARY_BLUE_LIGHT_HOVER = "#001a33"
 
 # Accent colors
-SUCCESS_GREEN = "#10B981"    # Modern green
+SUCCESS_GREEN = "#8B5CF6"    # Modern purple - changed from green to match theme
 WARNING_ORANGE = "#F59E0B"   # Modern orange  
 DANGER_RED = "#EF4444"       # Modern red
 ACCENT_PURPLE = "#8B5CF6"    # Modern purple
