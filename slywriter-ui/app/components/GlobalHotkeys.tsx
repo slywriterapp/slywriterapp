@@ -185,15 +185,49 @@ export default function GlobalHotkeys() {
           text: generatedText
         }, '*')
       } else {
-        // Start typing immediately
-        await axios.post(`${API_URL}/api/typing/start`, {
-          text: generatedText,
-          profile: 'Medium',
-          preview_mode: false
-        })
+        // Check if paste mode is enabled
+        const pasteMode = localStorage.getItem('slywriter-paste-mode') === 'true'
         
-        setIsTyping(true)
-        toast.success('✨ AI generated and typing started!')
+        if (pasteMode) {
+          // PASTE MODE: Instantly paste the answer
+          try {
+            await navigator.clipboard.writeText(generatedText)
+            
+            // Simulate paste event to paste into active field
+            const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement
+            if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+              const start = activeElement.selectionStart || 0
+              const end = activeElement.selectionEnd || 0
+              const currentValue = activeElement.value
+              
+              // Insert text at cursor position
+              activeElement.value = currentValue.substring(0, start) + generatedText + currentValue.substring(end)
+              
+              // Update cursor position
+              activeElement.selectionStart = activeElement.selectionEnd = start + generatedText.length
+              
+              // Trigger input event
+              activeElement.dispatchEvent(new Event('input', { bubbles: true }))
+              
+              toast.success('⚡ Answer pasted instantly!', { icon: '📋' })
+            } else {
+              // Just copy to clipboard if no active field
+              toast.success('✨ Answer copied to clipboard! Paste anywhere.', { icon: '📋' })
+            }
+          } catch (err) {
+            toast.error('Failed to paste - answer copied to clipboard')
+          }
+        } else {
+          // TYPING MODE: Type out with human patterns
+          await axios.post(`${API_URL}/api/typing/start`, {
+            text: generatedText,
+            profile: 'Medium',
+            preview_mode: false
+          })
+          
+          setIsTyping(true)
+          toast.success('✨ AI generated and typing started!')
+        }
       }
       
       // Create lesson if learning mode

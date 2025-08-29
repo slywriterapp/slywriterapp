@@ -113,6 +113,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       if (savedWpm) {
         setTestWpm(parseInt(savedWpm))
       }
+      
+      // Load paste mode preference
+      const savedPasteMode = localStorage.getItem('slywriter-paste-mode')
+      if (savedPasteMode === 'true') {
+        setPasteMode(true)
+      }
     }
     
     // Check if we should open WPM test from onboarding
@@ -975,19 +981,23 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             <input
               type="checkbox"
               checked={pasteMode}
-              onChange={(e) => setPasteMode(e.target.checked)}
+              onChange={(e) => {
+                setPasteMode(e.target.checked)
+                localStorage.setItem('slywriter-paste-mode', e.target.checked.toString())
+              }}
               className="w-5 h-5 text-purple-500 rounded"
               disabled={isTyping}
             />
             <div className="flex-1">
               <span className="text-white font-medium text-sm">Paste Mode</span>
-              <p className="text-xs text-gray-400">5s delay</p>
+              <p className="text-xs text-gray-400">Instant paste</p>
             </div>
             {/* Tooltip explanation */}
-            <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
               <p className="text-xs text-gray-300">
                 <span className="text-purple-400 font-semibold">Why use this?</span><br/>
-                Perfect for quick copy-paste workflows. Highlight question → paste → auto-types answer after 5s. No clicking needed!
+                Instantly pastes AI answer instead of typing. Perfect when not monitored!<br/>
+                <span className="text-yellow-400">Workflow:</span> Highlight Q → Ctrl+Alt+G → Answer pasted instantly
               </p>
             </div>
           </label>
@@ -1023,10 +1033,28 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             <div className="space-y-2">
               {pasteMode && (
                 <div>
-                  <span className="text-sm font-semibold text-purple-300">🚀 Paste Mode Active:</span>
+                  <span className="text-sm font-semibold text-purple-300">⚡ Paste Mode Active (Instant):</span>
                   <p className="text-xs text-gray-400 mt-1">
-                    Copy any question → Paste here → Wait 5 seconds → Auto-types! Perfect for rapid Q&A sessions. 
-                    No need to click start button.
+                    <span className="text-yellow-400 font-semibold">The Workflow:</span><br/>
+                    1️⃣ Highlight question text<br/>
+                    2️⃣ Press <kbd className="px-1 py-0.5 bg-gray-800 rounded text-purple-300">Ctrl+Alt+G</kbd> (AI generates answer)<br/>
+                    3️⃣ Answer is humanized (if enabled)<br/>
+                    4️⃣ Review popup shows (if enabled)<br/>
+                    5️⃣ Answer is <span className="text-green-400 font-bold">INSTANTLY PASTED</span> - no typing animation!
+                  </p>
+                  <p className="text-xs text-gray-300 mt-2 bg-gray-800/50 p-2 rounded">
+                    💡 <span className="font-semibold">Use when:</span> Not being monitored, need speed over realism
+                  </p>
+                </div>
+              )}
+              {!pasteMode && (
+                <div>
+                  <span className="text-sm font-semibold text-blue-300">🎭 Typing Mode Active (Realistic):</span>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Same workflow but answer is <span className="text-blue-400 font-bold">TYPED OUT</span> with human-like patterns, typos, and pauses.
+                  </p>
+                  <p className="text-xs text-gray-300 mt-2 bg-gray-800/50 p-2 rounded">
+                    💡 <span className="font-semibold">Use when:</span> Being monitored, need realistic typing
                   </p>
                 </div>
               )}
@@ -1034,17 +1062,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                 <div>
                   <span className="text-sm font-semibold text-blue-300">🔄 Auto-Clear Active:</span>
                   <p className="text-xs text-gray-400 mt-1">
-                    Textbox clears automatically after typing completes. Chain multiple answers: 
-                    Copy Q1 → Paste → Types → Copy Q2 → Paste → Repeat!
-                  </p>
-                </div>
-              )}
-              {pasteMode && autoClearTextbox && (
-                <div className="pt-2 border-t border-gray-700/50">
-                  <span className="text-xs font-bold text-yellow-400">⚡ POWER MODE:</span>
-                  <p className="text-xs text-gray-300 mt-1">
-                    Both features combined = Ultimate workflow! Just keep copying questions and pasting. 
-                    SlyWriter handles everything else automatically.
+                    After paste/type completes, textbox clears automatically. Perfect for multiple questions!
                   </p>
                 </div>
               )}
@@ -1134,60 +1152,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onPaste={(e) => {
-              if (pasteMode && !isTyping) {
-                // In paste mode, automatically start typing after 5 seconds
-                const pastedText = e.clipboardData.getData('text')
-                setInputText(pastedText)
-                setCountdown(5)
-                
-                // Countdown timer
-                let count = 5
-                const timer = setInterval(() => {
-                  count--
-                  setCountdown(count)
-                  if (count <= 0) {
-                    clearInterval(timer)
-                    setCountdown(undefined)
-                    startTyping()
-                  }
-                }, 1000)
-              }
-            }}
-            placeholder="Paste or type your text here... Or just copy text and press Start - SlyWriter will use your clipboard!"
+            placeholder={pasteMode 
+              ? "Paste Mode: AI-generated answers will be instantly pasted here (no typing animation)" 
+              : "Type Mode: Text will be typed out with realistic human patterns"
+            }
             className="w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
             disabled={isTyping}
           />
-        )}
-        
-        {/* Paste Mode Countdown */}
-        {countdown !== undefined && countdown > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-4 p-4 bg-purple-500/20 border border-purple-500/50 rounded-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-500/30 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-bold text-purple-300">{countdown}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-purple-300">Paste Mode Active</p>
-                  <p className="text-xs text-gray-400">Starting in {countdown} seconds...</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setCountdown(undefined)
-                  toast('Paste mode cancelled', { icon: '❌' })
-                }}
-                className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400 text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </motion.div>
         )}
         
         {/* Quick Tips */}
