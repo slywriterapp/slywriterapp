@@ -173,7 +173,7 @@ export default function TypingTabEnhanced({ connected }: TypingTabProps) {
     
     // Check word limit
     const wordCount = inputText.split(/\s+/).length
-    if (!canType(wordCount)) {
+    if (!canType || wordCount > wordsRemaining) {
       toast.error(`Not enough words remaining. You have ${wordsRemaining} words left today.`)
       return
     }

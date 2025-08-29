@@ -359,7 +359,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     
     // Check word limit for authenticated users
     const wordCount = textToType.split(/\s+/).length
-    if (user && !canType(wordCount)) {
+    if (user && (!canType || wordCount > wordsRemaining)) {
       toast.error(`Word limit exceeded! ${wordsRemaining} words remaining today`)
       return
     }

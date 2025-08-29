@@ -109,7 +109,7 @@ export default function HumanizerTab() {
     
     // Check word limit
     const wordCount = processText.split(/\s+/).length * 2 // Estimate output
-    if (!canType(wordCount)) {
+    if (!canType || wordCount > wordsRemaining) {
       toast.error(`Word limit exceeded! ${wordsRemaining} words remaining`)
       return
     }
