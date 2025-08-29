@@ -351,7 +351,7 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
                 <p className="text-purple-100 mt-1">{currentStepData.subtitle}</p>
               </div>
               <button
-                onClick={completeOnboarding}
+                onClick={() => completeOnboarding()}
                 className="text-white/70 hover:text-white transition-colors"
               >
                 <XIcon className="w-6 h-6" />
@@ -408,7 +408,7 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
             </motion.button>
             
             <button
-              onClick={completeOnboarding}
+              onClick={() => completeOnboarding()}
               className="px-6 py-3 text-gray-400 hover:text-white transition-colors"
             >
               Skip
