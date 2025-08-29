@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { LogInIcon, LogOutIcon, UserIcon } from 'lucide-react'
 
 export default function GoogleLogin() {
-  const { user, login, logout, loading } = useAuth()
+  const { user, login, logout, isLoading } = useAuth()
   
   // Skip Google login if no client ID
   const hasGoogleAuth = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID !== ''
@@ -31,7 +31,7 @@ export default function GoogleLogin() {
     }
   }) : () => {}
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="animate-pulse bg-gray-800 h-10 w-32 rounded-lg" />
     )
