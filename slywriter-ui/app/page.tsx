@@ -65,12 +65,17 @@ function SlyWriterApp() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* Animated background */}
+    <div className="min-h-screen bg-black">
+      {/* Purple wave effects around the edges */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse animation-delay-4000" />
+        {/* Top purple wave */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-purple-600/20 blur-[100px] animate-pulse" />
+        {/* Bottom purple wave */}
+        <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-purple-600/20 blur-[100px] animate-pulse animation-delay-2000" />
+        {/* Left purple accent */}
+        <div className="absolute top-1/2 -left-32 -translate-y-1/2 w-64 h-[200%] bg-purple-500/15 blur-[80px] animate-pulse animation-delay-4000" />
+        {/* Right purple accent */}
+        <div className="absolute top-1/2 -right-32 -translate-y-1/2 w-64 h-[200%] bg-purple-500/15 blur-[80px] animate-pulse" />
       </div>
 
       <div className="relative flex h-screen">

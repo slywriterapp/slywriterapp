@@ -14,7 +14,8 @@ import {
   DownloadIcon, UploadIcon, SaveIcon, RotateCcwIcon,
   ZapIcon, BrainIcon, ShieldIcon, TimerIcon, 
   KeyboardIcon, GaugeIcon, AlertCircleIcon, CrownIcon,
-  RefreshCwIcon, ActivityIcon, ChevronUpIcon, ChevronDownIcon
+  RefreshCwIcon, ActivityIcon, ChevronUpIcon, ChevronDownIcon,
+  SlidersIcon
 } from 'lucide-react'
 
 const API_URL = 'https://slywriterapp.onrender.com'
@@ -67,6 +68,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   // Premium features state
   const [typosMade, setTyposMade] = useState(0)
   const [pausesTaken, setPausesTaken] = useState(0)
+  
+  // Grammarly-style settings
+  const [grammarlyCorrectionEnabled, setGrammarlyCorrectionEnabled] = useState(false)
+  const [grammarlyCorrectionDelay, setGrammarlyCorrectionDelay] = useState(2)
+  const [typoRate, setTypoRate] = useState(2)
+  const [humanMode, setHumanMode] = useState(true)
   const [zoneOutActive, setZoneOutActive] = useState(false)
   const [microHesitations, setMicroHesitations] = useState(0)
   const [aiFillers, setAiFillers] = useState(0)
@@ -877,6 +884,84 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         </div>
       </div>
       
+      {/* Advanced Typing Settings */}
+      <div className="bg-gray-900/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+            <SlidersIcon className="w-4 h-4 text-purple-400" />
+            Advanced Settings
+          </h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Typo Rate */}
+          <div>
+            <label className="flex items-center justify-between text-sm font-medium text-gray-300 mb-2">
+              <span>Typo Rate</span>
+              <span className="text-purple-400 font-mono">{typoRate}%</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="1"
+              value={typoRate}
+              onChange={(e) => setTypoRate(parseInt(e.target.value))}
+              className="w-full accent-purple-500"
+              disabled={isTyping}
+            />
+          </div>
+          
+          {/* Grammarly Correction Delay */}
+          <div>
+            <label className="flex items-center justify-between text-sm font-medium text-gray-300 mb-2">
+              <span>Correction Delay</span>
+              <span className="text-purple-400 font-mono">{grammarlyCorrectionDelay}s</span>
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="5"
+              step="0.5"
+              value={grammarlyCorrectionDelay}
+              onChange={(e) => setGrammarlyCorrectionDelay(parseFloat(e.target.value))}
+              className="w-full accent-purple-500"
+              disabled={!grammarlyCorrectionEnabled || isTyping}
+            />
+          </div>
+        </div>
+        
+        {/* Toggle Options */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={humanMode}
+              onChange={(e) => setHumanMode(e.target.checked)}
+              className="w-5 h-5 text-purple-500 rounded"
+              disabled={isTyping}
+            />
+            <div>
+              <span className="text-white font-medium text-sm">Human Mode</span>
+              <p className="text-xs text-gray-400">Natural patterns</p>
+            </div>
+          </label>
+          
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
+            <input
+              type="checkbox"
+              checked={grammarlyCorrectionEnabled}
+              onChange={(e) => setGrammarlyCorrectionEnabled(e.target.checked)}
+              className="w-5 h-5 text-purple-500 rounded"
+              disabled={isTyping}
+            />
+            <div>
+              <span className="text-white font-medium text-sm">Grammarly-Style</span>
+              <p className="text-xs text-gray-400">Delayed fixes</p>
+            </div>
+          </label>
+        </div>
+      </div>
       
       {/* Text Input & Preview Section */}
       <div className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20">
