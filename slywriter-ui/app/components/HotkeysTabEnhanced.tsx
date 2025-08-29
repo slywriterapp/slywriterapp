@@ -10,7 +10,7 @@ import {
   CircleIcon, CheckIcon, XIcon, InfoIcon
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
 
 interface Hotkey {
   action: string
@@ -166,7 +166,7 @@ export default function HotkeysTabEnhanced() {
     // Stop recording on Escape
     if (e.key === 'Escape') {
       stopRecording(false)
-      toast.info('Recording cancelled')
+      toast('Recording cancelled', { icon: 'ℹ️' })
     }
   }, [])
   

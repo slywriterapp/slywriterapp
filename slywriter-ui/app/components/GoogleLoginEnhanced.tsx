@@ -11,10 +11,10 @@ import {
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
 
 export default function GoogleLoginEnhanced() {
-  const { user, login, logout, loading } = useAuth()
+  const { user, login, logout, isLoading } = useAuth()
   const [showPromoCode, setShowPromoCode] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [applyingCode, setApplyingCode] = useState(false)
@@ -64,7 +64,7 @@ export default function GoogleLoginEnhanced() {
       
       if (codeData) {
         // Update user plan in localStorage for testing
-        const currentUser = user || { email: 'guest@slywriter.app', username: 'Guest User', plan: 'free' }
+        const currentUser = user || { email: 'guest@slywriter.app', name: 'Guest User', plan: 'free' }
         const updatedUser = { ...currentUser, plan: 'premium' }
         
         localStorage.setItem('slywriter-user', JSON.stringify(updatedUser))
@@ -85,7 +85,7 @@ export default function GoogleLoginEnhanced() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="animate-pulse bg-gray-800 h-10 w-32 rounded-lg" />
     )
@@ -96,7 +96,7 @@ export default function GoogleLoginEnhanced() {
       <div className="space-y-3">
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <div className="text-sm font-medium text-white">{user.username || user.email}</div>
+            <div className="text-sm font-medium text-white">{user.name || user.email}</div>
             <div className="flex items-center gap-2">
               <span className={`text-xs ${user.plan === 'premium' ? 'text-purple-400' : 'text-gray-400'}`}>
                 {user.plan === 'premium' ? (

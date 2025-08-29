@@ -464,7 +464,7 @@ function AccountSettings({ user, logout }: any) {
                 <UserIcon className="w-8 h-8 text-white" />
               </div>
               <div>
-                <div className="text-lg font-medium text-white">{user.username || user.email}</div>
+                <div className="text-lg font-medium text-white">{user.name || user.email}</div>
                 <div className="text-sm text-gray-400">{user.email}</div>
                 <div className="flex items-center gap-2 mt-1">
                   {user.plan === 'premium' && <CrownIcon className="w-4 h-4 text-yellow-400" />}
