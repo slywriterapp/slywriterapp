@@ -174,7 +174,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         { name: 'Fast', wpm: 100, description: 'Above average speed' },
         { name: 'Very Fast', wpm: 130, description: 'Professional typist' },
         { name: 'Lightning', wpm: 160, description: 'Expert level' },
-        { name: 'Custom', wpm: customWpm, description: 'Your custom speed' }
+        { name: 'Custom', wpm: 85, description: 'Your custom speed' } // Default custom WPM
       ]
       setProfiles(defaultProfiles)
       setLoadingProfiles(false)
@@ -425,7 +425,57 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       // Dispatch start event for overlay
       window.dispatchEvent(new CustomEvent('typing-start'))
       
-      toast.success('✨ Automation started! SlyWriter is typing for you...')
+      // Show immediate feedback
+      toast.success('🚀 Starting typing engine...', { 
+        duration: 2000,
+        icon: '⚡'
+      })
+      
+      // Show additional feedback based on settings
+      if (aiFillerEnabled) {
+        setTimeout(() => {
+          toast('🎭 Premium AI Filler activated!', {
+            icon: '👑',
+            duration: 3000,
+            style: {
+              background: 'linear-gradient(135deg, #9333ea 0%, #ec4899 100%)',
+              color: 'white',
+            }
+          })
+        }, 500)
+      }
+      
+      if (humanMode) {
+        setTimeout(() => {
+          toast('🎯 Human mode patterns enabled', {
+            icon: '✨',
+            duration: 2000
+          })
+        }, 300)
+      }
+      
+      if (grammarlyCorrectionEnabled) {
+        setTimeout(() => {
+          toast('✏️ Grammarly-style corrections active', {
+            icon: '📝',
+            duration: 2000
+          })
+        }, 600)
+      }
+      
+      // Show typing speed after a moment
+      const wpmValue = selectedProfile === 'Custom' ? (testWpm || customWpm) : 
+                      profiles.find(p => p.name === selectedProfile)?.wpm || 70
+      
+      setTimeout(() => {
+        toast.success(`✍️ Now typing at ${wpmValue} WPM!`, {
+          duration: 4000,
+          style: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+          }
+        })
+      }, 1500)
     } catch (error: any) {
       console.error('Typing start error:', error)
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to start typing'
