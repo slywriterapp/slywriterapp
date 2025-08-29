@@ -159,6 +159,13 @@ def log_analytics_event(user_id, event_type, event_data=None):
     analytics['events'].append(event)
     save_data(ANALYTICS_FILE, analytics)
 
+# ---------------- HEALTH CHECK ----------------
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({"status": "healthy", "message": "SlyWriter API is running"}), 200
+
 # ---------------- AUTHENTICATION ----------------
 
 @app.route("/auth/register", methods=["POST"])
