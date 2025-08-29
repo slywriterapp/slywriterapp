@@ -13,6 +13,7 @@ import SettingsTabComplete from './components/SettingsTabComplete'
 import LearningTabEnhanced from './components/LearningTabEnhanced'
 import OverlayWindowEnhanced from './components/OverlayWindowEnhanced'
 import HumanizerTab from './components/HumanizerTab'
+import MissionTab from './components/MissionTab'
 import GlobalHotkeys from './components/GlobalHotkeys'
 import OnboardingFlow from './components/OnboardingFlow'
 import axios from 'axios'
@@ -59,6 +60,7 @@ function SlyWriterApp() {
     { id: 'ai-hub', label: 'AI Writer', icon: BrainIcon, color: 'from-pink-400 to-red-400', description: 'Generate essays' },
     { id: 'learning', label: 'Smart Learn', icon: BookOpenIcon, color: 'from-green-400 to-blue-400', description: 'AI explains topics' },
     { id: 'statistics', label: 'Analytics', icon: BarChart3Icon, color: 'from-blue-400 to-purple-400', description: 'Track usage' },
+    { id: 'mission', label: 'Mission', icon: AwardIcon, color: 'from-yellow-400 to-orange-400', description: 'Our cause & rewards', badge: 'NEW' },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'from-indigo-400 to-purple-400', description: 'Customize' },
   ]
 
@@ -287,6 +289,18 @@ function SlyWriterApp() {
                 className="h-full overflow-y-auto p-8"
               >
                 <StatisticsTab />
+              </motion.div>
+            )}
+            
+            {activeTab === 'mission' && (
+              <motion.div
+                key="mission"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="h-full overflow-y-auto p-8"
+              >
+                <MissionTab />
               </motion.div>
             )}
             
