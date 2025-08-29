@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotkey Persistence Test</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        .test-section {
+            background: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #5D00F0;
+        }
+        button {
+            background: #5D00F0;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7722FF;
+        }
+        .hotkey {
+            display: inline-block;
+            padding: 8px 12px;
+            background: #333;
+            border-radius: 4px;
+            margin: 5px;
+            color: #5D00F0;
+            font-weight: bold;
+            font-family: monospace;
+            min-width: 120px;
+            text-align: center;
+        }
+        .hotkey-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hotkey-label {
+            color: #888;
+            min-width: 150px;
+        }
+        input {
+            background: #333;
+            color: #fff;
+            border: 1px solid #5D00F0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 0 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>⌨️ Hotkey Persistence Test</h1>
+    
+    <div class="test-section">
+        <h2>Current Saved Hotkeys</h2>
+        <div id="hotkeysList"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Custom Hotkeys</h2>
+        <div class="hotkey-item">
+            <span class="hotkey-label">Start Typing:</span>
+            <input type="text" id="startKey" placeholder="ctrl+alt+s" />
+            <button onclick="setHotkey('start')">Set</button>
+        </div>
+        <div class="hotkey-item">
+            <span class="hotkey-label">Stop (Panic):</span>
+            <input type="text" id="stopKey" placeholder="ctrl+alt+q" />
+            <button onclick="setHotkey('stop')">Set</button>
+        </div>
+        <div class="hotkey-item">
+            <span class="hotkey-label">Pause/Resume:</span>
+            <input type="text" id="pauseKey" placeholder="ctrl+alt+p" />
+            <button onclick="setHotkey('pause')">Set</button>
+        </div>
+        <div class="hotkey-item">
+            <span class="hotkey-label">Toggle Overlay:</span>
+            <input type="text" id="overlayKey" placeholder="ctrl+alt+o" />
+            <button onclick="setHotkey('overlay')">Set</button>
+        </div>
+        <div class="hotkey-item">
+            <span class="hotkey-label">AI Generation:</span>
+            <input type="text" id="ai_generationKey" placeholder="ctrl+alt+g" />
+            <button onclick="setHotkey('ai_generation')">Set</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Preset Combinations</h2>
+        <button onclick="setPreset('default')">Default Hotkeys</button>
+        <button onclick="setPreset('vscode')">VS Code Style</button>
+        <button onclick="setPreset('sublime')">Sublime Style</button>
+        <button onclick="setPreset('custom')">Custom Example</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Storage Management</h2>
+        <button onclick="clearHotkeys()">Clear All Hotkeys</button>
+        <button onclick="loadHotkeys()">Refresh Display</button>
+        <button onclick="window.location.reload()">Reload Page (Test Persistence)</button>
+    </div>
+
+    <script>
+        const defaultHotkeys = {
+            start: 'ctrl+alt+s',
+            stop: 'ctrl+alt+q',
+            pause: 'ctrl+alt+p',
+            overlay: 'ctrl+alt+o',
+            ai_generation: 'ctrl+alt+g'
+        };
+
+        const presets = {
+            default: defaultHotkeys,
+            vscode: {
+                start: 'ctrl+shift+s',
+                stop: 'ctrl+shift+q',
+                pause: 'ctrl+shift+p',
+                overlay: 'ctrl+shift+o',
+                ai_generation: 'ctrl+shift+g'
+            },
+            sublime: {
+                start: 'ctrl+k ctrl+s',
+                stop: 'ctrl+k ctrl+q',
+                pause: 'ctrl+k ctrl+p',
+                overlay: 'ctrl+k ctrl+o',
+                ai_generation: 'ctrl+k ctrl+g'
+            },
+            custom: {
+                start: 'alt+1',
+                stop: 'alt+2',
+                pause: 'alt+3',
+                overlay: 'alt+4',
+                ai_generation: 'alt+5'
+            }
+        };
+
+        function loadHotkeys() {
+            const saved = localStorage.getItem('slywriter-hotkeys');
+            const hotkeys = saved ? JSON.parse(saved) : defaultHotkeys;
+            
+            const listEl = document.getElementById('hotkeysList');
+            listEl.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(hotkeys)) {
+                const item = document.createElement('div');
+                item.className = 'hotkey-item';
+                item.innerHTML = `
+                    <span class="hotkey-label">${key.replace('_', ' ').toUpperCase()}:</span>
+                    <span class="hotkey">${value}</span>
+                `;
+                listEl.appendChild(item);
+                
+                // Also update input fields
+                const input = document.getElementById(key + 'Key');
+                if (input) {
+                    input.value = value;
+                }
+            }
+            
+            console.log('Loaded hotkeys:', hotkeys);
+        }
+
+        function setHotkey(key) {
+            const input = document.getElementById(key + 'Key');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert('Please enter a hotkey combination');
+                return;
+            }
+            
+            const saved = localStorage.getItem('slywriter-hotkeys');
+            const hotkeys = saved ? JSON.parse(saved) : defaultHotkeys;
+            
+            hotkeys[key] = value;
+            localStorage.setItem('slywriter-hotkeys', JSON.stringify(hotkeys));
+            
+            console.log(`Set ${key} to:`, value);
+            loadHotkeys();
+        }
+
+        function setPreset(presetName) {
+            const hotkeys = presets[presetName];
+            localStorage.setItem('slywriter-hotkeys', JSON.stringify(hotkeys));
+            console.log('Applied preset:', presetName, hotkeys);
+            loadHotkeys();
+        }
+
+        function clearHotkeys() {
+            localStorage.removeItem('slywriter-hotkeys');
+            console.log('Cleared all hotkeys');
+            loadHotkeys();
+        }
+
+        // Load on page load
+        loadHotkeys();
+        
+        // Auto-refresh every second
+        setInterval(loadHotkeys, 1000);
+    </script>
+</body>
+</html>

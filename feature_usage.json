@@ -1,0 +1,43 @@
+{
+  "features": {
+    "global_hotkeys": {
+      "count": 105,
+      "last_used": 1756240894.2864373,
+      "discovered": true
+    },
+    "global_hotkeys_navigation": {
+      "count": 1,
+      "last_used": 1756060186.6430662,
+      "discovered": true
+    },
+    "typing_stats": {
+      "count": 102,
+      "last_used": 1756240903.0256176,
+      "discovered": true
+    },
+    "learning_system": {
+      "count": 122,
+      "last_used": 1756240902.5734067,
+      "discovered": true
+    },
+    "ai_humanizer": {
+      "count": 114,
+      "last_used": 1756240901.767951,
+      "discovered": true
+    },
+    "notification_system": {
+      "count": 3,
+      "last_used": 1756173658.619052,
+      "discovered": true
+    }
+  },
+  "tips_shown": [
+    "global_hotkeys",
+    "essay_mode",
+    "text_preview"
+  ],
+  "spotlight_dismissed": [],
+  "last_tip_time": 1756232664.804585,
+  "total_app_launches": 137,
+  "first_launch": 1756060177.3596835
+}

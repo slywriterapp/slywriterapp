@@ -261,9 +261,9 @@ def premium_type_with_filler(
                 preview = do_micro_hesitation(preview, live_preview_callback)
 
             # ---- CHANCE FOR FAKE EDIT EVENT ----
-            # Don't allow filler in first 15 seconds (insufficient context)
-            elapsed_typing_time = time.time() - typing_start_time
-            if elapsed_typing_time >= 15:
+            # Don't allow filler until we have enough context (at least 20-30 words typed)
+            words_typed = len(preview.split())
+            if words_typed >= 25:  # Golden number: 25 words provides good context
                 edit_chance = BASE_FAKE_EDIT_CHANCE
                 if ch in EDIT_POINT_CHARS:
                     edit_chance += EDIT_POINT_BONUS_CHANCE

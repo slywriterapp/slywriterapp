@@ -1,0 +1,34 @@
+{
+  "1. Paste Mode with Timer": {
+    "status": "PASS",
+    "details": "Paste mode configuration accepted"
+  },
+  "2. Hotkey Recording Protection": {
+    "status": "PASS",
+    "details": "Hotkey recording protection working"
+  },
+  "3. Auto-Clear Clipboard": {
+    "status": "PASS",
+    "details": "Auto-clear configuration accepted"
+  },
+  "4-5. Enhanced Typo Correction": {
+    "status": "PASS",
+    "details": "Both immediate and delayed typo correction working"
+  },
+  "6. Enhanced Overlay": {
+    "status": "PASS",
+    "details": "Enhanced overlay with GPU acceleration configured"
+  },
+  "7. Dynamic Hotkeys": {
+    "status": "PASS",
+    "details": "Dynamic hotkeys working: {'start': 'Ctrl+Shift+S', 'stop': 'Ctrl+Shift+X', 'pause': 'Ctrl+Shift+P'}"
+  },
+  "8. Hotkey Triggers": {
+    "status": "PASS",
+    "details": "Hotkey triggers via WebSocket working"
+  },
+  "9. Voice Transcription": {
+    "status": "PASS",
+    "details": "Voice transcription working with ['mock'] backends"
+  }
+}

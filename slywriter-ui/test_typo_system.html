@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typo System Test</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        .test-section {
+            background: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #5D00F0;
+        }
+        button {
+            background: #5D00F0;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7722FF;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            background: #333;
+            border-radius: 4px;
+        }
+        .typo-stat {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #444;
+            margin: 5px;
+            border-radius: 4px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #5D00F0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Typo System Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Configuration</h2>
+        <p>This test will type a sample text with different profiles to verify typos are working.</p>
+        <textarea id="testText" rows="4">
+The quick brown fox jumps over the lazy dog. This is a test of the typing system with realistic typos and corrections. We want to ensure that the typo system is working correctly for all profiles.
+        </textarea>
+    </div>
+
+    <div class="test-section">
+        <h2>Profile Tests</h2>
+        <button onclick="testProfile('Slow')">Test Slow (4% typos)</button>
+        <button onclick="testProfile('Medium')">Test Medium (3% typos)</button>
+        <button onclick="testProfile('Fast')">Test Fast (2% typos)</button>
+        <button onclick="testProfile('Essay')">Test Essay (3.5% typos)</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Live Statistics</h2>
+        <div id="stats">
+            <div class="typo-stat">Profile: <span id="currentProfile">-</span></div>
+            <div class="typo-stat">Typos Made: <span id="typoCount">0</span></div>
+            <div class="typo-stat">Characters Typed: <span id="charCount">0</span></div>
+            <div class="typo-stat">Typo Rate: <span id="typoRate">0%</span></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>WebSocket Log</h2>
+        <div id="log" class="status" style="max-height: 300px; overflow-y: auto;">
+            Ready to connect...
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let ws = null;
+        let typosMade = 0;
+        let charsTyped = 0;
+
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            entry.style.color = type === 'error' ? '#ff6666' : type === 'typo' ? '#ffaa00' : '#66ff66';
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function testProfile(profileName) {
+            const text = document.getElementById('testText').value.trim();
+            
+            // Reset stats
+            typosMade = 0;
+            charsTyped = 0;
+            updateStats(profileName);
+            
+            addLog(`Starting test with ${profileName} profile...`);
+            
+            try {
+                // Start typing session
+                const response = await fetch(`${API_URL}/api/typing/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        profile: profileName,
+                        preview_mode: false
+                    })
+                });
+                
+                const data = await response.json();
+                addLog(`Session started: ${data.session_id}`);
+                
+                // Connect WebSocket to track typos
+                connectWebSocket(data.session_id);
+                
+                document.getElementById('currentProfile').textContent = profileName;
+                
+            } catch (error) {
+                addLog(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function connectWebSocket(sessionId) {
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+            
+            ws.onopen = () => {
+                addLog('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                switch(data.type) {
+                    case 'typo':
+                        typosMade = data.data.typos_made;
+                        addLog(`TYPO DETECTED! Total: ${typosMade}`, 'typo');
+                        updateStats();
+                        break;
+                    
+                    case 'progress':
+                        charsTyped = data.data.chars_typed;
+                        updateStats();
+                        break;
+                    
+                    case 'complete':
+                        addLog(`Typing complete! Final typos: ${typosMade}`);
+                        ws.close();
+                        break;
+                    
+                    case 'error':
+                        addLog(`Error: ${data.message}`, 'error');
+                        break;
+                }
+            };
+            
+            ws.onerror = (error) => {
+                addLog(`WebSocket error: ${error}`, 'error');
+            };
+            
+            ws.onclose = () => {
+                addLog('WebSocket disconnected');
+            };
+        }
+
+        function updateStats(profile = null) {
+            if (profile) {
+                document.getElementById('currentProfile').textContent = profile;
+            }
+            document.getElementById('typoCount').textContent = typosMade;
+            document.getElementById('charCount').textContent = charsTyped;
+            
+            const rate = charsTyped > 0 ? ((typosMade / charsTyped) * 100).toFixed(1) : 0;
+            document.getElementById('typoRate').textContent = rate + '%';
+        }
+
+        // Stop typing on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                fetch(`${API_URL}/api/typing/stop`, { method: 'POST' });
+                addLog('Stopped typing (ESC pressed)');
+                if (ws) {
+                    ws.close();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

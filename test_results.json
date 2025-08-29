@@ -1,0 +1,164 @@
+[
+  {
+    "test": "Backend Health Check",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:50:45.191533"
+  },
+  {
+    "test": "Profiles Endpoint",
+    "status": "PASS",
+    "details": "Found 5 profiles",
+    "timestamp": "2025-08-26T22:50:47.218922"
+  },
+  {
+    "test": "Typing Start",
+    "status": "PASS",
+    "details": "Session: 44ca75e2-621a-4711-839a-bfc93258756b",
+    "timestamp": "2025-08-26T22:50:49.748719"
+  },
+  {
+    "test": "Typing Stop",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:50:53.767438"
+  },
+  {
+    "test": "Custom WPM 30",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:50:58.333947"
+  },
+  {
+    "test": "Custom WPM 60",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:02.405064"
+  },
+  {
+    "test": "Custom WPM 90",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:06.474393"
+  },
+  {
+    "test": "Custom WPM 120",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:10.529432"
+  },
+  {
+    "test": "Typing Pause",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:16.119657"
+  },
+  {
+    "test": "Typing Resume",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:19.166188"
+  },
+  {
+    "test": "Global Stop",
+    "status": "PASS",
+    "details": "Stopped 3 sessions",
+    "timestamp": "2025-08-26T22:51:30.838428"
+  },
+  {
+    "test": "WebSocket Support",
+    "status": "PASS",
+    "details": "Backend supports WS",
+    "timestamp": "2025-08-26T22:51:33.362142"
+  },
+  {
+    "test": "Update WPM",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:37.942712"
+  },
+  {
+    "test": "Edge Case: Empty text",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:44.542785"
+  },
+  {
+    "test": "Edge Case: Single char",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:48.601734"
+  },
+  {
+    "test": "Edge Case: Special chars",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:52.674021"
+  },
+  {
+    "test": "Edge Case: Unicode",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:51:56.719289"
+  },
+  {
+    "test": "Edge Case: Very long",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:00.803936"
+  },
+  {
+    "test": "Edge Case: Newlines",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:04.897562"
+  },
+  {
+    "test": "Edge Case: Tabs",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:08.959172"
+  },
+  {
+    "test": "Profile: Slow",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:14.050048"
+  },
+  {
+    "test": "Profile: Medium",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:18.598808"
+  },
+  {
+    "test": "Profile: Fast",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:23.161922"
+  },
+  {
+    "test": "Profile: Essay",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:27.709167"
+  },
+  {
+    "test": "Profile: Custom",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:32.282897"
+  },
+  {
+    "test": "Preview Mode ON",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:36.833305"
+  },
+  {
+    "test": "Preview Mode OFF",
+    "status": "PASS",
+    "details": "OK",
+    "timestamp": "2025-08-26T22:52:41.882849"
+  }
+]

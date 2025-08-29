@@ -1,0 +1,50 @@
+TEST SCENARIOS FOR SLYWRITER
+
+1. SHORT TEXT TEST:
+Hello world!
+
+2. MEDIUM TEXT TEST:
+This is a medium length text to test the typing functionality. It includes punctuation marks, numbers like 123, and various sentence types. How does it handle questions? It should work perfectly!
+
+3. LONG TEXT WITH SPECIAL CHARACTERS:
+Testing special characters: @#$%^&*()_+-={}[]|\:";'<>?,./
+Testing numbers: 0123456789
+Testing mixed case: UPPERCASE lowercase MiXeD CaSe
+Testing multiple sentences. Each one ends differently! Does this work? Of course; it should handle all punctuation correctly.
+
+4. PARAGRAPH TEST:
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+5. EDGE CASES:
+   
+   Extra    spaces    between    words
+Text with	tabs	between	words
+Lines with trailing spaces   
+   Lines with leading spaces
+
+6. UNICODE TEST:
+Émojis: 😀 🎉 ❤️ 
+Accented: café, naïve, résumé
+Symbols: © ® ™ € £ ¥
+
+7. CODE-LIKE TEXT:
+function testCode() {
+    const variable = "string value";
+    if (condition === true) {
+        return result;
+    }
+}
+
+8. SINGLE CHARACTER:
+A
+
+9. EMPTY LINES TEST:
+
+
+Multiple empty lines above and below
+
+
+10. MAXIMUM SPEED TEST (REPEATING):
+The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.

@@ -76,6 +76,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   const [humanMode, setHumanMode] = useState(true)
   const [pasteMode, setPasteMode] = useState(false)
   const [autoClearTextbox, setAutoClearTextbox] = useState(true)
+  const [aiFillerEnabled, setAiFillerEnabled] = useState(false) // Premium feature
   const [zoneOutActive, setZoneOutActive] = useState(false)
   const [microHesitations, setMicroHesitations] = useState(0)
   const [aiFillers, setAiFillers] = useState(0)
@@ -394,7 +395,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         text: textToType,
         profile: selectedProfile,
         preview_mode: previewMode,
-        custom_wpm: customWpm
+        custom_wpm: customWpm,
+        ai_filler_enabled: aiFillerEnabled // Pass premium AI filler setting
       })
       
       setSessionId(response.data.session_id)
@@ -949,31 +951,63 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         
         {/* Toggle Options */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group">
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
             <input
               type="checkbox"
               checked={humanMode}
-              onChange={(e) => setHumanMode(e.target.checked)}
+              onChange={(e) => {
+                setHumanMode(e.target.checked)
+                if (e.target.checked) {
+                  toast.success('🎭 Human mode activated!')
+                }
+              }}
               className="w-5 h-5 text-purple-500 rounded"
               disabled={isTyping}
             />
-            <div>
+            <div className="flex-1">
               <span className="text-white font-medium text-sm">Human Mode</span>
               <p className="text-xs text-gray-400">Natural patterns</p>
             </div>
+            {/* Human Mode Tooltip */}
+            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-200">
+                <span className="text-blue-300 font-semibold">🎭 Natural Typing Patterns:</span><br/>
+                • Variable typing speed (fast/slow bursts)<br/>
+                • Random typos that get corrected<br/>
+                • Natural pauses between sentences<br/>
+                • Hesitations and rhythm variations<br/>
+                <span className="text-green-300 mt-1 inline-block">Makes typing look genuinely human!</span>
+              </p>
+            </div>
           </label>
           
-          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group">
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
             <input
               type="checkbox"
               checked={grammarlyCorrectionEnabled}
-              onChange={(e) => setGrammarlyCorrectionEnabled(e.target.checked)}
+              onChange={(e) => {
+                setGrammarlyCorrectionEnabled(e.target.checked)
+                if (e.target.checked) {
+                  toast.success('✏️ Grammarly-style corrections enabled!')
+                }
+              }}
               className="w-5 h-5 text-purple-500 rounded"
               disabled={isTyping}
             />
-            <div>
+            <div className="flex-1">
               <span className="text-white font-medium text-sm">Grammarly-Style</span>
               <p className="text-xs text-gray-400">Delayed fixes</p>
+            </div>
+            {/* Grammarly Tooltip */}
+            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-green-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-200">
+                <span className="text-green-300 font-semibold">✏️ Simulates Grammarly:</span><br/>
+                • Types with intentional mistakes<br/>
+                • Waits 2-5 seconds (configurable)<br/>
+                • Auto-corrects errors like Grammarly<br/>
+                • Shows you're using "writing assistance"<br/>
+                <span className="text-yellow-300 mt-1 inline-block">Perfect cover for AI-generated text!</span>
+              </p>
             </div>
           </label>
           
@@ -984,6 +1018,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               onChange={(e) => {
                 setPasteMode(e.target.checked)
                 localStorage.setItem('slywriter-paste-mode', e.target.checked.toString())
+                toast.success(e.target.checked ? '⚡ Paste mode ON - Instant answers!' : '⌨️ Typing mode ON - Natural typing!')
               }}
               className="w-5 h-5 text-purple-500 rounded"
               disabled={isTyping}
@@ -992,12 +1027,17 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               <span className="text-white font-medium text-sm">Paste Mode</span>
               <p className="text-xs text-gray-400">Instant paste</p>
             </div>
-            {/* Tooltip explanation */}
-            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-              <p className="text-xs text-gray-300">
-                <span className="text-purple-400 font-semibold">Why use this?</span><br/>
-                Instantly pastes AI answer instead of typing. Perfect when not monitored!<br/>
-                <span className="text-yellow-400">Workflow:</span> Highlight Q → Ctrl+Alt+G → Answer pasted instantly
+            {/* Enhanced Paste Mode Tooltip */}
+            <div className="absolute bottom-full left-0 mb-2 w-80 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-200">
+                <span className="text-purple-300 font-semibold">⚡ Instant Paste vs Natural Typing:</span><br/>
+                <span className="text-green-300">ON (Paste):</span> Instant paste for unmonitored work<br/>
+                • Homework, personal projects<br/>
+                • No screen recording<br/>
+                <span className="text-blue-300">OFF (Type):</span> Natural typing for monitored tests<br/>
+                • Online exams with proctoring<br/>
+                • Screen-recorded assessments<br/>
+                <span className="text-yellow-300 mt-1 inline-block">Toggle based on your situation!</span>
               </p>
             </div>
           </label>
@@ -1006,7 +1046,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             <input
               type="checkbox"
               checked={autoClearTextbox}
-              onChange={(e) => setAutoClearTextbox(e.target.checked)}
+              onChange={(e) => {
+                setAutoClearTextbox(e.target.checked)
+                if (e.target.checked) {
+                  toast.success('🧹 Auto-clear enabled for rapid Q&A!')
+                }
+              }}
               className="w-5 h-5 text-purple-500 rounded"
               disabled={isTyping}
             />
@@ -1014,11 +1059,55 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               <span className="text-white font-medium text-sm">Auto-Clear</span>
               <p className="text-xs text-gray-400">After typing</p>
             </div>
-            {/* Tooltip explanation */}
-            <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-              <p className="text-xs text-gray-300">
-                <span className="text-purple-400 font-semibold">Why use this?</span><br/>
-                Clears textbox after typing completes. Great for multiple questions - just highlight next Q, paste, repeat. No manual clearing!
+            {/* Enhanced Auto-Clear Tooltip */}
+            <div className="absolute bottom-full right-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-200">
+                <span className="text-cyan-300 font-semibold">🧹 Rapid-Fire Q&A Mode:</span><br/>
+                • Auto-clears textbox after each answer<br/>
+                • Perfect for multiple choice tests<br/>
+                • No manual clearing needed<br/>
+                <span className="text-yellow-300">Workflow:</span><br/>
+                1. Paste question → Get answer<br/>
+                2. Textbox auto-clears<br/>
+                3. Paste next question → Repeat!<br/>
+                <span className="text-green-300 mt-1 inline-block">10x faster for quiz sequences!</span>
+              </p>
+            </div>
+          </label>
+          
+          {/* AI Filler - PREMIUM FEATURE */}
+          <label className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-lg cursor-pointer hover:from-purple-900/40 hover:to-pink-900/40 transition-all group relative border border-purple-500/30">
+            <input
+              type="checkbox"
+              checked={aiFillerEnabled}
+              onChange={(e) => {
+                setAiFillerEnabled(e.target.checked)
+                localStorage.setItem('slywriter-ai-filler', e.target.checked.toString())
+                if (e.target.checked) {
+                  toast.success('🎭 Premium AI Filler activated!', { icon: '👑' })
+                }
+              }}
+              className="w-5 h-5 text-purple-500 rounded"
+              disabled={isTyping}
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-medium text-sm">AI Filler</span>
+                <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 rounded-full text-white font-bold">PREMIUM</span>
+              </div>
+              <p className="text-xs text-gray-400">Realistic drafts</p>
+            </div>
+            {/* Premium Tooltip */}
+            <div className="absolute bottom-full right-0 mb-2 w-80 p-3 bg-gradient-to-br from-purple-900 to-pink-900 rounded-lg shadow-xl border border-purple-500/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-200">
+                <span className="text-yellow-300 font-bold">👑 PREMIUM ONLY - Ultimate Realism</span><br/>
+                <span className="text-purple-300 font-semibold">🎭 How it works:</span><br/>
+                • Types a "draft thought" (contextual)<br/>
+                • Pauses like "hmm, that's not right"<br/>
+                • Deletes the draft<br/>
+                • Types the real answer<br/>
+                <span className="text-cyan-300">Example:</span> Types "The answer is..." → deletes → types actual answer<br/>
+                <span className="text-pink-300 font-bold mt-1 inline-block">🔥 Most realistic feature - 100% undetectable!</span>
               </p>
             </div>
           </label>

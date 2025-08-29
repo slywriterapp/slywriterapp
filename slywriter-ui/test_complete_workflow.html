@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlyWriter Complete AI Workflow Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #764ba2;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .workflow-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .workflow-step:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        .step-number {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        .highlight-text {
+            background: #fffacd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px dashed #ffd700;
+        }
+        kbd {
+            background: #333;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .feature-card.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+        }
+        .feature-card h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .feature-card p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .test-area {
+            margin: 20px 0;
+        }
+        .test-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        .test-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .status-box {
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SlyWriter AI Workflow Test</h1>
+        <p class="subtitle">Test all AI features and workflows</p>
+
+        <div class="test-section">
+            <h2>✨ Quick Workflow (Most Popular)</h2>
+            <div class="workflow-step">
+                <span class="step-number">1</span>
+                <div>
+                    <strong>Highlight Text:</strong> 
+                    Select any <span class="highlight-text">question or prompt</span> on this page
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="step-number">2</span>
+                <div>
+                    <strong>Press Hotkey:</strong> 
+                    <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>G</kbd>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="step-number">3</span>
+                <div>
+                    <strong>AI Magic:</strong> 
+                    AI generates perfect answer using your settings
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="step-number">4</span>
+                <div>
+                    <strong>Auto-Type or Paste:</strong> 
+                    Depending on your mode, it either types naturally or pastes instantly
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>⚙️ Active Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card active" id="humanizer">
+                    <h4>✅ Humanizer</h4>
+                    <p>Makes content sound natural, varies sentences, removes AI patterns</p>
+                </div>
+                <div class="feature-card" id="review">
+                    <h4>👁️ Review Mode</h4>
+                    <p>Preview and edit before using (great for important work)</p>
+                </div>
+                <div class="feature-card active" id="filler">
+                    <h4>🎭 AI Filler</h4>
+                    <p>Types draft text then deletes it, simulating thinking</p>
+                </div>
+                <div class="feature-card" id="learning">
+                    <h4>📚 Learning Mode</h4>
+                    <p>Saves content as lessons for future reference</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Test Area</h2>
+            <div class="test-area">
+                <h3>Sample Questions (Highlight and press Ctrl+Alt+G):</h3>
+                <ul>
+                    <li class="highlight-text">What is machine learning and how does it work?</li>
+                    <li class="highlight-text">Explain quantum computing in simple terms</li>
+                    <li class="highlight-text">Write a professional email declining a meeting</li>
+                    <li class="highlight-text">Create a Python function to sort a list</li>
+                    <li class="highlight-text">What are the causes of climate change?</li>
+                </ul>
+            </div>
+
+            <div class="test-area">
+                <h3>Type/Paste Target:</h3>
+                <textarea class="test-input" rows="6" placeholder="Click here and test typing/pasting. AI will type or paste here when triggered..."></textarea>
+            </div>
+        </div>
+
+        <div class="status-box">
+            <h3>📊 Current Settings:</h3>
+            <ul>
+                <li><span class="info">Mode:</span> <span id="mode">Loading...</span></li>
+                <li><span class="info">Grade Level:</span> <span id="grade">Grade 11</span></li>
+                <li><span class="info">Response Length:</span> <span id="length">Medium (4-8 sentences)</span></li>
+                <li><span class="info">Tone:</span> <span id="tone">Neutral</span></li>
+                <li><span class="info">Paste Mode:</span> <span id="paste-mode">OFF</span></li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 What to Test:</h2>
+            <ol>
+                <li><strong>Highlight Workflow:</strong> Highlight any question above and press Ctrl+Alt+G</li>
+                <li><strong>Paste Mode:</strong> Enable in settings, then test instant pasting</li>
+                <li><strong>AI Filler:</strong> Watch as it types draft text, deletes it, then types final answer</li>
+                <li><strong>Humanizer:</strong> Compare AI responses with/without humanizer enabled</li>
+                <li><strong>Review Mode:</strong> Enable to preview answers before using them</li>
+                <li><strong>Different Templates:</strong> Try Creative, Professional, Academic modes</li>
+            </ol>
+        </div>
+
+        <div class="test-section" style="background: #e8f5e9; border-left-color: #4caf50;">
+            <h2>✅ Expected Results:</h2>
+            <ul>
+                <li class="success">AI should respond within 2-3 seconds</li>
+                <li class="success">Humanized text should sound natural and varied</li>
+                <li class="success">AI Filler should create realistic "thinking" pauses</li>
+                <li class="success">Paste mode should instantly insert text</li>
+                <li class="success">Typing mode should have human-like delays</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Check localStorage for current settings
+        document.addEventListener('DOMContentLoaded', () => {
+            const settings = JSON.parse(localStorage.getItem('slywriter-humanizer-settings') || '{}');
+            const pasteMode = localStorage.getItem('slywriter-paste-mode') === 'true';
+            
+            // Update status display
+            document.getElementById('mode').textContent = settings.response_type === 'essay' ? 'Essay Mode' : 'Short Response';
+            document.getElementById('paste-mode').textContent = pasteMode ? 'ON (Instant)' : 'OFF (Typing)';
+            
+            // Update feature cards based on settings
+            if (settings.humanizer_enabled) {
+                document.getElementById('humanizer').classList.add('active');
+            }
+            if (settings.review_mode) {
+                document.getElementById('review').classList.add('active');
+            }
+            if (settings.ai_filler_enabled) {
+                document.getElementById('filler').classList.add('active');
+            }
+            if (settings.learning_mode) {
+                document.getElementById('learning').classList.add('active');
+            }
+            
+            // Add selection event listener
+            document.addEventListener('selectionchange', () => {
+                const selection = window.getSelection();
+                if (selection.toString()) {
+                    console.log('Selected text:', selection.toString());
+                }
+            });
+        });
+    </script>
+</body>
+</html>

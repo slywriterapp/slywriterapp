@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Integration Test</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        .test-section {
+            background: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #5D00F0;
+        }
+        button {
+            background: #5D00F0;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7722FF;
+        }
+        .log {
+            background: #000;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #5D00F0;
+            padding-left: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #333;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            color: #5D00F0;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 SlyWriter Analytics Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>📊 Current Statistics</h2>
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalWords">0</div>
+                <div class="stat-label">Total Words</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalSessions">0</div>
+                <div class="stat-label">Sessions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="todayWords">0</div>
+                <div class="stat-label">Today's Words</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgWpm">0</div>
+                <div class="stat-label">Avg WPM</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test Events</h2>
+        <button onclick="fireTypingComplete(100, 500, 85)">Fire Small Session (100 words)</button>
+        <button onclick="fireTypingComplete(500, 2500, 120)">Fire Medium Session (500 words)</button>
+        <button onclick="fireTypingComplete(1000, 5000, 95)">Fire Large Session (1000 words)</button>
+        <button onclick="fireRandomSessions()">Fire 7 Days of Random Data</button>
+        <button onclick="clearAllData()">Clear All Data</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📈 Daily Stats (Last 7 Days)</h2>
+        <div id="dailyChart" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Event Log</h2>
+        <div class="log" id="eventLog"></div>
+    </div>
+
+    <script>
+        const log = (message, data = null) => {
+            const logEl = document.getElementById('eventLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            if (data) {
+                entry.innerHTML += `<br><code>${JSON.stringify(data, null, 2)}</code>`;
+            }
+            logEl.insertBefore(entry, logEl.firstChild);
+        };
+
+        const updateStats = () => {
+            const stats = JSON.parse(localStorage.getItem('slywriter-stats') || '{}');
+            document.getElementById('totalWords').textContent = stats.totalWords || 0;
+            document.getElementById('totalSessions').textContent = stats.totalSessions || 0;
+            document.getElementById('todayWords').textContent = stats.todayWords || 0;
+            document.getElementById('avgWpm').textContent = stats.avgSpeed || 0;
+            
+            // Update daily chart
+            const dailyStats = JSON.parse(localStorage.getItem('slywriter-daily-stats') || '{}');
+            const chartEl = document.getElementById('dailyChart');
+            chartEl.innerHTML = '';
+            
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateKey = date.toISOString().split('T')[0];
+                const dayData = dailyStats[dateKey] || { words: 0, sessions: 0 };
+                
+                const dayEl = document.createElement('div');
+                dayEl.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #333;';
+                dayEl.innerHTML = `
+                    <span>${date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    <span style="color: #5D00F0;">Words: ${dayData.words || 0}</span>
+                    <span style="color: #888;">Sessions: ${dayData.sessions || 0}</span>
+                    <span style="color: #0F0;">WPM: ${dayData.avgSpeed || 0}</span>
+                `;
+                chartEl.appendChild(dayEl);
+            }
+        };
+
+        const fireTypingComplete = (words, characters, wpm) => {
+            const event = new CustomEvent('typing-complete', {
+                detail: { words, characters, wpm }
+            });
+            window.dispatchEvent(event);
+            log(`Fired typing-complete event`, { words, characters, wpm });
+            
+            // Simulate the same logic as StatisticsTab
+            const currentStats = JSON.parse(localStorage.getItem('slywriter-stats') || '{}');
+            const newStats = {
+                ...currentStats,
+                totalWords: (currentStats.totalWords || 0) + words,
+                totalCharacters: (currentStats.totalCharacters || 0) + characters,
+                totalSessions: (currentStats.totalSessions || 0) + 1,
+                todayWords: (currentStats.todayWords || 0) + words,
+                todaySessions: (currentStats.todaySessions || 0) + 1,
+                bestWpm: Math.max(currentStats.bestWpm || 0, wpm),
+                avgSpeed: Math.round(((currentStats.avgSpeed || 0) * (currentStats.totalSessions || 0) + wpm) / ((currentStats.totalSessions || 0) + 1)),
+                timeSaved: (currentStats.timeSaved || 0) + Math.round(words / 40)
+            };
+            localStorage.setItem('slywriter-stats', JSON.stringify(newStats));
+            
+            // Update daily stats
+            const today = new Date().toISOString().split('T')[0];
+            const dailyStats = JSON.parse(localStorage.getItem('slywriter-daily-stats') || '{}');
+            
+            if (!dailyStats[today]) {
+                dailyStats[today] = { words: 0, characters: 0, sessions: 0, totalWpm: 0 };
+            }
+            
+            dailyStats[today].words = (dailyStats[today].words || 0) + words;
+            dailyStats[today].characters = (dailyStats[today].characters || 0) + characters;
+            dailyStats[today].sessions = (dailyStats[today].sessions || 0) + 1;
+            dailyStats[today].totalWpm = (dailyStats[today].totalWpm || 0) + wpm;
+            dailyStats[today].avgSpeed = Math.round(dailyStats[today].totalWpm / dailyStats[today].sessions);
+            
+            localStorage.setItem('slywriter-daily-stats', JSON.stringify(dailyStats));
+            
+            log('Updated localStorage stats');
+            updateStats();
+        };
+
+        const fireRandomSessions = () => {
+            const today = new Date();
+            const dailyStats = JSON.parse(localStorage.getItem('slywriter-daily-stats') || '{}');
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateKey = date.toISOString().split('T')[0];
+                
+                const sessions = Math.floor(Math.random() * 5) + 1;
+                let totalWords = 0;
+                let totalChars = 0;
+                let totalWpm = 0;
+                
+                for (let j = 0; j < sessions; j++) {
+                    const words = Math.floor(Math.random() * 800) + 200;
+                    const chars = words * 5;
+                    const wpm = Math.floor(Math.random() * 50) + 70;
+                    
+                    totalWords += words;
+                    totalChars += chars;
+                    totalWpm += wpm;
+                }
+                
+                dailyStats[dateKey] = {
+                    words: totalWords,
+                    characters: totalChars,
+                    sessions: sessions,
+                    totalWpm: totalWpm,
+                    avgSpeed: Math.round(totalWpm / sessions)
+                };
+            }
+            
+            localStorage.setItem('slywriter-daily-stats', JSON.stringify(dailyStats));
+            log('Generated 7 days of random data', dailyStats);
+            updateStats();
+        };
+
+        const clearAllData = () => {
+            localStorage.removeItem('slywriter-stats');
+            localStorage.removeItem('slywriter-daily-stats');
+            log('Cleared all analytics data');
+            updateStats();
+        };
+
+        // Listen for typing events
+        window.addEventListener('typing-complete', (event) => {
+            log('Received typing-complete event', event.detail);
+        });
+
+        window.addEventListener('typing-start', () => {
+            log('Received typing-start event');
+        });
+
+        window.addEventListener('typing-update', (event) => {
+            log('Received typing-update event', event.detail);
+        });
+
+        // Initial load
+        updateStats();
+        log('Analytics test page loaded');
+        
+        // Check for existing data
+        const existingStats = localStorage.getItem('slywriter-stats');
+        const existingDaily = localStorage.getItem('slywriter-daily-stats');
+        if (existingStats) {
+            log('Found existing stats', JSON.parse(existingStats));
+        }
+        if (existingDaily) {
+            log('Found existing daily stats', JSON.parse(existingDaily));
+        }
+    </script>
+</body>
+</html>

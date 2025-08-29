@@ -1,0 +1,20 @@
+{
+  "lesson_history": [
+    {
+      "topic": "Local",
+      "original_question": "Learn about: Local",
+      "explanation": "  File \"C:\\Users\\brice\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\tkinter\\__init__.py\", line 2068, in __call__\r\n    return self.func(*args)\r\n           ~~~~~~~~~^^^^^^^\r\n  File \"C:\\Typing Project\\tab_learn.py\", line 971, in start_custom_topic\r\n    self.generate_lesson(topic, custom=True)\r\n    ^^^^^^^^^^^^^^^^^^^^\r\nAttributeError: 'LearnTab' object has no attribute 'generate_lesson'\r\n\r\n",
+      "auto_captured": true,
+      "timestamp": "2025-08-24T15:48:27.809579",
+      "source": "highlight"
+    }
+  ],
+  "spaced_repetition_queue": [],
+  "knowledge_map": {},
+  "learning_style": "auditory",
+  "difficulty_preference": "adaptive",
+  "explanation_style": "step-by-step",
+  "grade_level": 8,
+  "depth_level": 3,
+  "last_updated": "2025-08-25T16:44:54.945603"
+}

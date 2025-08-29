@@ -1,0 +1,15 @@
+# Backend API requirements
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+websockets==12.0
+pydantic==2.5.0
+
+# Existing requirements (already installed)
+keyboard
+pillow
+requests
+openai
+google-auth
+google-auth-oauthlib
+google-auth-httplib2

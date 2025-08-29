@@ -10,9 +10,9 @@ import TypingTabWithWPM from './components/TypingTabWithWPM'
 import AIHubTab from './components/AIHubTab'
 import StatisticsTab from './components/StatisticsTab'
 import SettingsTabComplete from './components/SettingsTabComplete'
-import LearningTabEnhanced from './components/LearningTabEnhanced'
+import LearningHub from './components/LearningHub'
 import OverlayWindowEnhanced from './components/OverlayWindowEnhanced'
-import HumanizerTab from './components/HumanizerTab'
+import HumanizerTabSimple from './components/HumanizerTabSimple'
 import MissionTab from './components/MissionTab'
 import GlobalHotkeys from './components/GlobalHotkeys'
 import OnboardingFlow from './components/OnboardingFlow'
@@ -120,6 +120,7 @@ function SlyWriterApp() {
                 return (
                   <motion.button
                     key={item.id}
+                    data-tab={item.id}
                     initial={{ x: -50, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: index * 0.1 }}
@@ -257,7 +258,7 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <HumanizerTab />
+                <HumanizerTabSimple />
               </motion.div>
             )}
             
@@ -281,7 +282,7 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <LearningTabEnhanced />
+                <LearningHub />
               </motion.div>
             )}
             

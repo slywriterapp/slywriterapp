@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop/Pause Test - Emergency Controls</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        .test-section {
+            background: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 2px solid #5D00F0;
+        }
+        .emergency {
+            background: #500;
+            border: 2px solid #f00;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .start-btn {
+            background: linear-gradient(45deg, #0f0, #0a0);
+            color: white;
+        }
+        .stop-btn {
+            background: linear-gradient(45deg, #f00, #800);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        .pause-btn {
+            background: linear-gradient(45deg, #fa0, #a50);
+            color: white;
+        }
+        .global-btn {
+            background: linear-gradient(45deg, #f0f, #808);
+            color: white;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            50% { box-shadow: 0 0 20px 10px rgba(255, 0, 0, 0); }
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            background: #333;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        .status.active {
+            border-color: #0f0;
+            background: #030;
+        }
+        .status.paused {
+            border-color: #fa0;
+            background: #330;
+        }
+        .status.stopped {
+            border-color: #f00;
+            background: #300;
+        }
+        #log {
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            padding: 2px 5px;
+            margin: 2px 0;
+            border-left: 3px solid #555;
+        }
+        .log-success { border-color: #0f0; color: #0f0; }
+        .log-error { border-color: #f00; color: #f00; }
+        .log-warning { border-color: #fa0; color: #fa0; }
+        .log-info { border-color: #09f; color: #09f; }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #5D00F0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        kbd {
+            background: #444;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #666;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛑 EMERGENCY STOP/PAUSE TEST</h1>
+    
+    <div class="test-section emergency">
+        <h2>⚠️ EMERGENCY CONTROLS - ALWAYS WORK</h2>
+        <button class="stop-btn" onclick="emergencyStop()">
+            🛑 EMERGENCY STOP ALL
+        </button>
+        <button class="pause-btn" onclick="globalPause()">
+            ⏸️ GLOBAL PAUSE/RESUME
+        </button>
+        <p style="color: #faa;">These buttons MUST work even if session is lost or corrupted!</p>
+        <p>Keyboard shortcuts: <kbd>ESC</kbd> = Stop, <kbd>SPACE</kbd> = Pause</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Text</h2>
+        <textarea id="testText" rows="4">
+The quick brown fox jumps over the lazy dog. This is a test to ensure that the stop and pause functionality works correctly. We must be able to stop typing at any time without waiting.
+        </textarea>
+    </div>
+
+    <div class="test-section">
+        <h2>Session Controls</h2>
+        <button class="start-btn" onclick="startTyping()">▶️ Start Typing</button>
+        <button class="pause-btn" onclick="pauseSession()">⏸️ Pause Session</button>
+        <button class="pause-btn" onclick="resumeSession()">▶️ Resume Session</button>
+        <button class="stop-btn" onclick="stopSession()">⏹️ Stop Session</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Session Status</h2>
+        <div id="status" class="status">
+            <div>Session ID: <span id="sessionId">None</span></div>
+            <div>State: <span id="state">Idle</span></div>
+            <div>Progress: <span id="progress">0%</span></div>
+            <div>Is Typing: <span id="isTyping">No</span></div>
+            <div>Is Paused: <span id="isPaused">No</span></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Test Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let currentSessionId = null;
+        let ws = null;
+
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        function updateStatus(data) {
+            document.getElementById('sessionId').textContent = currentSessionId || 'None';
+            document.getElementById('state').textContent = data.state || 'Unknown';
+            document.getElementById('progress').textContent = data.progress || '0%';
+            document.getElementById('isTyping').textContent = data.isTyping ? 'Yes' : 'No';
+            document.getElementById('isPaused').textContent = data.isPaused ? 'Yes' : 'No';
+            
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status';
+            if (data.isTyping && !data.isPaused) {
+                statusDiv.className = 'status active';
+            } else if (data.isPaused) {
+                statusDiv.className = 'status paused';
+            } else if (!data.isTyping) {
+                statusDiv.className = 'status stopped';
+            }
+        }
+
+        async function startTyping() {
+            const text = document.getElementById('testText').value.trim();
+            
+            try {
+                addLog('Starting typing session...', 'info');
+                const response = await fetch(`${API_URL}/api/typing/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        profile: 'Medium',
+                        preview_mode: false
+                    })
+                });
+                
+                const data = await response.json();
+                currentSessionId = data.session_id;
+                addLog(`Session started: ${currentSessionId}`, 'success');
+                
+                updateStatus({
+                    state: 'Typing',
+                    isTyping: true,
+                    isPaused: false,
+                    progress: '0%'
+                });
+                
+                // Connect WebSocket
+                connectWebSocket(currentSessionId);
+                
+            } catch (error) {
+                addLog(`Start error: ${error.message}`, 'error');
+            }
+        }
+
+        async function pauseSession() {
+            if (!currentSessionId) {
+                addLog('No active session to pause', 'warning');
+                return;
+            }
+            
+            try {
+                addLog(`Pausing session ${currentSessionId}...`, 'info');
+                const response = await fetch(`${API_URL}/api/typing/pause/${currentSessionId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                addLog(`Pause response: ${data.message}`, 'success');
+                updateStatus({
+                    state: 'Paused',
+                    isTyping: true,
+                    isPaused: true
+                });
+            } catch (error) {
+                addLog(`Pause error: ${error.message}`, 'error');
+            }
+        }
+
+        async function resumeSession() {
+            if (!currentSessionId) {
+                addLog('No active session to resume', 'warning');
+                return;
+            }
+            
+            try {
+                addLog(`Resuming session ${currentSessionId}...`, 'info');
+                const response = await fetch(`${API_URL}/api/typing/resume/${currentSessionId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                addLog(`Resume response: ${data.message}`, 'success');
+                updateStatus({
+                    state: 'Typing',
+                    isTyping: true,
+                    isPaused: false
+                });
+            } catch (error) {
+                addLog(`Resume error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopSession() {
+            if (!currentSessionId) {
+                addLog('No active session to stop', 'warning');
+                return;
+            }
+            
+            try {
+                addLog(`Stopping session ${currentSessionId}...`, 'info');
+                const response = await fetch(`${API_URL}/api/typing/stop/${currentSessionId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                addLog(`Stop response: ${data.message}`, 'success');
+                currentSessionId = null;
+                updateStatus({
+                    state: 'Stopped',
+                    isTyping: false,
+                    isPaused: false
+                });
+            } catch (error) {
+                addLog(`Stop error: ${error.message}`, 'error');
+            }
+        }
+
+        // GLOBAL EMERGENCY FUNCTIONS - THESE MUST ALWAYS WORK
+        async function emergencyStop() {
+            addLog('🛑 EMERGENCY STOP TRIGGERED!', 'error');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/typing/stop`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                addLog(`EMERGENCY STOP: ${data.message}`, 'success');
+                addLog(`Stopped sessions: ${JSON.stringify(data.stopped_sessions)}`, 'info');
+                
+                currentSessionId = null;
+                updateStatus({
+                    state: 'EMERGENCY STOPPED',
+                    isTyping: false,
+                    isPaused: false
+                });
+            } catch (error) {
+                addLog(`EMERGENCY STOP FAILED: ${error.message}`, 'error');
+            }
+        }
+
+        async function globalPause() {
+            addLog('⏸️ GLOBAL PAUSE/RESUME TRIGGERED!', 'warning');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/typing/pause`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                addLog(`GLOBAL PAUSE: ${data.message}`, 'success');
+                
+                if (data.status === 'paused') {
+                    updateStatus({
+                        state: 'Globally Paused',
+                        isTyping: true,
+                        isPaused: true
+                    });
+                } else if (data.status === 'resumed') {
+                    updateStatus({
+                        state: 'Globally Resumed',
+                        isTyping: true,
+                        isPaused: false
+                    });
+                }
+            } catch (error) {
+                addLog(`GLOBAL PAUSE FAILED: ${error.message}`, 'error');
+            }
+        }
+
+        function connectWebSocket(sessionId) {
+            if (ws) ws.close();
+            
+            ws = new WebSocket(`ws://localhost:8000/ws/${sessionId}`);
+            
+            ws.onopen = () => addLog('WebSocket connected', 'success');
+            ws.onclose = () => addLog('WebSocket disconnected', 'warning');
+            ws.onerror = (error) => addLog(`WebSocket error: ${error}`, 'error');
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'progress') {
+                    updateStatus({
+                        state: 'Typing',
+                        isTyping: true,
+                        isPaused: false,
+                        progress: `${Math.round(data.data.progress)}%`
+                    });
+                } else if (data.type === 'complete') {
+                    addLog('Typing complete!', 'success');
+                    currentSessionId = null;
+                    updateStatus({
+                        state: 'Complete',
+                        isTyping: false,
+                        isPaused: false,
+                        progress: '100%'
+                    });
+                }
+            };
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                emergencyStop();
+            } else if (e.key === ' ' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                globalPause();
+            }
+        });
+
+        addLog('Test interface ready. Press ESC for emergency stop, SPACE for pause.', 'info');
+    </script>
+</body>
+</html>

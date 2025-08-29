@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WPM Persistence Test</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        .test-section {
+            background: #222;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #5D00F0;
+        }
+        button {
+            background: #5D00F0;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7722FF;
+        }
+        .value {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #333;
+            border-radius: 4px;
+            margin: 0 10px;
+            color: #5D00F0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 WPM & Profile Persistence Test</h1>
+    
+    <div class="test-section">
+        <h2>Current Saved Values</h2>
+        <p>Custom WPM: <span class="value" id="savedWpm">-</span></p>
+        <p>Selected Profile: <span class="value" id="savedProfile">-</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Actions</h2>
+        <button onclick="setWpm(80)">Set WPM to 80</button>
+        <button onclick="setWpm(120)">Set WPM to 120</button>
+        <button onclick="setWpm(150)">Set WPM to 150</button>
+        <br><br>
+        <button onclick="setProfile('Slow')">Set Profile: Slow</button>
+        <button onclick="setProfile('Medium')">Set Profile: Medium</button>
+        <button onclick="setProfile('Fast')">Set Profile: Fast</button>
+        <button onclick="setProfile('Custom')">Set Profile: Custom</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Storage Management</h2>
+        <button onclick="clearWpm()">Clear WPM</button>
+        <button onclick="clearProfile()">Clear Profile</button>
+        <button onclick="clearAll()">Clear All</button>
+        <button onclick="loadValues()">Refresh Display</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Simulate Tab Switch</h2>
+        <p>After setting values above, reload the page or open in a new tab to test persistence.</p>
+        <button onclick="window.location.reload()">Reload Page</button>
+    </div>
+
+    <script>
+        function loadValues() {
+            const wpm = localStorage.getItem('slywriter-custom-wpm');
+            const profile = localStorage.getItem('slywriter-selected-profile');
+            
+            document.getElementById('savedWpm').textContent = wpm || 'Not set';
+            document.getElementById('savedProfile').textContent = profile || 'Not set';
+            
+            console.log('Loaded values:', { wpm, profile });
+        }
+
+        function setWpm(value) {
+            localStorage.setItem('slywriter-custom-wpm', value.toString());
+            console.log('Set WPM to:', value);
+            loadValues();
+        }
+
+        function setProfile(value) {
+            localStorage.setItem('slywriter-selected-profile', value);
+            console.log('Set profile to:', value);
+            loadValues();
+        }
+
+        function clearWpm() {
+            localStorage.removeItem('slywriter-custom-wpm');
+            console.log('Cleared WPM');
+            loadValues();
+        }
+
+        function clearProfile() {
+            localStorage.removeItem('slywriter-selected-profile');
+            console.log('Cleared profile');
+            loadValues();
+        }
+
+        function clearAll() {
+            localStorage.removeItem('slywriter-custom-wpm');
+            localStorage.removeItem('slywriter-selected-profile');
+            console.log('Cleared all settings');
+            loadValues();
+        }
+
+        // Load on page load
+        loadValues();
+        
+        // Auto-refresh every second
+        setInterval(loadValues, 1000);
+    </script>
+</body>
+</html>

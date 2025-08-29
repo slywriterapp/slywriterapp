@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import ReviewPopup from './ReviewPopup'
+import { addLearningTopic } from './LearningHub'
 
 const API_URL = 'https://slywriterapp.onrender.com'
 
@@ -41,6 +43,11 @@ export default function GlobalHotkeys() {
   const [isTyping, setIsTyping] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [overlayVisible, setOverlayVisible] = useState(false)
+  const [reviewPopup, setReviewPopup] = useState<{open: boolean, text: string, question: string}>({
+    open: false,
+    text: '',
+    question: ''
+  })
   
   // Start typing hotkey
   useHotkeys(hotkeys.start, async () => {
@@ -152,8 +159,8 @@ export default function GlobalHotkeys() {
       
       toast.success('🤖 Processing with AI...')
       
-      // Get humanizer settings
-      const settings = JSON.parse(localStorage.getItem('slywriter-humanizer-settings') || '{}')
+      // Get AI generation settings
+      const settings = JSON.parse(localStorage.getItem('slywriter-ai-settings') || '{}')
       
       // Build prompt
       const prompt = buildAIPrompt(text, settings)
@@ -161,7 +168,8 @@ export default function GlobalHotkeys() {
       // Generate with AI
       const response = await axios.post(`${API_URL}/api/ai/generate`, {
         prompt,
-        settings
+        settings,
+        ai_filler_enabled: settings.ai_filler_enabled || false // Pass AI filler setting
       })
       
       let generatedText = response.data.text
@@ -177,13 +185,19 @@ export default function GlobalHotkeys() {
         generatedText = humanizeResponse.data.text
       }
       
+      // Auto-save to learning (track what they're using AI for)
+      if (settings.learning_mode !== false) { // Default to true
+        addLearningTopic(text, generatedText)
+      }
+      
       // Check review mode
       if (settings.review_mode) {
-        // Show review dialog (send message to main app)
-        window.postMessage({
-          type: 'show-review',
-          text: generatedText
-        }, '*')
+        // Show review popup
+        setReviewPopup({
+          open: true,
+          text: generatedText,
+          question: text
+        })
       } else {
         // Check if paste mode is enabled
         const pasteMode = localStorage.getItem('slywriter-paste-mode') === 'true'
@@ -295,7 +309,66 @@ export default function GlobalHotkeys() {
     return () => window.removeEventListener('message', handleMessage)
   }, [])
   
-  return null // This is a headless component
+  const handleReviewConfirm = async (finalText: string) => {
+    // Check if paste mode is enabled
+    const pasteMode = localStorage.getItem('slywriter-paste-mode') === 'true'
+    
+    if (pasteMode) {
+      // PASTE MODE: Instantly paste the answer
+      try {
+        await navigator.clipboard.writeText(finalText)
+        
+        // Simulate paste event to paste into active field
+        const activeElement = document.activeElement as HTMLTextAreaElement | HTMLInputElement
+        if (activeElement && (activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'INPUT')) {
+          const start = activeElement.selectionStart || 0
+          const end = activeElement.selectionEnd || 0
+          const currentValue = activeElement.value
+          
+          // Insert text at cursor position
+          activeElement.value = currentValue.substring(0, start) + finalText + currentValue.substring(end)
+          
+          // Update cursor position
+          activeElement.selectionStart = activeElement.selectionEnd = start + finalText.length
+          
+          // Trigger input event
+          activeElement.dispatchEvent(new Event('input', { bubbles: true }))
+          
+          toast.success('⚡ Answer pasted!', { icon: '📋' })
+        } else {
+          // Just copy to clipboard if no active field
+          toast.success('✨ Answer copied to clipboard!', { icon: '📋' })
+        }
+      } catch (err) {
+        toast.error('Failed to paste - answer copied to clipboard')
+      }
+    } else {
+      // TYPING MODE: Type out with human patterns
+      await axios.post(`${API_URL}/api/typing/start`, {
+        text: finalText,
+        profile: 'Medium',
+        preview_mode: false
+      })
+      
+      setIsTyping(true)
+      toast.success('✨ Typing started!')
+    }
+    
+    setReviewPopup({ open: false, text: '', question: '' })
+  }
+  
+  return (
+    <>
+      <ReviewPopup
+        isOpen={reviewPopup.open}
+        onClose={() => setReviewPopup({ open: false, text: '', question: '' })}
+        text={reviewPopup.text}
+        question={reviewPopup.question}
+        onConfirm={handleReviewConfirm}
+        onSaveToLearning={addLearningTopic}
+      />
+    </>
+  ) // Review popup component
 }
 
 export function HotkeySettings() {
