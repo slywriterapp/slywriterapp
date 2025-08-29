@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from '../context/AuthContext'
 import { ThemeProvider } from '../context/ThemeContext'
 import { ThemeToggleCompact } from '../components/ThemeToggle'
@@ -372,19 +373,23 @@ function SlyWriterAppInner() {
 }
 
 function SlyWriterApp() {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''
+  
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <SlyWriterAppInner />
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            className: 'bg-gray-900 text-white border-purple-500/30 border',
-          }}
-        />
-      </AuthProvider>
-    </ThemeProvider>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <ThemeProvider>
+        <AuthProvider>
+          <SlyWriterAppInner />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              className: 'bg-gray-900 text-white border-purple-500/30 border',
+            }}
+          />
+        </AuthProvider>
+      </ThemeProvider>
+    </GoogleOAuthProvider>
   )
 }
 
