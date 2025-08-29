@@ -65,7 +65,7 @@ export default function HotkeysTabEnhanced() {
       const response = await axios.get(`${API_URL}/api/hotkeys/recording-status`)
       if (response.data.is_recording && !isRecording) {
         // Backend is recording but frontend doesn't know
-        toast.warning('Hotkey recording active on another tab')
+        toast('Hotkey recording active on another tab', { icon: '⚠️' })
       }
     } catch (error) {
       // Ignore errors for status check
@@ -130,7 +130,7 @@ export default function HotkeysTabEnhanced() {
         if (conflictingActions.length > 0) {
           setConflicts(conflictingActions)
           setShowConflictWarning(true)
-          toast.warning(`This combination is already used for: ${conflictingActions.join(', ')}`)
+          toast(`This combination is already used for: ${conflictingActions.join(', ')}`, { icon: '⚠️' })
         }
         
         // Register the hotkey
