@@ -74,6 +74,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   const [grammarlyCorrectionDelay, setGrammarlyCorrectionDelay] = useState(2)
   const [typoRate, setTypoRate] = useState(2)
   const [humanMode, setHumanMode] = useState(true)
+  const [pasteMode, setPasteMode] = useState(false)
+  const [autoClearTextbox, setAutoClearTextbox] = useState(true)
   const [zoneOutActive, setZoneOutActive] = useState(false)
   const [microHesitations, setMicroHesitations] = useState(0)
   const [aiFillers, setAiFillers] = useState(0)
@@ -251,6 +253,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setStatus('Complete!')
           toast.success('Typing session complete!')
           setSessionId(null)
+          
+          // Auto-clear textbox if enabled
+          if (autoClearTextbox) {
+            setTimeout(() => {
+              setInputText('')
+              toast.success('Textbox cleared - ready for next paste!', { icon: '🔄' })
+            }, 1000) // Wait 1 second after completion before clearing
+          }
           
           // Dispatch event for statistics tracking
           const words = inputText.trim().split(/\s+/).length
@@ -933,7 +943,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         
         {/* Toggle Options */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group">
             <input
               type="checkbox"
               checked={humanMode}
@@ -947,7 +957,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             </div>
           </label>
           
-          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group">
             <input
               type="checkbox"
               checked={grammarlyCorrectionEnabled}
@@ -960,8 +970,88 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               <p className="text-xs text-gray-400">Delayed fixes</p>
             </div>
           </label>
+          
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
+            <input
+              type="checkbox"
+              checked={pasteMode}
+              onChange={(e) => setPasteMode(e.target.checked)}
+              className="w-5 h-5 text-purple-500 rounded"
+              disabled={isTyping}
+            />
+            <div className="flex-1">
+              <span className="text-white font-medium text-sm">Paste Mode</span>
+              <p className="text-xs text-gray-400">5s delay</p>
+            </div>
+            {/* Tooltip explanation */}
+            <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-300">
+                <span className="text-purple-400 font-semibold">Why use this?</span><br/>
+                Perfect for quick copy-paste workflows. Highlight question → paste → auto-types answer after 5s. No clicking needed!
+              </p>
+            </div>
+          </label>
+          
+          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
+            <input
+              type="checkbox"
+              checked={autoClearTextbox}
+              onChange={(e) => setAutoClearTextbox(e.target.checked)}
+              className="w-5 h-5 text-purple-500 rounded"
+              disabled={isTyping}
+            />
+            <div className="flex-1">
+              <span className="text-white font-medium text-sm">Auto-Clear</span>
+              <p className="text-xs text-gray-400">After typing</p>
+            </div>
+            {/* Tooltip explanation */}
+            <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-gray-900 rounded-lg shadow-xl border border-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              <p className="text-xs text-gray-300">
+                <span className="text-purple-400 font-semibold">Why use this?</span><br/>
+                Clears textbox after typing completes. Great for multiple questions - just highlight next Q, paste, repeat. No manual clearing!
+              </p>
+            </div>
+          </label>
         </div>
       </div>
+      
+      {/* Quick Tips for Power Users */}
+      {(pasteMode || autoClearTextbox) && (
+        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/20">
+          <div className="flex items-start gap-3">
+            <SparklesIcon className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
+            <div className="space-y-2">
+              {pasteMode && (
+                <div>
+                  <span className="text-sm font-semibold text-purple-300">🚀 Paste Mode Active:</span>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Copy any question → Paste here → Wait 5 seconds → Auto-types! Perfect for rapid Q&A sessions. 
+                    No need to click start button.
+                  </p>
+                </div>
+              )}
+              {autoClearTextbox && (
+                <div>
+                  <span className="text-sm font-semibold text-blue-300">🔄 Auto-Clear Active:</span>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Textbox clears automatically after typing completes. Chain multiple answers: 
+                    Copy Q1 → Paste → Types → Copy Q2 → Paste → Repeat!
+                  </p>
+                </div>
+              )}
+              {pasteMode && autoClearTextbox && (
+                <div className="pt-2 border-t border-gray-700/50">
+                  <span className="text-xs font-bold text-yellow-400">⚡ POWER MODE:</span>
+                  <p className="text-xs text-gray-300 mt-1">
+                    Both features combined = Ultimate workflow! Just keep copying questions and pasting. 
+                    SlyWriter handles everything else automatically.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Text Input & Preview Section */}
       <div className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20">
@@ -1044,10 +1134,60 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            onPaste={(e) => {
+              if (pasteMode && !isTyping) {
+                // In paste mode, automatically start typing after 5 seconds
+                const pastedText = e.clipboardData.getData('text')
+                setInputText(pastedText)
+                setCountdown(5)
+                
+                // Countdown timer
+                let count = 5
+                const timer = setInterval(() => {
+                  count--
+                  setCountdown(count)
+                  if (count <= 0) {
+                    clearInterval(timer)
+                    setCountdown(undefined)
+                    startTyping()
+                  }
+                }, 1000)
+              }
+            }}
             placeholder="Paste or type your text here... Or just copy text and press Start - SlyWriter will use your clipboard!"
             className="w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
             disabled={isTyping}
           />
+        )}
+        
+        {/* Paste Mode Countdown */}
+        {countdown !== undefined && countdown > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mt-4 p-4 bg-purple-500/20 border border-purple-500/50 rounded-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-500/30 rounded-full flex items-center justify-center">
+                  <span className="text-lg font-bold text-purple-300">{countdown}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-purple-300">Paste Mode Active</p>
+                  <p className="text-xs text-gray-400">Starting in {countdown} seconds...</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setCountdown(undefined)
+                  toast('Paste mode cancelled', { icon: '❌' })
+                }}
+                className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
         )}
         
         {/* Quick Tips */}
