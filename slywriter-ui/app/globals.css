@@ -3,11 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+  }
+  
   html {
     @apply scroll-smooth;
   }
   
   body {
-    @apply text-white;
+    @apply bg-black text-white;
+  }
+}
+
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  
+  .animation-delay-4000 {
+    animation-delay: 4s;
   }
 }

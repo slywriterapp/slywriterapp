@@ -72,12 +72,12 @@ function SlyWriterAppInner() {
   ]
 
   return (
-    <div className="min-h-screen transition-colors duration-500 bg-black bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Animated background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-600 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 opacity-10 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 opacity-10 animate-pulse animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-700 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 opacity-10 animate-pulse animation-delay-4000" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse animation-delay-4000" />
       </div>
 
       <div className="relative flex h-screen">
@@ -86,10 +86,10 @@ function SlyWriterAppInner() {
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="w-72 bg-black/40 bg-gray-900/95 backdrop-blur-2xl border-r border-white/10 border-purple-500/20 flex flex-col"
+          className="w-72 bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col"
         >
           {/* Logo */}
-          <div className="p-6 border-b border-white/10 border-purple-500/20">
+          <div className="p-6 border-b border-white/10">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -97,12 +97,12 @@ function SlyWriterAppInner() {
               className="flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 bg-purple-500 flex items-center justify-center shadow-lg relative">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg relative">
                 <ZapIcon className="w-7 h-7 text-white" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent text-white">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   SlyWriter
                 </h1>
                 <p className="text-xs text-gray-400">AI Types For You • Undetectable</p>
@@ -113,7 +113,7 @@ function SlyWriterAppInner() {
           </div>
 
           {/* User Section */}
-          <div className="px-6 py-4 border-b border-white/10 border-purple-500/20">
+          <div className="px-6 py-4 border-b border-white/10">
             <GoogleLoginEnhanced />
           </div>
 
@@ -135,15 +135,15 @@ function SlyWriterAppInner() {
                       w-full flex items-center gap-3 px-4 py-3 rounded-xl
                       transition-all duration-200 group relative overflow-hidden
                       ${activeTab === item.id 
-                        ? 'bg-gray-900/10 bg-purple-500/10 text-white text-purple-400 shadow-lg' 
-                        : 'hover:bg-gray-900/5 hover:bg-purple-500/10 text-gray-400 hover:text-white hover:text-purple-400'
+                        ? 'bg-gray-900/10 text-white shadow-lg' 
+                        : 'hover:bg-gray-900/5 text-gray-400 hover:text-white'
                       }
                     `}
                   >
                     {activeTab === item.id && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 bg-purple-500/10 rounded-xl"
+                        className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl"
                       />
                     )}
                     <Icon className={`w-5 h-5 relative z-10 flex-shrink-0 ${
@@ -151,7 +151,7 @@ function SlyWriterAppInner() {
                     }`} />
                     <div className="flex-1 relative z-10">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-inherit text-white">{item.label}</span>
+                        <span className="text-sm font-medium">{item.label}</span>
                         {item.badge && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                             item.badge === 'HOT' ? 'bg-red-500/20 text-red-400' :
@@ -175,19 +175,19 @@ function SlyWriterAppInner() {
             </AnimatePresence>
 
             {/* Premium Features Section */}
-            <div className="mt-6 pt-6 border-t border-white/10 border-purple-500/20">
+            <div className="mt-6 pt-6 border-t border-white/10">
               <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-2">Premium Features</h3>
               
               <button
                 onClick={() => setShowOverlay(!showOverlay)}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 hover:bg-purple-500/10 text-gray-400 hover:text-white hover:text-purple-400 transition-all"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 text-gray-400 hover:text-white transition-all"
               >
                 <LayersIcon className="w-4 h-4" />
                 <span className="text-sm">Overlay Window</span>
-                <span className={`ml-auto w-2 h-2 rounded-full ${showOverlay ? 'bg-green-400' : 'bg-gray-600 bg-gray-800'}`} />
+                <span className={`ml-auto w-2 h-2 rounded-full ${showOverlay ? 'bg-green-400' : 'bg-gray-600'}`} />
               </button>
 
-              <button className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 hover:bg-purple-500/10 text-gray-400 hover:text-white hover:text-purple-400 transition-all">
+              <button className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 text-gray-400 hover:text-white transition-all">
                 <GiftIcon className="w-4 h-4" />
                 <span className="text-sm">Referral Program</span>
               </button>
@@ -195,7 +195,7 @@ function SlyWriterAppInner() {
           </nav>
 
           {/* Footer */}
-          <div className="p-6 border-t border-white/10 border-purple-500/20 space-y-4">
+          <div className="p-6 border-t border-white/10 space-y-4">
             {/* Connection Status */}
             <motion.div 
               animate={{ scale: connected ? 1 : [1, 1.05, 1] }}
@@ -225,14 +225,14 @@ function SlyWriterAppInner() {
             </motion.div>
             
             {/* Upgrade Banner */}
-            <div className="bg-gradient-to-r from-purple-500 to-blue-500 bg-purple-500 rounded-xl p-4">
+            <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-900/20 bg-gray-900/90 backdrop-blur rounded-full flex items-center justify-center">
-                  <CrownIcon className="w-6 h-6 text-white text-purple-400" />
+                <div className="w-10 h-10 bg-gray-900/20 backdrop-blur rounded-full flex items-center justify-center">
+                  <CrownIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">Go Premium</p>
-                  <p className="text-xs text-white/70 text-white/90">Unlimited AI automation</p>
+                  <p className="text-xs text-white/70">Unlimited AI automation</p>
                 </div>
               </div>
             </div>
