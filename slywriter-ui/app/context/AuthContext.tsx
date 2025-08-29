@@ -17,6 +17,8 @@ interface AuthContextType {
   user: User | null
   isLoading: boolean
   isPremium: boolean
+  canType: boolean
+  wordsRemaining: number
   login: (googleToken: string) => Promise<void>
   logout: () => void
   updateUserPlan: (plan: string) => void
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isPremium, setIsPremium] = useState(false)
+  const [wordsRemaining, setWordsRemaining] = useState(4000)
 
   useEffect(() => {
     checkAuth()
@@ -50,7 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.data.user) {
         setUser(response.data.user)
-        setIsPremium(response.data.user.plan === 'premium' || response.data.user.plan === 'pro')
+        const isPrem = response.data.user.plan === 'premium' || response.data.user.plan === 'pro'
+        setIsPremium(isPrem)
+        setWordsRemaining(isPrem ? 999999 : 4000)
       }
     } catch (error) {
       console.error('Auth check failed:', error)
@@ -69,7 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.access_token) {
         Cookies.set('auth_token', response.data.access_token, { expires: 7 })
         setUser(response.data.user)
-        setIsPremium(response.data.user.plan === 'premium' || response.data.user.plan === 'pro')
+        const isPrem = response.data.user.plan === 'premium' || response.data.user.plan === 'pro'
+        setIsPremium(isPrem)
+        setWordsRemaining(isPrem ? 999999 : 4000)
         toast.success('Successfully logged in!')
       }
     } catch (error) {
@@ -83,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Cookies.remove('auth_token')
     setUser(null)
     setIsPremium(false)
+    setWordsRemaining(4000)
     toast.success('Logged out successfully')
   }
 
@@ -90,14 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       setUser({ ...user, plan })
       setIsPremium(plan === 'premium' || plan === 'pro')
+      setWordsRemaining(plan === 'premium' || plan === 'pro' ? 999999 : 4000)
     }
   }
+
+  const canType = isPremium || wordsRemaining > 0
 
   return (
     <AuthContext.Provider value={{
       user,
       isLoading,
       isPremium,
+      canType,
+      wordsRemaining,
       login,
       logout,
       updateUserPlan,

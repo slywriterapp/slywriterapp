@@ -1742,4 +1742,4 @@ def admin_update_user_plan(user_id):
     return jsonify({"success": True, "user_id": user_id, "plan": new_plan})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=3000)
