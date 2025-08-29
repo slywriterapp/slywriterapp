@@ -285,7 +285,7 @@ export default function TypingTabEnhanced({ connected }: TypingTabProps) {
               <div className="flex items-center gap-2 justify-end mb-2">
                 {isPremium && <CrownIcon className="w-5 h-5 text-yellow-400" />}
                 <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                  {user.plan.toUpperCase()} PLAN
+                  {(user.plan || 'FREE').toUpperCase()} PLAN
                 </span>
               </div>
               <div className="text-sm text-gray-400">

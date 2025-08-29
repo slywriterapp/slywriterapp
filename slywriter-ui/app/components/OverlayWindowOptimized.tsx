@@ -28,7 +28,7 @@ export default function OverlayWindowOptimized({ isVisible, onClose }: OverlayWi
   const dragControls = useDragControls()
   const constraintsRef = useRef(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const dragTimeoutRef = useRef<NodeJS.Timeout>()
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Set initial position on client side
   useEffect(() => {

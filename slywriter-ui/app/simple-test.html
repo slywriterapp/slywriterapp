@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SlyWriter Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #667eea, #764ba2, #3b82f6, #1e3a8a);
+      color: white;
+      font-family: system-ui;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 300px;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+    }
+    .main {
+      flex: 1;
+      padding: 20px;
+    }
+    .glass {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h1>SlyWriter</h1>
+      <p>If you can see this with purple-blue gradient, the style works!</p>
+    </div>
+    <div class="main">
+      <div class="glass">
+        <h2>Glass Panel Test</h2>
+        <p>This should have a glass effect</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

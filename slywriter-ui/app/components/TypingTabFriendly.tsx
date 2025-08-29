@@ -98,6 +98,7 @@ export default function TypingTabFriendly({ connected, initialProfile, shouldOpe
   const wsRef = useRef<WebSocket | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const recordingRef = useRef<MediaRecorder | null>(null)
   
   // Load settings from localStorage
   useEffect(() => {
@@ -317,13 +318,13 @@ export default function TypingTabFriendly({ connected, initialProfile, shouldOpe
       }, 1000)
       
       // Store recorder reference
-      (window as any).currentRecorder = mediaRecorder
+      recordingRef.current = mediaRecorder
       
       toast.success('🎤 Recording... Click again to stop')
       
       // Auto-stop after 30 seconds
       setTimeout(() => {
-        if ((window as any).currentRecorder) {
+        if (recordingRef.current) {
           stopVoiceRecording()
         }
       }, 30000)
@@ -337,7 +338,7 @@ export default function TypingTabFriendly({ connected, initialProfile, shouldOpe
   const stopVoiceRecording = () => {
     if (!isRecording) return
     
-    const recorder = (window as any).currentRecorder
+    const recorder = recordingRef.current
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop()
     }
@@ -350,7 +351,7 @@ export default function TypingTabFriendly({ connected, initialProfile, shouldOpe
       recordingIntervalRef.current = null
     }
     
-    delete (window as any).currentRecorder
+    recordingRef.current = null
     toast.success('Processing voice input...')
   }
   

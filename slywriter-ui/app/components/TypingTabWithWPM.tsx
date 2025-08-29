@@ -56,7 +56,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   const [accuracy, setAccuracy] = useState(100)
   const [charsTyped, setCharsTyped] = useState(0)
   const [totalChars, setTotalChars] = useState(0)
-  const [countdown, setCountdown] = useState<number | null>(null)
+  const [countdown, setCountdown] = useState<number | undefined>(undefined)
   const [previewMode, setPreviewMode] = useState(false)
   
   // Profile state
@@ -80,8 +80,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   const [showWpmTest, setShowWpmTest] = useState(false)
   const [testText] = useState('The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump! Sphinx of black quartz, judge my vow.')
   const [testInput, setTestInput] = useState('')
-  const [testStartTime, setTestStartTime] = useState<number | null>(null)
-  const [testWpm, setTestWpm] = useState<number | null>(null)
+  const [testStartTime, setTestStartTime] = useState<number | undefined>(undefined)
+  const [testWpm, setTestWpm] = useState<number | undefined>(undefined)
   const [isTestActive, setIsTestActive] = useState(false)
   const [testErrors, setTestErrors] = useState(0)
   
@@ -131,7 +131,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   
   // Save WPM to localStorage whenever it changes
   useEffect(() => {
-    if (testWpm !== null) {
+    if (testWpm !== undefined) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('slywriter-custom-wpm', testWpm.toString())
       }
@@ -186,7 +186,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           break
           
         case 'typing_started':
-          setCountdown(null)  // Clear countdown
+          setCountdown(undefined)  // Clear countdown
           setStatus('Typing...')
           break
           
@@ -315,15 +315,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     if (!sessionId || !isTyping) return
     
     try {
-      const headers: any = {}
-      if (user?.token) {
-        headers.Authorization = `Bearer ${user.token}`
-      }
+      // Auth handled via cookies, no need for manual token
       
       await axios.post(`${API_URL}/api/typing/update_wpm`, {
         session_id: sessionId,
         wpm: newWpm
-      }, { headers })
+      })
       
       setWpm(newWpm)
     } catch (error) {
@@ -365,21 +362,17 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     }
     
     try {
-      // Add authorization header if user is authenticated
-      const headers: any = {}
-      if (user?.token) {
-        headers.Authorization = `Bearer ${user.token}`
-      }
+      // Auth handled via cookies, no need for manual token
       
       // Calculate custom WPM if using Custom profile or arrows
-      const customWpm = selectedProfile === 'Custom' && testWpm ? testWpm : null
+      const customWpm = selectedProfile === 'Custom' && testWpm ? testWpm : undefined
       
       const response = await axios.post(`${API_URL}/api/typing/start`, {
         text: textToType,
         profile: selectedProfile,
         preview_mode: previewMode,
         custom_wpm: customWpm
-      }, { headers })
+      })
       
       setSessionId(response.data.session_id)
       setIsTyping(true)
@@ -513,7 +506,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     setIsTestActive(true)
     setTestStartTime(Date.now())
     setTestInput('')
-    setTestWpm(null)
+    setTestWpm(undefined)
     setTestErrors(0)
     setTimeout(() => testInputRef.current?.focus(), 100)
   }
@@ -681,7 +674,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               <div className="flex items-center gap-2 justify-end mb-2">
                 {isPremium && <CrownIcon className="w-5 h-5 text-yellow-400" />}
                 <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent text-purple-400">
-                  {user.plan.toUpperCase()} PLAN
+                  {(user.plan || 'FREE').toUpperCase()} PLAN
                 </span>
               </div>
               <div className="text-xs text-gray-400">
