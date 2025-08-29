@@ -22,7 +22,7 @@ import {
   CrownIcon, GiftIcon, SparklesIcon
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://slywriterapp.onrender.com'
 
 function SlyWriterApp() {
   const [activeTab, setActiveTab] = useState('typing')
