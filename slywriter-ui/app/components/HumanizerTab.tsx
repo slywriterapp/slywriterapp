@@ -13,7 +13,7 @@ import {
   RefreshCwIcon, SaveIcon, CopyIcon, EditIcon
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://slywriterapp.onrender.com'
 
 interface HumanizerSettings {
   // AI Generation Settings

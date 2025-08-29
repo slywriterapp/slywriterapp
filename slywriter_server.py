@@ -826,6 +826,7 @@ def generate_filler():
 # ---------------- AI TEXT GENERATION ----------------
 
 @app.route('/ai_generate_text', methods=['POST'])
+@app.route('/api/ai/generate', methods=['POST'])
 def ai_generate_text():
     import openai
     try:
@@ -934,6 +935,7 @@ REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and 
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/ai_humanize_text', methods=['POST'])
+@app.route('/api/ai/humanize', methods=['POST'])
 def ai_humanize_text():
     import requests
     

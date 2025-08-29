@@ -13,7 +13,7 @@ import {
   RocketIcon, TargetIcon, CheckCircleIcon, XCircleIcon, ClockIcon
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://slywriterapp.onrender.com'
 
 // Learning style quiz questions
 const QUIZ_QUESTIONS = [

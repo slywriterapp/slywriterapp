@@ -17,7 +17,7 @@ import {
   RefreshCwIcon, ActivityIcon, ChevronUpIcon, ChevronDownIcon
 } from 'lucide-react'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://slywriterapp.onrender.com'
 
 interface Profile {
   name: string

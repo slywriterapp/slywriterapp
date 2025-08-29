@@ -7,7 +7,7 @@ import { FirstTimeHelper } from './FeatureTooltips'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = 'https://slywriterapp.onrender.com'
 
 interface AITemplate {
   id: string
