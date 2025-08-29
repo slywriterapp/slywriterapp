@@ -11,7 +11,7 @@ import {
   CrownIcon, GiftIcon, SparklesIcon, UserIcon
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState('typing')
