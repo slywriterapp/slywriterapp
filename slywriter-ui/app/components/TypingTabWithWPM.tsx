@@ -18,7 +18,9 @@ import {
   SlidersIcon
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+// Use local backend for typing, Render for AI features  
+const TYPING_API_URL = 'http://localhost:8000'  // Local typing backend
+const AI_API_URL = 'https://slywriterapp.onrender.com'  // Render server for AI
 
 interface Profile {
   name: string
@@ -41,9 +43,11 @@ interface TypingTabProps {
   initialProfile?: string
   shouldOpenWpmTest?: boolean
   onWpmTestOpened?: () => void
+  pendingAIText?: string | null
+  onAITextProcessed?: () => void
 }
 
-export default function TypingTabWithWPM({ connected, initialProfile, shouldOpenWpmTest, onWpmTestOpened }: TypingTabProps) {
+export default function TypingTabWithWPM({ connected, initialProfile, shouldOpenWpmTest, onWpmTestOpened, pendingAIText, onAITextProcessed }: TypingTabProps) {
   const { user, isPremium, canType, wordsRemaining } = useAuth()
   
   // Core state
@@ -130,6 +134,33 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       }
     }
   }, [shouldOpenWpmTest, onWpmTestOpened])
+
+  // Handle pending AI text from app-level event listener
+  useEffect(() => {
+    if (pendingAIText) {
+      console.log('TypingTab: Received pending AI text from app level:', pendingAIText.substring(0, 50))
+      
+      // Set the input text
+      setInputText(pendingAIText)
+      
+      // Show popup immediately
+      toast.success('🤖 AI Content Ready To Type!', { 
+        duration: 3000,
+        icon: '✨'
+      })
+      
+      // Start typing immediately - no delay since AI Hub already did the countdown
+      setTimeout(() => {
+        console.log('TypingTab: Starting typing automatically for AI text')
+        startTypingRef.current()
+        
+        // Clear the pending text
+        if (onAITextProcessed) {
+          onAITextProcessed()
+        }
+      }, 500) // Small delay to ensure UI is updated
+    }
+  }, [pendingAIText, onAITextProcessed])
   
   // Listen for global stop event from GlobalHotkeys component
   useEffect(() => {
@@ -161,9 +192,10 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     }
   }, [selectedProfile])
   
+
   const loadProfiles = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/profiles`)
+      const response = await axios.get(`${TYPING_API_URL}/api/profiles`)
       setProfiles(response.data.profiles)
       setLoadingProfiles(false)
     } catch (error) {
@@ -172,8 +204,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         { name: 'Slow', wpm: 40, description: 'Beginner typing speed' },
         { name: 'Medium', wpm: 70, description: 'Average typing speed' },
         { name: 'Fast', wpm: 100, description: 'Above average speed' },
-        { name: 'Very Fast', wpm: 130, description: 'Professional typist' },
-        { name: 'Lightning', wpm: 160, description: 'Expert level' },
+        { name: 'Lightning', wpm: 250, description: 'Lightning fast speed' },
         { name: 'Custom', wpm: 85, description: 'Your custom speed' } // Default custom WPM
       ]
       setProfiles(defaultProfiles)
@@ -208,20 +239,37 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         case 'countdown':
           setCountdown(data.data.count)
           setStatus(`Starting in ${data.data.count}...`)
+          
+          // Send to Electron overlay
+          if (typeof window !== 'undefined' && (window as any).electron) {
+            (window as any).electron.updateOverlay({
+              type: 'countdown',
+              value: data.data.count
+            })
+          }
           break
           
         case 'typing_started':
           setCountdown(undefined)  // Clear countdown
           setStatus('Typing...')
+          
+          // Show overlay when typing starts
+          if (typeof window !== 'undefined' && (window as any).electron) {
+            (window as any).electron.showOverlay()
+          }
           break
           
         case 'progress':
-          setProgress(data.data.progress)
-          setWpm(data.data.wpm)
-          setAccuracy(data.data.accuracy)
-          setCharsTyped(data.data.chars_typed)
-          setTotalChars(data.data.total_chars)
-          setStatus(data.data.status)
+          // Ensure progress is a valid number
+          const progressValue = data.data.progress || 0
+          setProgress(Math.min(100, Math.max(0, progressValue)))
+          setWpm(data.data.wpm || 0)
+          setAccuracy(data.data.accuracy || 100)
+          setCharsTyped(data.data.chars_typed || 0)
+          setTotalChars(data.data.total_chars || 0)
+          setStatus(data.data.status || 'Typing...')
+          
+          console.log(`Progress update: ${progressValue}% (${data.data.chars_typed}/${data.data.total_chars} chars)`)
           
           // Dispatch update event for overlay
           const updateEvent = new CustomEvent('typing-update', {
@@ -232,6 +280,17 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             }
           })
           window.dispatchEvent(updateEvent)
+          
+          // Send to Electron overlay if available
+          if (typeof window !== 'undefined' && (window as any).electron) {
+            (window as any).electron.updateOverlay({
+              type: 'typing',
+              status: data.data.status || 'Typing...',
+              progress: progressValue,
+              wpm: data.data.wpm || 0,
+              charsTyped: data.data.chars_typed || 0
+            })
+          }
           break
           
         case 'typo':
@@ -295,6 +354,37 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               setIsTyping(false)
               setStatus('Error')
               break
+              
+            case 'typing_complete':
+            case 'typing_finished':
+              console.log('Received typing_complete - setting isTyping to false')
+              // Typing is complete, reset the UI
+              setIsTyping(false)
+              setIsPaused(false)
+              setProgress(100)
+              setStatus('Complete!')
+              
+              // Update overlay
+              if (typeof window !== 'undefined' && (window as any).electron) {
+                (window as any).electron.updateOverlay({
+                  type: 'complete'
+                })
+              }
+              
+              // Show success toast
+              toast.success('✅ Typing completed successfully!', {
+                duration: 3000,
+                icon: '🎉'
+              })
+              
+              // Clear session
+              setSessionId(null)
+              
+              // Dispatch complete event for overlay with final WPM
+              window.dispatchEvent(new CustomEvent('typing-complete', { 
+                detail: { wpm: currentWpm } 
+              }))
+              break
           }
         } catch (err) {
           console.warn('Failed to parse WebSocket message:', err)
@@ -350,7 +440,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     try {
       // Auth handled via cookies, no need for manual token
       
-      await axios.post(`${API_URL}/api/typing/update_wpm`, {
+      await axios.post(`${TYPING_API_URL}/api/typing/update_wpm`, {
         session_id: sessionId,
         wpm: newWpm
       })
@@ -361,11 +451,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     }
   }
 
-  const startTyping = async () => {
+  const startTyping = useCallback(async () => {
     let textToType = inputText.trim()
     
-    // If no text entered, try to read from clipboard
-    if (!textToType) {
+    // Check if this is being called from AI auto-output
+    const isFromAI = (window as any).isProcessingAIText
+    
+    // If no text entered and NOT from AI, try to read from clipboard
+    if (!textToType && !isFromAI) {
       try {
         const clipboardText = await navigator.clipboard.readText()
         if (clipboardText && clipboardText.trim()) {
@@ -400,22 +493,27 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       // Calculate custom WPM if using Custom profile or arrows
       const customWpm = selectedProfile === 'Custom' && testWpm ? testWpm : undefined
       
-      const response = await axios.post(`${API_URL}/api/typing/start`, {
+      const response = await axios.post(`${TYPING_API_URL}/api/typing/start`, {
         text: textToType,
         profile: selectedProfile,
         preview_mode: previewMode,
         custom_wpm: customWpm,
-        ai_filler_enabled: aiFillerEnabled // Pass premium AI filler setting
+        ai_filler_enabled: aiFillerEnabled, // Pass premium AI filler setting
+        typos_enabled: humanMode, // Enable typos when in human mode
+        grammarly_mode: grammarlyCorrectionEnabled, // Enable Grammarly-style corrections
+        grammarly_delay: grammarlyCorrectionDelay, // Delay before corrections
+        typo_rate: typoRate // Percentage chance of typos
       })
       
       setSessionId(response.data.session_id)
       setIsTyping(true)
       setIsPaused(false)
       setProgress(0)
-      setWpm(selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)) // Set initial WPM based on profile
-      setAccuracy(100)
       setCharsTyped(0)
       setTotalChars(textToType.length)
+      console.log(`Typing started - isTyping set to true, text length: ${textToType.length} chars`)
+      setWpm(selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)) // Set initial WPM based on profile
+      setAccuracy(100)
       setTyposMade(0)
       setPausesTaken(0)
       setMicroHesitations(0)
@@ -481,7 +579,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to start typing'
       toast.error(errorMsg)
     }
-  }
+  }, [inputText, connected, user, canType, wordsRemaining, selectedProfile, humanMode, 
+     grammarlyCorrectionEnabled, grammarlyCorrectionDelay, typoRate, aiFillerEnabled, 
+     pasteMode, autoClearTextbox, testWpm, isPremium])
   
   const pauseTyping = async () => {
     if (!isTyping) {
@@ -498,20 +598,20 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       if (sessionId) {
         // Try session-specific endpoint first
         if (newPausedState) {
-          await axios.post(`${API_URL}/api/typing/pause/${sessionId}`)
+          await axios.post(`${TYPING_API_URL}/api/typing/pause/${sessionId}`)
         } else {
-          await axios.post(`${API_URL}/api/typing/resume/${sessionId}`)
+          await axios.post(`${TYPING_API_URL}/api/typing/resume/${sessionId}`)
         }
       } else {
         // Fallback to global pause endpoint
-        await axios.post(`${API_URL}/api/typing/pause`)
+        await axios.post(`${TYPING_API_URL}/api/typing/pause`)
       }
       toast(newPausedState ? '⏸️ Typing paused - Press SPACE to resume' : '▶️ Typing resumed')
     } catch (error) {
       // If session endpoint fails, try global endpoint
       console.error('Pause/resume error, trying global endpoint:', error)
       try {
-        await axios.post(`${API_URL}/api/typing/pause`)
+        await axios.post(`${TYPING_API_URL}/api/typing/pause`)
         toast(newPausedState ? '⏸️ Paused (global)' : '▶️ Resumed (global)')
       } catch (globalError) {
         console.error('Global pause failed:', globalError)
@@ -520,29 +620,155 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     }
   }
   
+  // Store startTyping in a ref to avoid stale closures
+  const startTypingRef = useRef(startTyping)
+  useEffect(() => {
+    startTypingRef.current = startTyping
+  }, [startTyping])
+  
+  // Listen for AI auto-output events
+  useEffect(() => {
+    const handleStartTyping = (event: CustomEvent) => {
+      console.log('TypingTab received startTyping event:', event.detail)
+      const { text, fromAI } = event.detail
+      
+      if (text && fromAI) {
+        console.log('Setting input text and starting typing...')
+        
+        // Set flag to prevent clipboard usage
+        if (typeof window !== 'undefined') {
+          (window as any).isProcessingAIText = true
+        }
+        
+        // Set the text in the input
+        setInputText(text)
+        
+        // Force update the textarea to ensure text is visible
+        setTimeout(() => {
+          const textarea = document.querySelector('textarea[placeholder*="Type Mode"]') as HTMLTextAreaElement
+          if (textarea) {
+            textarea.value = text
+            textarea.dispatchEvent(new Event('input', { bubbles: true }))
+            console.log('Forced textarea update with AI text from event')
+          }
+          
+          // Start typing immediately - AI Hub already did the countdown
+          console.log('Starting typing immediately')
+          startTypingRef.current()
+          
+          // Clear the flag after a short delay
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              delete (window as any).isProcessingAIText
+            }
+          }, 1000)
+        }, 100)
+        
+        toast.success('🤖 AI content ready to type!', { duration: 2000 })
+      }
+    }
+    
+    // Also check for backup method periodically
+    const checkPendingText = setInterval(() => {
+      if ((window as any).pendingAIText) {
+        console.log('Found pending AI text via backup method')
+        const text = (window as any).pendingAIText
+        delete (window as any).pendingAIText
+        
+        // Set flag to prevent clipboard usage
+        if (typeof window !== 'undefined') {
+          (window as any).isProcessingAIText = true
+        }
+        
+        // Set the text and force a re-render
+        setInputText(text)
+        
+        // Use setTimeout to ensure state has updated
+        setTimeout(() => {
+          // Force the textarea to update its value
+          const textarea = document.querySelector('textarea[placeholder*="Type Mode"]') as HTMLTextAreaElement
+          if (textarea) {
+            textarea.value = text
+            textarea.dispatchEvent(new Event('input', { bubbles: true }))
+            console.log('Forced textarea update with AI text')
+          }
+          
+          // Start typing immediately - no delay since AI Hub already waited 5 seconds
+          console.log('Starting typing immediately from backup method')
+          
+          // Force typing to start immediately
+          console.log('Force starting typing immediately')
+          
+          // Send typing request directly to backend
+          axios.post(`${TYPING_API_URL}/api/typing/start`, {
+            text: text,
+            profile: selectedProfile || 'Medium',
+            preview_mode: false,
+            typos_enabled: true
+          }).then(response => {
+            console.log('Typing started via direct API call:', response.data)
+            setIsTyping(true)
+            setSessionId(response.data.session_id || 'active')
+          }).catch(error => {
+            console.error('Failed to start typing:', error)
+            // Fallback to button click
+            const startButton = document.querySelector('button[data-testid="start-typing"]') as HTMLButtonElement
+            if (startButton) {
+              startButton.click()
+            }
+          })
+          
+          // Clear the flag after a short delay
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              delete (window as any).isProcessingAIText
+            }
+          }, 1000)
+        }, 100)
+        
+        toast.success('🤖 AI content ready to type!', { duration: 2000 })
+      }
+    }, 500) // Check more frequently for faster response
+    
+    window.addEventListener('startTyping', handleStartTyping as EventListener)
+    console.log('TypingTab: startTyping event listener registered')
+    
+    return () => {
+      window.removeEventListener('startTyping', handleStartTyping as EventListener)
+      clearInterval(checkPendingText)
+      console.log('TypingTab: startTyping event listener removed')
+    }
+  }, [setInputText]) // Only depend on setInputText which is stable
+
   const stopTyping = async () => {
     console.log('STOP TYPING CALLED - sessionId:', sessionId, 'isTyping:', isTyping)
+    
+    // If not typing, don't do anything
+    if (!isTyping) {
+      console.log('Not typing, nothing to stop')
+      return
+    }
     
     // Immediately update UI for better responsiveness
     setIsTyping(false)
     setIsPaused(false)
     setStatus('Stopped')
     
-    // Always try to stop, even without sessionId
+    // Only call API if actually typing
     try {
       if (sessionId) {
         // Try session-specific endpoint first
         try {
-          await axios.post(`${API_URL}/api/typing/stop/${sessionId}`)
+          await axios.post(`${TYPING_API_URL}/api/typing/stop/${sessionId}`)
           console.log('Session stop successful')
         } catch (sessionError) {
           console.error('Session stop failed, trying global:', sessionError)
           // If session stop fails, try global stop
-          await axios.post(`${API_URL}/api/typing/stop`)
+          await axios.post(`${TYPING_API_URL}/api/typing/stop`)
         }
       } else {
         // No session ID, use global stop
-        await axios.post(`${API_URL}/api/typing/stop`)
+        await axios.post(`${TYPING_API_URL}/api/typing/stop`)
         console.log('Global stop successful')
       }
       
@@ -633,7 +859,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   
   const generateCustomProfile = async (wpm: number) => {
     try {
-      const response = await axios.post(`${API_URL}/api/profiles/generate-from-wpm`, { wpm })
+      const response = await axios.post(`${TYPING_API_URL}/api/profiles/generate-from-wpm`, { wpm })
       toast.success(`✨ Custom profile calibrated for ${wpm} WPM!`)
       setSelectedProfile('Custom')
       await loadProfiles() // Reload to get updated custom profile
@@ -922,7 +1148,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {profiles.map((profile) => (
+            {profiles.filter(profile => profile).map((profile) => (
               <motion.button
                 key={profile.name}
                 whileHover={{ scale: 1.02 }}
@@ -942,18 +1168,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                   {profile.name}
                 </div>
                 <div className="text-xs text-gray-400">
-                  {profile.name === 'Slow' && '~50-60 WPM'}
-                  {profile.name === 'Medium' && '~100-140 WPM'}
-                  {profile.name === 'Fast' && '~350-450 WPM (Lightning!)'}
+                  {profile.name === 'Slow' && '~40 WPM'}
+                  {profile.name === 'Medium' && '~70 WPM'}
+                  {profile.name === 'Fast' && '~100 WPM'}
+                  {profile.name === 'Lightning' && '~250 WPM ⚡'}
                   {profile.name === 'Essay' && 'AI Enhanced (~65 WPM)'}
                   {profile.name === 'Custom' && (testWpm ? `${testWpm} WPM` : 'Calibrate First')}
                 </div>
-                
-                {profile.settings.ai_filler_enabled && (
-                  <div className="absolute top-1 right-1">
-                    <SparklesIcon className="w-3 h-3 text-yellow-400" />
-                  </div>
-                )}
                 
                 {selectedProfile === profile.name && (
                   <motion.div
@@ -1381,6 +1602,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               whileTap={{ scale: 0.95 }}
               onClick={startTyping}
               disabled={!connected || !canType}
+              data-testid="start-typing"
               className={`
                 w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
                 ${connected && canType
@@ -1530,11 +1752,12 @@ function getProfileWpm(profileName?: string, customWpm?: number): number {
   }
   
   const wpmMap: Record<string, number> = {
-    'Slow': 30,
-    'Medium': 60,
-    'Fast': 120,
+    'Slow': 40,
+    'Medium': 70,
+    'Fast': 100,
+    'Lightning': 250,
     'Essay': 45,
-    'Custom': 80  // Default for custom if no test taken
+    'Custom': 85  // Default for custom if no test taken
   }
   
   return wpmMap[profileName || 'Medium'] || 100

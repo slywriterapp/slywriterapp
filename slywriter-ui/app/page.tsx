@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './context/AuthContext'
 import GoogleLogin from './components/GoogleLogin'
@@ -37,6 +38,7 @@ function SlyWriterApp() {
     wpm: 0,
     progress: 0
   })
+  const [pendingAIText, setPendingAIText] = useState<string | null>(null)
 
   // Check backend connection
   useEffect(() => {
@@ -53,6 +55,42 @@ function SlyWriterApp() {
     const interval = setInterval(checkConnection, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  // Global event listener for AI auto-typing (always active)
+  useEffect(() => {
+    const handleStartTyping = (event: CustomEvent) => {
+      console.log('App-level: startTyping event received:', event.detail)
+      const { text, fromAI } = event.detail
+      
+      if (text && fromAI) {
+        console.log('App-level: Processing AI text for auto-typing')
+        
+        // Store the pending AI text
+        setPendingAIText(text)
+        
+        // Auto-switch to typing tab if not already there
+        if (activeTab !== 'typing') {
+          console.log('App-level: Auto-switching to typing tab')
+          setActiveTab('typing')
+        }
+        
+        // Set backup method on window
+        if (typeof window !== 'undefined') {
+          (window as any).pendingAIText = text
+        }
+        
+        toast.success('🤖 AI content ready! Switching to typing tab...', { duration: 2000 })
+      }
+    }
+    
+    window.addEventListener('startTyping', handleStartTyping as EventListener)
+    console.log('App-level: startTyping event listener registered (always active)')
+    
+    return () => {
+      window.removeEventListener('startTyping', handleStartTyping as EventListener)
+      console.log('App-level: startTyping event listener removed')
+    }
+  }, [activeTab])
 
   const navItems = [
     { id: 'typing', label: 'Auto-Type', icon: KeyboardIcon, color: 'from-purple-500 to-blue-500', description: 'Types for you', badge: 'MAIN' },
@@ -246,7 +284,11 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <TypingTabWithWPM connected={connected} />
+                <TypingTabWithWPM 
+                  connected={connected} 
+                  pendingAIText={pendingAIText}
+                  onAITextProcessed={() => setPendingAIText(null)}
+                />
               </motion.div>
             )}
             
