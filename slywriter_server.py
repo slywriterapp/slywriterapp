@@ -12,8 +12,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import uuid
 import re
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 import logging
 from typing import Dict, List, Any
 import threading
@@ -59,7 +59,7 @@ class TelemetryDatabase:
         """Get a database connection"""
         if not self.enabled:
             return None
-        return psycopg2.connect(self.database_url)
+        return psycopg.connect(self.database_url)
     
     def init_database(self):
         """Create necessary tables if they don't exist"""
@@ -246,7 +246,7 @@ class TelemetryDatabase:
             return {}
             
         conn = self.get_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor(row_factory=dict_row)
         
         try:
             # Get user and session counts
@@ -321,7 +321,7 @@ class TelemetryDatabase:
             return []
             
         conn = self.get_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor(row_factory=dict_row)
         
         try:
             cur.execute("""
@@ -367,7 +367,7 @@ class TelemetryDatabase:
             return []
             
         conn = self.get_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur = conn.cursor(row_factory=dict_row)
         
         try:
             # Get all sessions with their events

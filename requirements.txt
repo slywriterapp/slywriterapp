@@ -13,7 +13,8 @@ ttkbootstrap==1.10.1
 keyboard==0.13.5
 
 # Database for telemetry
-psycopg2-binary==2.9.9
+# Using psycopg (version 3) instead of psycopg2 for Python 3.13 compatibility
+psycopg[binary]==3.1.18
 
 # Production server
 gunicorn==21.2.0
