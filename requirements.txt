@@ -14,7 +14,7 @@ keyboard==0.13.5
 
 # Database for telemetry
 # Using psycopg (version 3) instead of psycopg2 for Python 3.13 compatibility
-psycopg[binary]==3.1.18
+psycopg[binary]>=3.2.0
 
 # Production server
 gunicorn==21.2.0
