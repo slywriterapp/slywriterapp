@@ -1706,16 +1706,25 @@ def ai_humanize_text():
 @app.route('/api/learning/create-lesson', methods=['POST'])
 def create_learning_lesson():
     """Store a lesson created in learning mode"""
+    print("[Learning] Create lesson endpoint called")
+    
     data = request.get_json()
+    if not data:
+        print("[Learning] No JSON data received")
+        return jsonify({"success": False, "error": "No data provided"}), 400
+        
     topic = data.get('topic', '')
     content = data.get('content', '')
     method = data.get('method', 'ai_generated')
+    
+    print(f"[Learning] Topic: {topic[:50]}..., Content length: {len(content)}")
     
     if not topic or not content:
         return jsonify({"success": False, "error": "Missing topic or content"}), 400
     
     try:
         # Store lesson in a JSON file (or database if available)
+        from datetime import datetime
         lesson_data = {
             'id': datetime.now().strftime('%Y%m%d%H%M%S'),
             'topic': topic,
@@ -1755,12 +1764,15 @@ def create_learning_lesson():
         })
         
     except Exception as e:
-        print(f"Error creating lesson: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"[Learning] Error creating lesson: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"Failed to save lesson: {str(e)}"}), 500
 
 @app.route('/api/learning/get-lessons', methods=['GET'])
 def get_learning_lessons():
     """Retrieve stored lessons from learning mode"""
+    print("[Learning] Get lessons endpoint called")
     try:
         lessons_file = 'learning_lessons.json'
         if os.path.exists(lessons_file):
