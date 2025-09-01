@@ -1669,6 +1669,86 @@ def ai_humanize_text():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# ---------------- LEARNING MODE - CREATE LESSON ----------------
+
+@app.route('/api/learning/create-lesson', methods=['POST'])
+def create_learning_lesson():
+    """Store a lesson created in learning mode"""
+    data = request.get_json()
+    topic = data.get('topic', '')
+    content = data.get('content', '')
+    method = data.get('method', 'ai_generated')
+    
+    if not topic or not content:
+        return jsonify({"success": False, "error": "Missing topic or content"}), 400
+    
+    try:
+        # Store lesson in a JSON file (or database if available)
+        lesson_data = {
+            'id': datetime.now().strftime('%Y%m%d%H%M%S'),
+            'topic': topic,
+            'content': content,
+            'method': method,
+            'created_at': datetime.now().isoformat(),
+            'word_count': len(content.split()),
+            'char_count': len(content)
+        }
+        
+        # Load existing lessons
+        lessons_file = 'learning_lessons.json'
+        if os.path.exists(lessons_file):
+            with open(lessons_file, 'r') as f:
+                try:
+                    lessons = json.load(f)
+                except:
+                    lessons = []
+        else:
+            lessons = []
+        
+        # Add new lesson
+        lessons.append(lesson_data)
+        
+        # Keep only last 100 lessons
+        if len(lessons) > 100:
+            lessons = lessons[-100:]
+        
+        # Save lessons
+        with open(lessons_file, 'w') as f:
+            json.dump(lessons, f, indent=2)
+        
+        return jsonify({
+            "success": True, 
+            "lesson_id": lesson_data['id'],
+            "message": "Lesson created successfully"
+        })
+        
+    except Exception as e:
+        print(f"Error creating lesson: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/learning/get-lessons', methods=['GET'])
+def get_learning_lessons():
+    """Retrieve stored lessons from learning mode"""
+    try:
+        lessons_file = 'learning_lessons.json'
+        if os.path.exists(lessons_file):
+            with open(lessons_file, 'r') as f:
+                try:
+                    lessons = json.load(f)
+                    # Return latest 20 lessons
+                    return jsonify({
+                        "success": True,
+                        "lessons": lessons[-20:] if len(lessons) > 20 else lessons,
+                        "total_count": len(lessons)
+                    })
+                except:
+                    return jsonify({"success": True, "lessons": [], "total_count": 0})
+        else:
+            return jsonify({"success": True, "lessons": [], "total_count": 0})
+    except Exception as e:
+        print(f"Error retrieving lessons: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # ---------------- EDUCATIONAL CONTENT GENERATION ----------------
 
 @app.route('/ai_generate_lesson', methods=['POST'])
