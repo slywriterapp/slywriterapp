@@ -1487,14 +1487,25 @@ def generate_filler():
 @app.route('/api/ai/generate', methods=['POST'])
 def ai_generate_text():
     import openai
-    try:
-        client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    except KeyError:
+    
+    # Check for OpenAI API key
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        print("[AI] ERROR: OpenAI API key not found in environment variables")
         return jsonify({"success": False, "error": "OpenAI API key not configured on server"}), 500
+    
+    try:
+        client = openai.OpenAI(api_key=api_key)
+    except Exception as e:
+        print(f"[AI] ERROR: Failed to initialize OpenAI client: {e}")
+        return jsonify({"success": False, "error": f"Failed to initialize AI service: {str(e)}"}), 500
 
     data = request.get_json()
     prompt = data.get('prompt', '')
+    settings = data.get('settings', {})
     user_id = data.get('user_id')
+    
+    print(f"[AI] Received request - prompt length: {len(prompt)}, settings: {settings}")
     
     if not prompt:
         return jsonify({"success": False, "error": "Missing prompt"}), 400
@@ -1507,8 +1518,8 @@ def ai_generate_text():
             "Aim for at least 200-300 words minimum, with thorough explanations and examples."
         )
         
-        # Try models in order specified by user (start with working model)
-        models_to_try = ['gpt-4.1-nano', 'gpt-5-nano', 'gpt-4o-mini']
+        # Try models in order (use valid OpenAI models)
+        models_to_try = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4-turbo-preview']
         model_to_use = None
         response = None
         
@@ -1521,17 +1532,23 @@ def ai_generate_text():
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt}
                     ],
-                    max_completion_tokens=2000
+                    max_tokens=2000,  # Use max_tokens instead of max_completion_tokens
+                    temperature=0.7
                 )
                 model_to_use = model
                 print(f"[AI] Successfully using model: {model}")
                 break
+            except openai.APIError as model_error:
+                print(f"[AI] Model {model} failed with API error: {model_error}")
+                continue
             except Exception as model_error:
-                print(f"[AI] Model {model} failed: {model_error}")
+                print(f"[AI] Model {model} failed with error: {model_error}")
                 continue
         
         if not response:
-            raise Exception("All AI models failed to respond")
+            error_msg = "All AI models failed. The OpenAI service may be temporarily unavailable."
+            print(f"[AI] ERROR: {error_msg}")
+            raise Exception(error_msg)
         
         generated_text = response.choices[0].message.content
         print(f"[AI] Raw OpenAI response using {model_to_use}: '{generated_text}'")
@@ -1559,7 +1576,8 @@ REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and 
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": enhanced_prompt}
                     ],
-                    max_completion_tokens=2000
+                    max_tokens=2000,
+                    temperature=0.7
                 )
                 
                 retry_text = retry_response.choices[0].message.content.strip()
@@ -1589,8 +1607,22 @@ REQUIREMENTS: Minimum 300 words, multiple paragraphs, thorough explanations and 
             "text": generated_text
         })
         
+    except openai.APIError as e:
+        print(f"[AI] OpenAI API Error: {e}")
+        return jsonify({
+            "success": False, 
+            "error": f"OpenAI API error: {str(e)}",
+            "details": "The AI service encountered an error. Please try again."
+        }), 500
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"[AI] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False, 
+            "error": f"Server error: {str(e)}",
+            "details": "An unexpected error occurred processing your request."
+        }), 500
 
 @app.route('/ai_humanize_text', methods=['POST'])
 @app.route('/api/ai/humanize', methods=['POST'])
