@@ -321,40 +321,107 @@ export default function EnhancedLearningTab() {
       // Parse the JSON from the generated text
       let lessonData
       try {
-        // Try to extract JSON from the response (in case there's extra text)
-        // Look for the first { and last } to extract just the JSON object
-        const startIndex = generatedText.indexOf('{')
-        const endIndex = generatedText.lastIndexOf('}')
+        // Clean up the response text
+        let cleanedText = generatedText
+          .replace(/```json\s*/gi, '') // Remove markdown code blocks
+          .replace(/```\s*/gi, '')
+          .replace(/^\s*json\s*/i, '') // Remove "json" prefix
+          .trim()
         
-        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
-          const jsonString = generatedText.substring(startIndex, endIndex + 1)
-          console.log('Extracted JSON string (first 500 chars):', jsonString.substring(0, 500))
-          lessonData = JSON.parse(jsonString)
-        } else {
-          // If no JSON found, throw error to use fallback
-          throw new Error('No JSON object found in response')
+        // Try to extract JSON from the response
+        // First try: parse as-is
+        try {
+          lessonData = JSON.parse(cleanedText)
+        } catch (e) {
+          // Second try: extract JSON object
+          const startIndex = cleanedText.indexOf('{')
+          const endIndex = cleanedText.lastIndexOf('}')
+          
+          if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+            let jsonString = cleanedText.substring(startIndex, endIndex + 1)
+            
+            // Fix common JSON issues
+            jsonString = jsonString
+              .replace(/,\s*}/g, '}') // Remove trailing commas
+              .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+              .replace(/([{,]\s*)(\w+):/g, '$1"$2":') // Quote unquoted keys
+              .replace(/:\s*'([^']*)'/g, ': "$1"') // Convert single quotes to double
+              .replace(/\n/g, ' ') // Remove newlines that might break strings
+              .replace(/\t/g, ' ') // Remove tabs
+            
+            console.log('Attempting to parse cleaned JSON (first 500 chars):', jsonString.substring(0, 500))
+            lessonData = JSON.parse(jsonString)
+          } else {
+            throw new Error('No JSON object found in response')
+          }
         }
       } catch (parseError) {
         console.error('Failed to parse AI response as JSON:', parseError)
-        console.log('Raw response was:', generatedText)
-        // Don't throw here - let it fall through to use the fallback lesson
-        throw parseError
+        console.log('Raw response was:', generatedText.substring(0, 1000))
+        // Use fallback lesson
+        throw new Error(`JSON parsing failed: ${parseError.message}`)
       }
       
-      // Validate the lesson has required fields
-      if (!lessonData.topic || !lessonData.practiceProblems || !Array.isArray(lessonData.practiceProblems)) {
-        console.error('Invalid lesson structure:', lessonData)
-        throw new Error('Invalid lesson structure from AI')
+      // Validate and fill in missing fields with defaults
+      lessonData = {
+        topic: lessonData.topic || topic,
+        coreConcepts: lessonData.coreConcepts || [`Understanding ${topic}`, 'Key principles', 'Applications', 'Best practices'],
+        explanation: lessonData.explanation || answer,
+        examples: lessonData.examples || ['Example 1: Practical application', 'Example 2: Real-world scenario', 'Example 3: Common use case'],
+        commonMisconceptions: lessonData.commonMisconceptions || ['Misconception 1', 'Misconception 2'],
+        practiceProblems: lessonData.practiceProblems || [],
+        relatedTopics: lessonData.relatedTopics || [`Advanced ${topic}`, `${topic} in practice`, `${topic} theory`],
+        realWorldApplications: lessonData.realWorldApplications || ['Professional use', 'Educational application'],
+        visualAids: lessonData.visualAids || ['Diagram showing the concept', 'Flowchart of the process'],
+        keyTakeaways: lessonData.keyTakeaways || ['Key point 1', 'Key point 2', 'Key point 3'],
+        quiz: lessonData.quiz || []
       }
       
       // Ensure practice problems have the correct structure
-      lessonData.practiceProblems = lessonData.practiceProblems.map((problem: any) => ({
-        question: problem.question || 'Practice question',
-        options: problem.options || ['Option A', 'Option B', 'Option C', 'Option D'],
-        correct: typeof problem.correct === 'number' ? problem.correct : 0,
-        explanation: problem.explanation || 'Explanation not provided',
-        hint: problem.hint || 'Think about the main concepts'
-      }))
+      if (lessonData.practiceProblems.length === 0) {
+        // Generate default practice problems if none provided
+        lessonData.practiceProblems = [
+          {
+            question: `What is the main concept of ${topic}?`,
+            options: ['Understanding the basics', 'Advanced application', 'Theoretical framework', 'Practical implementation'],
+            correct: 0,
+            explanation: 'The basics are fundamental to understanding',
+            hint: 'Start with the fundamentals'
+          },
+          {
+            question: `How does ${topic} apply in practice?`,
+            options: ['Direct application', 'Indirect influence', 'Theoretical only', 'Not applicable'],
+            correct: 0,
+            explanation: 'Direct application is most common',
+            hint: 'Think about real-world use'
+          },
+          {
+            question: `What's important about ${topic}?`,
+            options: ['Its versatility', 'Limited scope', 'Single use', 'Complexity'],
+            correct: 0,
+            explanation: 'Versatility makes it valuable',
+            hint: 'Consider multiple applications'
+          }
+        ]
+      } else {
+        lessonData.practiceProblems = lessonData.practiceProblems.map((problem: any) => ({
+          question: problem.question || 'Practice question',
+          options: problem.options || ['Option A', 'Option B', 'Option C', 'Option D'],
+          correct: typeof problem.correct === 'number' ? problem.correct : 0,
+          explanation: problem.explanation || 'Explanation not provided',
+          hint: problem.hint || 'Think about the main concepts'
+        }))
+      }
+      
+      // Ensure quiz has questions
+      if (!lessonData.quiz || lessonData.quiz.length === 0) {
+        lessonData.quiz = lessonData.practiceProblems.slice(0, 5).map((p: any) => ({
+          question: p.question,
+          options: p.options,
+          correct: p.correct,
+          explanation: p.explanation
+        }))
+      }
       
       setCurrentLesson(lessonData)
       setLearningMode('lesson')
