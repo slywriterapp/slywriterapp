@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SlyWriter Overlay</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-app-region: no-drag;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: transparent;
+      overflow: visible;
+      margin: 0;
+      padding: 10px;
+    }
+    
+    #overlay {
+      width: calc(100% - 20px);
+      height: calc(100% - 20px);
+      background: linear-gradient(135deg, 
+        rgba(88, 28, 135, 0.85) 0%, 
+        rgba(124, 58, 237, 0.85) 50%,
+        rgba(139, 92, 246, 0.85) 100%);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 20px;
+      overflow: hidden;
+      padding: 12px;
+      box-sizing: border-box;
+      box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      -webkit-app-region: drag;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+    
+    /* Header with controls */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .logo {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .title-text {
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      letter-spacing: 0.5px;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .control-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 10px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+    
+    .minimize-btn:hover {
+      background: rgba(251, 191, 36, 0.8);
+    }
+    
+    .close-btn:hover {
+      background: rgba(239, 68, 68, 0.8);
+    }
+    
+    /* Main content */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(17, 24, 39, 0.5);
+      border-radius: 12px;
+      padding: 10px;
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      overflow-x: hidden;
+      max-height: calc(100% - 50px);
+    }
+    
+    /* Status section */
+    .status-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .pulse-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      position: relative;
+    }
+    
+    .pulse-indicator.active {
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+    }
+    
+    .pulse-indicator.active::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse-ring 1.5s infinite;
+    }
+    
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(2.5);
+        opacity: 0;
+      }
+    }
+    
+    .pulse-indicator.paused {
+      background: #f59e0b;
+      box-shadow: 0 0 10px #f59e0b;
+    }
+    
+    .pulse-indicator.idle {
+      background: rgba(255, 255, 255, 0.4);
+    }
+    
+    .status-text {
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      flex: 1;
+    }
+    
+    /* Progress bar */
+    .progress-container {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, 
+        #10b981 0%, 
+        #34d399 50%, 
+        #6ee7b7 100%);
+      border-radius: 6px;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.3), 
+        transparent);
+      animation: shimmer 2s infinite;
+    }
+    
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    /* Stats row */
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      margin: 4px 0;
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .stat-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stat-label {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Countdown overlay */
+    .countdown-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    .countdown-number {
+      font-size: 48px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 
+        0 0 20px rgba(255, 255, 255, 0.5),
+        0 4px 10px rgba(0, 0, 0, 0.3);
+      animation: countdownPulse 1s infinite;
+    }
+    
+    @keyframes countdownPulse {
+      0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% { 
+        transform: scale(1.2);
+        opacity: 0.8;
+      }
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Make draggable but keep buttons clickable */
+    button, .stat-item {
+      -webkit-app-region: no-drag;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <!-- Countdown overlay -->
+    <div id="countdown-overlay" class="countdown-overlay hidden">
+      <div id="countdown-number" class="countdown-number">3</div>
+    </div>
+    
+    <!-- Main content -->
+    <div class="header">
+      <div class="title">
+        <div class="logo">
+          <img src="./assets/icon.png" alt="S">
+        </div>
+        <span class="title-text">SlyWriter Pro</span>
+      </div>
+      <div class="controls">
+        <span id="hotkey-display" style="padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500;">Ctrl+Alt+O</span>
+      </div>
+    </div>
+    
+    <div class="content">
+      <div class="status-section">
+        <div class="pulse-indicator idle" id="pulse"></div>
+        <span class="status-text" id="status">Ready to type</span>
+      </div>
+      
+      <div class="progress-container">
+        <div class="progress-fill" id="progress" style="width: 0%"></div>
+      </div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-value" id="wpm">0</span>
+          <span class="stat-label">WPM</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="progress-percent">0%</span>
+          <span class="stat-label">Progress</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="chars">0</span>
+          <span class="stat-label">Chars</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="time">0:00</span>
+          <span class="stat-label">Time</span>
+        </div>
+      </div>
+      
+      <!-- Action buttons -->
+      <div class="action-buttons" style="display: flex; gap: 4px; margin-top: 8px;">
+        <button class="action-btn" id="startBtn" onclick="startTyping()" title="Start" style="flex: 1; padding: 6px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5); color: white; border-radius: 6px; font-size: 11px; cursor: pointer; backdrop-filter: blur(10px); transition: all 0.2s;">
+          ▶ Start
+        </button>
+        <button class="action-btn" id="pauseBtn" onclick="pauseTyping()" title="Pause" style="flex: 1; padding: 6px; background: rgba(251, 191, 36, 0.2); border: 1px solid rgba(251, 191, 36, 0.5); color: white; border-radius: 6px; font-size: 11px; cursor: pointer; backdrop-filter: blur(10px); transition: all 0.2s;">
+          ⏸ Pause
+        </button>
+        <button class="action-btn" id="stopBtn" onclick="stopTyping()" title="Stop" style="flex: 1; padding: 6px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: white; border-radius: 6px; font-size: 11px; cursor: pointer; backdrop-filter: blur(10px); transition: all 0.2s;">
+          ⏹ Stop
+        </button>
+      </div>
+      
+      <div class="ai-buttons" style="display: flex; gap: 4px; margin-top: 4px;">
+        <button class="action-btn" id="aiBtn" onclick="aiGenerate()" title="AI Generate" style="flex: 1; padding: 6px; background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.5); color: white; border-radius: 6px; font-size: 11px; cursor: pointer; backdrop-filter: blur(10px);">
+          🤖 AI Generate
+        </button>
+        <button class="action-btn" id="pasteModeBtn" onclick="pasteMode()" title="Toggle paste mode" style="flex: 1; padding: 6px; background: rgba(236, 72, 153, 0.2); border: 1px solid rgba(236, 72, 153, 0.5); color: white; border-radius: 6px; font-size: 11px; cursor: pointer; backdrop-filter: blur(10px);">
+          📋 Paste Mode
+        </button>
+      </div>
+      
+      <!-- Mode and feature indicators -->
+      <div id="mode-indicators" style="margin-top: 8px; padding: 6px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; font-size: 10px; color: rgba(255, 255, 255, 0.8); display: none;">
+        <div id="current-mode" style="margin-bottom: 4px;">⌨️ Typing Mode Active</div>
+        <div id="ai-status" style="display: none;">🤖 AI: Ready</div>
+        <div id="profile-status" style="display: none;">👤 Profile: Medium</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    console.log('[OVERLAY] Script starting...')
+    const { ipcRenderer } = require('electron')
+    console.log('[OVERLAY] ipcRenderer loaded:', !!ipcRenderer)
+    
+    // Elements
+    const countdownOverlay = document.getElementById('countdown-overlay')
+    const countdownNumber = document.getElementById('countdown-number')
+    const pulse = document.getElementById('pulse')
+    const status = document.getElementById('status')
+    const progress = document.getElementById('progress')
+    const wpm = document.getElementById('wpm')
+    const progressPercent = document.getElementById('progress-percent')
+    const chars = document.getElementById('chars')
+    const time = document.getElementById('time')
+    
+    let startTime = null
+    let timerInterval = null
+    
+    // Control functions
+    let isHiding = false
+    function hideOverlay() {
+      console.log('[OVERLAY] hideOverlay called, isHiding:', isHiding)
+      
+      if (isHiding) {
+        console.log('[OVERLAY] Already hiding, skipping...')
+        return
+      }
+      
+      isHiding = true
+      console.log('[OVERLAY] Sending hide-overlay IPC message...')
+      
+      // Try using send instead of invoke to avoid promise issues
+      try {
+        ipcRenderer.send('hide-overlay-request')
+        console.log('[OVERLAY] hide-overlay-request sent successfully')
+        
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isHiding = false
+          console.log('[OVERLAY] Reset isHiding flag')
+        }, 500)
+      } catch (err) {
+        console.error('[OVERLAY] Error sending hide request:', err)
+        isHiding = false
+      }
+    }
+    
+    // Action functions
+    function startTyping() {
+      // Send start command to main process
+      ipcRenderer.send('overlay-action', 'start')
+      status.textContent = 'Starting...'
+    }
+    
+    function pauseTyping() {
+      // Send pause command to main process
+      ipcRenderer.send('overlay-action', 'pause')
+      status.textContent = 'Pausing...'
+    }
+    
+    function stopTyping() {
+      // Send stop command to main process
+      ipcRenderer.send('overlay-action', 'stop')
+      status.textContent = 'Stopping...'
+    }
+    
+    function aiGenerate() {
+      // Send AI generate command to main process
+      ipcRenderer.send('overlay-action', 'ai-generate')
+      status.textContent = 'AI Generating...'
+    }
+    
+    
+    function pasteMode() {
+      // Send paste mode toggle to main process
+      ipcRenderer.send('overlay-action', 'paste-mode')
+      status.textContent = 'Toggling paste mode...'
+    }
+    
+    // Format time
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+    
+    // Update timer
+    function updateTimer() {
+      if (startTime) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000)
+        time.textContent = formatTime(elapsed)
+      }
+    }
+    
+    // Keep IPC connection alive
+    setInterval(() => {
+      ipcRenderer.send('overlay-ping')
+    }, 5000) // Ping every 5 seconds
+    
+    ipcRenderer.on('overlay-pong', () => {
+      console.log('[OVERLAY] IPC connection active')
+    })
+    
+    // Listen for hotkey updates
+    ipcRenderer.on('update-hotkeys-overlay', (event, hotkeys) => {
+      console.log('[OVERLAY] Received hotkey updates:', hotkeys)
+      
+      // Update hotkey display
+      const hotkeyDisplay = document.getElementById('hotkey-display')
+      if (hotkeyDisplay && hotkeys.overlay) {
+        const displayKey = hotkeys.overlay
+          .replace('CommandOrControl', 'Ctrl')
+          .replace('cmd', 'Cmd')
+        hotkeyDisplay.textContent = displayKey
+      }
+      
+      // Update button tooltips with hotkeys
+      if (hotkeys.start) {
+        const startBtn = document.getElementById('startBtn')
+        if (startBtn) {
+          const key = hotkeys.start.replace('CommandOrControl', 'Ctrl').replace('cmd', 'Cmd')
+          startBtn.title = `Start (${key})`
+        }
+      }
+      
+      if (hotkeys.pause) {
+        const pauseBtn = document.getElementById('pauseBtn')
+        if (pauseBtn) {
+          const key = hotkeys.pause.replace('CommandOrControl', 'Ctrl').replace('cmd', 'Cmd')
+          pauseBtn.title = `Pause (${key})`
+        }
+      }
+      
+      if (hotkeys.stop) {
+        const stopBtn = document.getElementById('stopBtn')
+        if (stopBtn) {
+          const key = hotkeys.stop.replace('CommandOrControl', 'Ctrl').replace('cmd', 'Cmd')
+          stopBtn.title = `Stop (${key})`
+        }
+      }
+      
+      // Update AI button if hotkey exists
+      const aiBtn = document.getElementById('aiBtn')
+      if (aiBtn && hotkeys.ai_generation) {
+        const key = hotkeys.ai_generation.replace('CommandOrControl', 'Ctrl').replace('cmd', 'Cmd')
+        aiBtn.title = `AI Generate (${key})`
+      }
+      
+      // Update Paste Mode button if hotkey exists (if we add a hotkey for it later)
+      const pasteModeBtn = document.getElementById('pasteModeBtn')
+      if (pasteModeBtn && hotkeys.paste_mode) {
+        const key = hotkeys.paste_mode.replace('CommandOrControl', 'Ctrl').replace('cmd', 'Cmd')
+        pasteModeBtn.title = `Toggle paste mode (${key})`
+      }
+    })
+    
+    // Request initial status when overlay loads
+    ipcRenderer.send('overlay-request-status')
+    
+    // Listen for updates
+    ipcRenderer.on('update-display', (event, data) => {
+      if (data.type === 'countdown') {
+        countdownOverlay.classList.remove('hidden')
+        countdownNumber.textContent = data.value
+        pulse.className = 'pulse-indicator idle'
+        status.textContent = 'Starting...'
+      } else if (data.type === 'typing') {
+        countdownOverlay.classList.add('hidden')
+        
+        // Get progress value first
+        const progressValue = data.progress || 0
+        
+        // Update status based on actual status
+        const currentStatus = data.status || 'Typing...'
+        
+        // Update pulse indicator based on status
+        pulse.className = 'pulse-indicator'
+        
+        // Check for different status states
+        if (currentStatus.toLowerCase().includes('typing') || currentStatus.toLowerCase().includes('starting')) {
+          pulse.classList.add('active')
+          status.textContent = currentStatus
+          status.style.color = '' // Reset to default color
+          if (!startTime) {
+            startTime = Date.now()
+            timerInterval = setInterval(updateTimer, 1000)
+          }
+        } else if (currentStatus.includes('AI') || currentStatus.includes('🤖') || 
+                   currentStatus.includes('Generating') || currentStatus.includes('filler') ||
+                   currentStatus.includes('Thinking') || currentStatus.includes('💭') ||
+                   currentStatus.includes('Regretting') || currentStatus.includes('❌') ||
+                   currentStatus.includes('Requesting') || currentStatus.includes('🔄')) {
+          // AI Filler specific statuses - keep timer running, show special status
+          pulse.classList.add('active')
+          status.textContent = currentStatus
+          status.style.color = '#a78bfa' // Purple color for AI activities
+          if (!startTime) {
+            startTime = Date.now()
+            timerInterval = setInterval(updateTimer, 1000)
+          }
+        } else if (currentStatus.toLowerCase().includes('paused')) {
+          pulse.classList.add('paused')
+          status.textContent = 'Paused'
+          status.style.color = '' // Reset to default color
+          // Keep timer but don't update
+          if (timerInterval) {
+            clearInterval(timerInterval)
+            timerInterval = null
+          }
+        } else if (currentStatus.toLowerCase().includes('stopped')) {
+          pulse.classList.add('idle')
+          status.textContent = 'Stopped'
+          status.style.color = '' // Reset to default color
+          if (timerInterval) {
+            clearInterval(timerInterval)
+            timerInterval = null
+            startTime = null
+          }
+        } else if (currentStatus.toLowerCase().includes('complete') || 
+                   currentStatus.toLowerCase().includes('finished') ||
+                   progressValue >= 100) {
+          pulse.classList.add('idle')
+          status.textContent = 'Complete! ✓'
+          status.style.color = '' // Reset to default color
+          if (timerInterval) {
+            clearInterval(timerInterval)
+            timerInterval = null
+            startTime = null
+          }
+        } else {
+          pulse.classList.add('idle')
+          status.textContent = currentStatus
+          status.style.color = '' // Reset to default color
+        }
+        
+        // Update progress (only if not null)
+        if (progressValue !== null && progressValue !== undefined) {
+          progress.style.width = `${progressValue}%`
+          progressPercent.textContent = `${Math.round(progressValue)}%`
+        }
+        
+        // Update stats (only if not null)
+        if (data.wpm !== null && data.wpm !== undefined) {
+          wpm.textContent = data.wpm || 0
+        }
+        if (data.charsTyped !== null && data.charsTyped !== undefined) {
+          chars.textContent = data.charsTyped || 0
+        }
+        
+      } else if (data.type === 'complete') {
+        pulse.className = 'pulse-indicator idle'
+        status.textContent = 'Complete! ✓'
+        // Always set progress to 100% when complete
+        progress.style.width = '100%'
+        progressPercent.textContent = '100%'
+        // Update final stats if provided
+        if (data.wpm !== null && data.wpm !== undefined) {
+          wpm.textContent = data.wpm || 0
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval)
+          timerInterval = null
+          startTime = null
+        }
+      } else if (data.type === 'ai-status') {
+        // Special AI status updates
+        status.textContent = data.status || 'Processing...'
+        pulse.className = 'pulse-indicator active'
+        if (data.progress !== null && data.progress !== undefined) {
+          progress.style.width = `${data.progress}%`
+          progressPercent.textContent = `${Math.round(data.progress)}%`
+        }
+      } else if (data.type === 'mode-update') {
+        // Show mode indicators
+        const modeIndicators = document.getElementById('mode-indicators')
+        const currentMode = document.getElementById('current-mode')
+        const aiStatus = document.getElementById('ai-status')
+        const profileStatus = document.getElementById('profile-status')
+        
+        modeIndicators.style.display = 'block'
+        
+        if (data.mode) {
+          currentMode.textContent = data.mode === 'paste' ? '📋 Paste Mode Active' : '⌨️ Typing Mode Active'
+        }
+        
+        if (data.aiReady !== undefined) {
+          aiStatus.style.display = 'block'
+          aiStatus.textContent = data.aiReady ? '🤖 AI: Ready' : '🤖 AI: Processing...'
+        }
+        
+        if (data.profile) {
+          profileStatus.style.display = 'block'
+          profileStatus.textContent = `👤 Profile: ${data.profile}`
+        }
+      } else if (data.type === 'error') {
+        pulse.className = 'pulse-indicator idle'
+        status.textContent = data.status || 'Error'
+        status.style.color = '#ef4444'
+        setTimeout(() => {
+          status.style.color = ''
+        }, 3000)
+      }
+    })
+  </script>
+</body>
+</html>

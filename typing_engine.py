@@ -55,13 +55,8 @@ def set_overlay_tab_reference(tab):  # Overlay setter
     print("Overlay tab reference set in typing_engine")
 
 def _update_status_and_overlay(status_callback, text):
-    """Update both status callback and overlay"""
+    """Update status callback (which will broadcast via WebSocket)"""
     status_callback(text)
-    if _overlay_tab:
-        try:
-            _overlay_tab.update_overlay_text(text)
-        except Exception as e:
-            print(f"Error updating overlay: {e}")
 
 def stop_typing_func():
     _stop_flag.set()
@@ -85,7 +80,10 @@ def start_typing_from_input(
     max_delay: float = config.MAX_DELAY_DEFAULT,
     typos_on: bool = True,
     pause_freq: int = config.LONG_PAUSE_DEFAULT,
-    preview_only: bool = False
+    preview_only: bool = False,
+    grammarly_mode: bool = False,
+    grammarly_delay: float = 2.0,
+    typo_rate: float = 2.0  # Percentage chance of typos
 ):
     global _typing_thread
     stop_typing_func()
@@ -93,45 +91,47 @@ def start_typing_from_input(
     def _worker():
         if _account_tab and not _account_tab.has_words_remaining():
             status_callback("Limit reached – upgrade plan to continue.")
-            print("⛔ Typing blocked: word limit reached.")
+            print("[BLOCKED] Typing blocked: word limit reached.")
             return
 
         for i in range(5, 0, -1):
             if _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Cancelled")
+                _update_status_and_overlay(status_callback, "❌ Cancelled")
                 return
             
             # Check for pause during countdown
             while _pause_flag.is_set() and not _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Paused")
+                _update_status_and_overlay(status_callback, "⏸️ Paused")
                 time.sleep(0.1)
             
             if _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Cancelled")
+                _update_status_and_overlay(status_callback, "❌ Cancelled")
                 return
                 
             _update_status_and_overlay(status_callback, f"Starting in {i}...")
             for _ in range(10):
                 if _stop_flag.is_set():
-                    _update_status_and_overlay(status_callback, "Cancelled")
+                    _update_status_and_overlay(status_callback, "❌ Cancelled")
                     return
                 
                 # Check for pause during each 0.1s interval
                 while _pause_flag.is_set() and not _stop_flag.is_set():
-                    _update_status_and_overlay(status_callback, "Paused")
+                    _update_status_and_overlay(status_callback, "⏸️ Paused")
                     time.sleep(0.1)
                 
                 if _stop_flag.is_set():
-                    _update_status_and_overlay(status_callback, "Cancelled")
+                    _update_status_and_overlay(status_callback, "❌ Cancelled")
                     return
                     
                 time.sleep(0.1)
 
         preview = ""
         last_pause = 0
-        _update_status_and_overlay(status_callback, "Typing…")
+        _update_status_and_overlay(status_callback, "⌨️ Typing...")
         word_count = 0
         words_since_last_report = 0
+        typos_made = 0  # Track typos for live stats
+        delayed_corrections = []  # Track mistakes for later correction
 
         # --- WPM/session logging additions ---
         start_time = time.time()
@@ -147,37 +147,223 @@ def start_typing_from_input(
             profile_name = "Default"
         # --- end additions ---
 
+        # Track when we last took a break
+        last_break_idx = 0
+        
         for idx, ch in enumerate(text):
             if _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Stopped")
+                _update_status_and_overlay(status_callback, "⏹️ Stopped")
                 return
 
             while _pause_flag.is_set() and not _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Paused")
+                _update_status_and_overlay(status_callback, "⏸️ Paused")
                 time.sleep(0.1)
 
             if _stop_flag.is_set():
-                _update_status_and_overlay(status_callback, "Stopped")
+                _update_status_and_overlay(status_callback, "⏹️ Stopped")
                 return
 
             if _account_tab and not _account_tab.has_words_remaining():
                 status_callback("Limit reached – upgrade plan to continue.")
-                print("⛔ Typing interrupted: limit reached mid-session.")
+                print("[LIMIT] Typing interrupted: limit reached mid-session.")
                 return
+            
+            # Add random breaks throughout typing (not just at punctuation)
+            chars_since_break = idx - last_break_idx
+            if chars_since_break > random.randint(150, 300):  # Break every 150-300 chars
+                if random.random() < 0.7:  # 70% chance when due
+                    break_type = random.choice(['thinking', 'distracted', 'coffee'])
+                    if break_type == 'thinking':
+                        break_duration = random.uniform(1.5, 3.5)
+                        _update_status_and_overlay(status_callback, f"💭 Thinking ({break_duration:.1f}s)...")
+                    elif break_type == 'distracted':
+                        break_duration = random.uniform(2.0, 4.0)
+                        _update_status_and_overlay(status_callback, f"👀 Distracted ({break_duration:.1f}s)...")
+                    else:
+                        break_duration = random.uniform(3.0, 6.0)
+                        _update_status_and_overlay(status_callback, f"☕ Coffee break ({break_duration:.1f}s)...")
+                    
+                    for i in range(int(break_duration * 10)):
+                        if _stop_flag.is_set():
+                            _update_status_and_overlay(status_callback, "⏹️ Stopped")
+                            return
+                        while _pause_flag.is_set() and not _stop_flag.is_set():
+                            _update_status_and_overlay(status_callback, "⏸️ Paused")
+                            time.sleep(0.1)
+                        time.sleep(0.1)
+                    
+                    _update_status_and_overlay(status_callback, "⌨️ Typing...")
+                    last_break_idx = idx
 
 
-            if typos_on and random.random() < config.TYPO_PROBABILITY_DEFAULT:
-                wrong_char = random.choice("abcdefghijklmnopqrstuvwxyz")
-                if not preview_only:
-                    keyboard.write(wrong_char)
-                    time.sleep(0.05)
-                    keyboard.send("backspace")
-                live_preview_callback(preview)
+            # Delayed correction mode: intentionally make mistakes on certain words
+            # Only do this if we haven't made too many mistakes recently
+            if grammarly_mode and ch.isspace() and preview and not preview_only and len(delayed_corrections) < 2:
+                # Check if we just typed a word that should have a "mistake"
+                last_word = preview.split()[-1] if preview.split() else ""
+                # Common words to make mistakes with (15% chance - reduced to be more natural)
+                common_words = ['the', 'and', 'that', 'have', 'with', 'this', 'from', 'they', 'would', 'there', 'their', 'what', 'about', 'which', 'when', 'been', 'were', 'being']
+                if last_word.lower().rstrip('.,!?;:') in common_words and random.random() < 0.15:
+                    # Make a deliberate mistake
+                    mistake_types = [
+                        ('the', 'teh'),
+                        ('and', 'adn'),
+                        ('that', 'taht'),
+                        ('have', 'ahve'),
+                        ('with', 'wiht'),
+                        ('this', 'thsi'),
+                        ('from', 'form'),
+                        ('they', 'tehy'),
+                        ('would', 'woudl'),
+                        ('there', 'thier'),
+                        ('their', 'thier'),
+                        ('what', 'waht'),
+                        ('about', 'abuot'),
+                        ('which', 'whcih'),
+                        ('when', 'wehn'),
+                        ('been', 'bene'),
+                        ('were', 'wer'),
+                        ('being', 'bieng')
+                    ]
+                    
+                    # Find the mistake to make
+                    mistake_word = None
+                    for correct, wrong in mistake_types:
+                        if last_word.lower().rstrip('.,!?;:') == correct:
+                            mistake_word = wrong
+                            break
+                    
+                    if mistake_word:
+                        # Go back and fix the word
+                        _update_status_and_overlay(status_callback, "✏️ Making typo...")
+                        
+                        # Delete the correct word
+                        for _ in range(len(last_word)):
+                            keyboard.send("backspace")
+                            preview = preview[:-1]
+                            time.sleep(0.02)
+                        
+                        # Type the mistake
+                        for char in mistake_word:
+                            keyboard.write(char)
+                            preview += char
+                            time.sleep(random.uniform(0.03, 0.08))
+                        
+                        # Continue typing and record for later correction
+                        delayed_corrections.append({
+                            'position': len(preview),
+                            'word': mistake_word,
+                            'correct_word': last_word,
+                            'chars_after': 0
+                        })
+                        
+                        _update_status_and_overlay(status_callback, "⌨️ Typing...")
+            
+            # Normal typos - immediate correction (like catching yourself)
+            # Reduce chance if delayed correction mode is active to avoid too much chaos
+            typo_chance = typo_rate / 100.0  # Convert percentage to probability
+            if grammarly_mode:
+                typo_chance = typo_chance * 0.5  # Half the normal typo rate when delayed correction is on
+            
+            if typos_on and random.random() < typo_chance and not ch.isspace():
+                # Don't make a typo if we're about to correct a delayed mistake
+                skip_typo = False
+                for mistake in delayed_corrections:
+                    if mistake['chars_after'] >= 14:  # About to correct
+                        skip_typo = True
+                        break
+                
+                if not skip_typo:
+                    # More realistic typos based on keyboard proximity
+                    keyboard_neighbors = {
+                        'a': 'qwsz', 'b': 'vghn', 'c': 'xdfv', 'd': 'serfcx', 'e': 'wrsdf',
+                        'f': 'drtgvc', 'g': 'ftyhbv', 'h': 'gyujnb', 'i': 'ujklo', 'j': 'huikmn',
+                        'k': 'jiolm', 'l': 'kop', 'm': 'njk', 'n': 'bhjm', 'o': 'iklp',
+                        'p': 'ol', 'q': 'wa', 'r': 'edft', 's': 'awedxz', 't': 'rfgy',
+                        'u': 'yhji', 'v': 'cfgb', 'w': 'qase', 'x': 'zsdc', 'y': 'tghu',
+                        'z': 'asx', ' ': 'cvbnm'
+                    }
+                    
+                    # Choose wrong character based on what key we're trying to type
+                    ch_lower = ch.lower()
+                    if ch_lower in keyboard_neighbors:
+                        # Hit adjacent key instead
+                        wrong_char = random.choice(keyboard_neighbors[ch_lower])
+                        if ch.isupper():
+                            wrong_char = wrong_char.upper()
+                    else:
+                        # For special characters, just skip the typo
+                        wrong_char = None
+                    
+                    if wrong_char and not preview_only:
+                        keyboard.write(wrong_char)
+                        # Human-like delay before noticing the typo (0.1-0.3 seconds)
+                        time.sleep(random.uniform(0.1, 0.3))
+                        keyboard.send("backspace")
+                        # Small pause after correction
+                        time.sleep(random.uniform(0.05, 0.1))
+                        typos_made += 1
+                        # Broadcast typo count update
+                        if status_callback:
+                            try:
+                                # Try to send typo update via status callback
+                                status_callback(f"TYPO_UPDATE:{typos_made}")
+                            except:
+                                pass
+                    live_preview_callback(preview)
 
             if not preview_only:
                 keyboard.write(ch)
             preview += ch
             live_preview_callback(preview)
+            
+            # Update chars_after for all delayed corrections
+            for mistake in delayed_corrections:
+                mistake['chars_after'] += 1
+            
+            # Check if we should correct any delayed mistakes (after typing 20-40 more chars)
+            if grammarly_mode and delayed_corrections and not preview_only:
+                for i, mistake in enumerate(delayed_corrections):
+                    # More natural correction timing - wait longer
+                    if mistake['chars_after'] >= random.randint(20, 40):
+                        # Time to correct this mistake!
+                        _update_status_and_overlay(status_callback, "📝 Auto-correcting...")
+                        
+                        # Pause like we're noticing the error
+                        time.sleep(random.uniform(0.5, grammarly_delay))
+                        
+                        # Calculate how many characters to backspace
+                        chars_to_delete = len(preview) - mistake['position'] + len(mistake['word'])
+                        deleted_text = preview[-chars_to_delete:]
+                        
+                        # Backspace to the mistake
+                        for _ in range(chars_to_delete):
+                            keyboard.send("backspace")
+                            preview = preview[:-1]
+                            live_preview_callback(preview)
+                            time.sleep(0.015)
+                        
+                        # Type the correct word
+                        correct_word = mistake['correct_word']
+                        for char in correct_word:
+                            keyboard.write(char)
+                            preview += char
+                            live_preview_callback(preview)
+                            time.sleep(random.uniform(0.02, 0.05))
+                        
+                        # Retype the text that was after the mistake
+                        retype_text = deleted_text[len(mistake['word']):]
+                        for char in retype_text:
+                            keyboard.write(char)
+                            preview += char
+                            live_preview_callback(preview)
+                            time.sleep(random.uniform(min_delay * 0.7, min_delay))
+                        
+                        # Remove this mistake from the list
+                        delayed_corrections.pop(i)
+                        
+                        _update_status_and_overlay(status_callback, "⌨️ Typing...")
+                        break  # Only correct one mistake at a time
 
             if ch in _punctuations:
                 # Regular punctuation pause
@@ -189,40 +375,51 @@ def start_typing_from_input(
                     sentence_break_chance = 0.3  # 30% chance
                     if random.random() < sentence_break_chance:
                         sentence_break_duration = random.uniform(2.0, 5.0)  # 2-5 second break
-                        _update_status_and_overlay(status_callback, f"Taking a break ({sentence_break_duration:.1f}s)...")
+                        _update_status_and_overlay(status_callback, f"☕ Taking a break ({sentence_break_duration:.1f}s)...")
                         
                         # Check for stop/pause during the break
                         for i in range(int(sentence_break_duration * 10)):
                             if _stop_flag.is_set():
-                                _update_status_and_overlay(status_callback, "Stopped")
+                                _update_status_and_overlay(status_callback, "⏹️ Stopped")
                                 return
                             while _pause_flag.is_set() and not _stop_flag.is_set():
-                                _update_status_and_overlay(status_callback, "Paused")
+                                _update_status_and_overlay(status_callback, "⏸️ Paused")
                                 time.sleep(0.1)
                             time.sleep(0.1)
                         
-                        _update_status_and_overlay(status_callback, "Resuming typing...")
+                        _update_status_and_overlay(status_callback, "⌨️ Resuming typing...")
 
             if pause_freq and (idx - last_pause) >= pause_freq:
                 time.sleep(max_delay)
                 last_pause = idx
 
-            time.sleep(random.uniform(min_delay, max_delay))
+            # Human-like variable typing speed
+            if grammarly_mode or typos_on:
+                # More variation in typing speed for human mode
+                if random.random() < 0.1:  # 10% chance of hesitation
+                    time.sleep(random.uniform(max_delay * 2, max_delay * 3))
+                elif random.random() < 0.2:  # 20% chance of fast burst
+                    time.sleep(random.uniform(min_delay * 0.5, min_delay))
+                else:
+                    time.sleep(random.uniform(min_delay, max_delay))
+            else:
+                time.sleep(random.uniform(min_delay, max_delay))
 
             if ch.isspace():
                 word_count += 1
                 words_since_last_report += 1
-                print(f"📝 Word typed. Total so far: {word_count}")
+                # Removed emoji that causes encoding error
+                print(f"Word typed. Total so far: {word_count}")
                 if words_since_last_report >= 10:
                     if _account_tab:
-                        print("🔁 10 words typed — incrementing usage bar")
+                        print("[UPDATE] 10 words typed - incrementing usage bar")
                         _account_tab.increment_words_used()
                     else:
-                        print("⚠️ No account tab set — cannot update usage bar")
+                        print("[WARNING] No account tab set - cannot update usage bar")
                     words_since_last_report = 0
 
 
-        _update_status_and_overlay(status_callback, "Done")
+        _update_status_and_overlay(status_callback, "✅ Complete!")
 
         # --- Compute duration, WPM, and log session ---
         end_time = time.time()

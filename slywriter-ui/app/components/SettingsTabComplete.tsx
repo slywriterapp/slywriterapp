@@ -7,7 +7,7 @@ import { HotkeySettings } from './GlobalHotkeys'
 import { OverlaySettings } from './OverlayWindowEnhanced'
 import toast from 'react-hot-toast'
 import { 
-  SettingsIcon, MoonIcon, SunIcon, VolumeIcon, 
+  SettingsIcon, MoonIcon, SunIcon, VolumeIcon, AlertCircleIcon, 
   KeyboardIcon, MonitorIcon, BellIcon, CreditCardIcon,
   PaletteIcon, ShieldIcon, SaveIcon, RefreshCwIcon,
   ClockIcon, GiftIcon, UserIcon, MailIcon, LogOutIcon,
@@ -578,15 +578,112 @@ function ReferralSettings({ user }: any) {
 
 // Privacy Settings Component
 function PrivacySettings({ settings, setSettings }: any) {
+  const [betaTelemetryEnabled, setBetaTelemetryEnabled] = useState(true)
+  const [betaUserId, setBetaUserId] = useState('')
+  
+  useEffect(() => {
+    // Load beta telemetry settings
+    const enabled = localStorage.getItem('betaTelemetryEnabled') !== 'false'
+    setBetaTelemetryEnabled(enabled)
+    setBetaUserId(localStorage.getItem('betaUserId') || 'Not generated')
+  }, [])
+  
+  const toggleBetaTelemetry = (enabled: boolean) => {
+    setBetaTelemetryEnabled(enabled)
+    localStorage.setItem('betaTelemetryEnabled', enabled.toString())
+    toast.success(enabled ? 'Beta telemetry enabled' : 'Beta telemetry disabled')
+  }
+  
+  const exportMyData = () => {
+    const data = JSON.parse(localStorage.getItem('betaTelemetryData') || '[]')
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `my_telemetry_data_${new Date().toISOString()}.json`
+    a.click()
+    toast.success('Your data exported successfully')
+  }
+  
+  const clearMyData = () => {
+    if (confirm('This will clear all your locally stored telemetry data. Continue?')) {
+      localStorage.removeItem('betaTelemetryData')
+      toast.success('Your telemetry data has been cleared')
+    }
+  }
+  
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold text-white mb-4">Privacy & Security</h3>
       
-      {/* Data Collection */}
+      {/* Beta Testing Notice */}
+      <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-4">
+        <div className="flex items-start gap-3">
+          <AlertCircleIcon className="w-5 h-5 text-orange-400 mt-0.5" />
+          <div>
+            <div className="text-sm font-semibold text-orange-300 mb-1">Beta Testing Mode Active</div>
+            <div className="text-xs text-gray-300">
+              You're using a beta version that collects anonymous usage data to improve the app.
+              No personal information or typed content is ever collected.
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Beta Telemetry Control */}
+      <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-white flex items-center gap-2">
+              Beta Telemetry
+              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded">BETA</span>
+            </div>
+            <div className="text-xs text-gray-400">Anonymous app usage and error tracking</div>
+          </div>
+          <button
+            onClick={() => toggleBetaTelemetry(!betaTelemetryEnabled)}
+            className={`relative w-14 h-7 rounded-full transition-colors ${
+              betaTelemetryEnabled ? 'bg-green-500' : 'bg-gray-600'
+            }`}
+          >
+            <div
+              className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                betaTelemetryEnabled ? 'translate-x-7' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        
+        {/* Beta User ID */}
+        <div className="pt-2 border-t border-gray-700">
+          <div className="text-xs text-gray-400 mb-1">Your Anonymous Beta ID:</div>
+          <code className="text-xs text-purple-300 font-mono bg-gray-900 px-2 py-1 rounded">
+            {betaUserId}
+          </code>
+        </div>
+        
+        {/* Data Actions */}
+        <div className="flex gap-2 pt-2">
+          <button
+            onClick={exportMyData}
+            className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-xs text-white rounded transition-colors"
+          >
+            Export My Data
+          </button>
+          <button
+            onClick={clearMyData}
+            className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-xs text-white rounded transition-colors"
+          >
+            Clear My Data
+          </button>
+        </div>
+      </div>
+      
+      {/* Original Data Collection */}
       <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
         <div>
-          <div className="text-sm font-medium text-white">Data Collection</div>
-          <div className="text-xs text-gray-400">Help improve SlyWriter with usage data</div>
+          <div className="text-sm font-medium text-white">Usage Statistics</div>
+          <div className="text-xs text-gray-400">Local statistics about your typing sessions</div>
         </div>
         <input
           type="checkbox"

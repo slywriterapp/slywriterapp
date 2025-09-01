@@ -1,1 +1,38 @@
-__pycache__/ 
+# Test files
+test_*.py
+test_*.html
+test_*.js
+*_test.py
+*_test.html
+trigger_*.html
+hotkey_test.html
+debug_dashboard.html
+clear_ai_settings.html
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+.next/
+dist/
+
+# Logs
+*.log
+typing_log.txt
+
+# Environment
+.env
+.env.local
+client_secret.json
+
+# OS
+nul
+
+# Temporary
+*.tmp
+*_fixed.py
+*_updated.py

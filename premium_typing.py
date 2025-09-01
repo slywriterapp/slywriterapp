@@ -6,8 +6,8 @@ import keyboard
 
 # ------------------ Configurable Parameters -------------------
 EDIT_POINT_CHARS = " .,!?;"      # "Edit-friendly" points (space, punct, etc)
-BASE_FAKE_EDIT_CHANCE = 0.002    # 0.2% at every char (4x lower than before)
-EDIT_POINT_BONUS_CHANCE = 0.10   # +10% at edit points (reduced from 18%)
+BASE_FAKE_EDIT_CHANCE = 0.003    # 0.3% at every char (roughly every 3 sentences)
+EDIT_POINT_BONUS_CHANCE = 0.30   # +30% at punctuation (much higher chance at sentence ends)
 LONG_BREAK_CHANCE = 0.0005       # 0.05% chance per char (reduced from 0.1%)
 LONG_BREAK_MIN = 15              # seconds (reduced from 20)
 LONG_BREAK_MAX = 45              # seconds (reduced from 75)
@@ -45,7 +45,7 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
     )
     try:
         if status_callback:
-            status_callback("[AI Filler] Requesting from server…")
+            status_callback("🔄 Requesting AI filler from server…")
         print("[AI Filler] Sending prompt to server...")
         
         # Check for stop during server request
@@ -67,7 +67,7 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
             if "filler" in result and result["filler"]:
                 filler = result["filler"]
                 if status_callback:
-                    status_callback(f"[AI Filler] Success: \"{filler}\"")
+                    status_callback(f"✅ AI filler generated")
                 print("[AI Filler] Server response:", filler)
             else:
                 print(f"[AI Filler] No filler in response or filler is empty: {result}")
@@ -200,15 +200,12 @@ def premium_type_with_filler(
         for i in range(5, 0, -1):
             if stop_flag.is_set():
                 status_callback("Cancelled")
-                _update_overlay("Cancelled")
                 return
             status_text = f"Starting in {i}..."
             status_callback(status_text)
-            _update_overlay(status_text)
             for _ in range(10):
                 if stop_flag.is_set():
                     status_callback("Cancelled")
-                    _update_overlay("Cancelled")
                     return
                 time.sleep(0.1)
 
@@ -218,9 +215,8 @@ def premium_type_with_filler(
         last_space = 0
         words_since_last_pause = 0
         typing_start_time = time.time()  # Track when actual typing starts
-        status_text = "🤖 AI Typing…"
+        status_text = "🤖 AI-Enhanced Typing Active"
         status_callback(status_text)
-        _update_overlay(status_text)
 
         while idx < length:
             # Check for stop flag
@@ -240,33 +236,36 @@ def premium_type_with_filler(
             if random.random() < LONG_BREAK_CHANCE:
                 status_text = "😴 Break…"
                 status_callback(status_text)
-                _update_overlay(status_text)
+                status_callback(status_text)
                 t = random.uniform(LONG_BREAK_MIN, LONG_BREAK_MAX)
                 for i in range(int(t)):
                     if stop_flag.is_set():
                         status_callback("Stopped")
-                        _update_overlay("Stopped")
+                        status_callback("Stopped")
                         return
                     if i % 10 == 0:
                         status_text = f"😴 Break ({t-i:.0f}s)"
                         status_callback(status_text)
-                        _update_overlay(status_text)
+                        status_callback(status_text)
                     time.sleep(1)
                 status_text = "✍️ Typing…"
                 status_callback(status_text)
-                _update_overlay(status_text)
+                status_callback(status_text)
 
             # ---- MICRO-HESITATION (e.g. "um" + delete) ----
             if random.random() < MICRO_HESITATION_CHANCE:
                 preview = do_micro_hesitation(preview, live_preview_callback)
 
             # ---- CHANCE FOR FAKE EDIT EVENT ----
-            # Don't allow filler until we have enough context (at least 20-30 words typed)
+            # Don't allow filler until we have enough context (at least 10 words typed)
             words_typed = len(preview.split())
-            if words_typed >= 25:  # Golden number: 25 words provides good context
+            if words_typed >= 10:  # Reduced to 10 words for earlier AI filler activation
                 edit_chance = BASE_FAKE_EDIT_CHANCE
                 if ch in EDIT_POINT_CHARS:
                     edit_chance += EDIT_POINT_BONUS_CHANCE
+                    # Even higher chance specifically at sentence ends
+                    if ch in '.!?':
+                        edit_chance += 0.15  # +15% more at sentence ends (total ~48% chance)
                 if random.random() < edit_chance:
                     # --- If mid-word, backspace to word boundary first ---
                     if idx > 0 and goal_text[idx-1].isalpha() and not ch.isspace():
@@ -279,20 +278,22 @@ def premium_type_with_filler(
                         ch = goal_text[idx]
 
                     # --- Pause for "thinking" ---
-                    status_text = "💭 Thinking…"
+                    status_text = "💭 Thinking before AI filler…"
                     status_callback(status_text)
-                    _update_overlay(status_text)
                     if stop_flag.is_set():
                         status_callback("Stopped")
-                        _update_overlay("Stopped")
+                        status_callback("Stopped")
                         return
                     time.sleep(random.uniform(THINKING_PAUSE_MIN, THINKING_PAUSE_MAX))
 
                     # --- Generate & type a filler phrase ---
-                    status_text = "🤖 AI Filler…"
+                    status_text = "🤖 Generating AI filler text…"
                     status_callback(status_text)
-                    _update_overlay(status_text)
                     filler = generate_filler(goal_text, FILLER_MIN_WORDS, FILLER_MAX_WORDS, status_callback=status_callback, preceding_context=preview, stop_flag=stop_flag)
+                    
+                    if filler:
+                        status_text = f"✍️ Typing filler: {filler[:20]}…"
+                        status_callback(status_text)
                     for fch in filler:
                         if stop_flag.is_set():
                             status_callback("Stopped")
@@ -305,12 +306,11 @@ def premium_type_with_filler(
                                 status_callback("Stopped")
                                 return
                                 
-                    status_text = "❌ Deleting…"
+                    status_text = "❌ Regretting... deleting filler"
                     status_callback(status_text)
-                    _update_overlay(status_text)
                     if stop_flag.is_set():
                         status_callback("Stopped")
-                        _update_overlay("Stopped")
+                        status_callback("Stopped")
                         return
                     time.sleep(random.uniform(REGRET_PAUSE_MIN, REGRET_PAUSE_MAX))
 
@@ -343,24 +343,24 @@ def premium_type_with_filler(
                     premium_break_duration = random.uniform(3.0, 8.0)  # 3-8 seconds (vs 2-5 in normal)
                     status_text = f"📱 Break ({premium_break_duration:.0f}s)"
                     status_callback(status_text)
-                    _update_overlay(status_text)
+                    status_callback(status_text)
                     
                     # Check for stop/pause during the premium break
                     for i in range(int(premium_break_duration * 10)):
                         if stop_flag.is_set():
                             status_callback("Stopped")
-                            _update_overlay("Stopped")
+                            status_callback("Stopped")
                             return
                         while pause_flag.is_set():
                             if stop_flag.is_set():
                                 status_callback("Stopped")
-                                _update_overlay("Stopped")
+                                status_callback("Stopped")
                                 return
                             time.sleep(0.1)
                         time.sleep(0.1)
                     
                     status_callback("✍️ Typing…")
-                    _update_overlay("✍️ Typing…")
+                    status_callback("✍️ Typing…")
 
             # ---- Handle human-like long pauses and word tracking ----
             if ch.isspace():
@@ -375,7 +375,7 @@ def premium_type_with_filler(
 
 
         status_callback("Done")
-        _update_overlay("Done")
+        status_callback("Done")
         
         # Report session stats like regular engine
         end_time = time.time()
@@ -402,14 +402,6 @@ def premium_type_with_filler(
     # CRITICAL: Stop any existing typing before starting (like regular engine does)
     import typing_engine
     typing_engine.stop_typing_func()  # Stop any existing typing first
-    
-    def _update_overlay(text):
-        """Helper to update overlay if available"""
-        if hasattr(typing_engine, '_overlay_tab') and typing_engine._overlay_tab:
-            try:
-                typing_engine._overlay_tab.update_overlay_text(text)
-            except Exception as e:
-                print(f"Error updating overlay: {e}")
     
     # Register with global typing engine thread system for stop button to work
     t = threading.Thread(target=worker, daemon=True)

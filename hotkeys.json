@@ -1,0 +1,7 @@
+{
+  "start": "ctrl+alt+o",
+  "stop": "ctrl+alt+l",
+  "pause": "ctrl+alt+p",
+  "overlay": "ctrl+alt+y",
+  "ai_generation": "ctrl+alt+g"
+}

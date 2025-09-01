@@ -55,12 +55,21 @@ export default function OverlayWindowEnhanced({ isVisible, onClose }: OverlayPro
       setWpm(0)
     }
     
+    // Listen for typing stop
+    const handleTypingStop = () => {
+      console.log('Overlay received typing-stop')
+      setStatus('Stopped')
+    }
+    
     // Listen for typing complete
     const handleTypingComplete = (event: CustomEvent) => {
       console.log('Overlay received typing-complete:', event.detail)
       setStatus('Complete!')
       setProgress(100)
-      setWpm(event.detail.wpm || 0)
+      // Safely access wpm from event.detail, default to current wpm if not provided
+      if (event.detail && event.detail.wpm !== undefined) {
+        setWpm(event.detail.wpm)
+      }
       
       // Reset after 5 seconds
       setTimeout(() => {
@@ -71,6 +80,7 @@ export default function OverlayWindowEnhanced({ isVisible, onClose }: OverlayPro
     
     window.addEventListener('typing-update', handleTypingUpdate as EventListener)
     window.addEventListener('typing-start', handleTypingStart as EventListener)
+    window.addEventListener('typing-stop', handleTypingStop as EventListener)
     window.addEventListener('typing-complete', handleTypingComplete as EventListener)
     
     // Log that listeners are attached
@@ -79,6 +89,7 @@ export default function OverlayWindowEnhanced({ isVisible, onClose }: OverlayPro
     return () => {
       window.removeEventListener('typing-update', handleTypingUpdate as EventListener)
       window.removeEventListener('typing-start', handleTypingStart as EventListener)
+      window.removeEventListener('typing-stop', handleTypingStop as EventListener)
       window.removeEventListener('typing-complete', handleTypingComplete as EventListener)
     }
   }, [])
@@ -208,6 +219,7 @@ export default function OverlayWindowEnhanced({ isVisible, onClose }: OverlayPro
           <button
             onClick={onClose}
             className="text-white/70 hover:text-white transition-colors"
+            title="Toggle Overlay (or press hotkey)"
           >
             <XIcon className="w-3 h-3" />
           </button>

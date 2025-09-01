@@ -241,7 +241,7 @@ function SlyWriterAppInner() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {activeTab === 'typing' && (
               <motion.div
                 key="typing"
