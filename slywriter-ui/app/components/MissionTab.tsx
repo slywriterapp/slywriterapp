@@ -8,7 +8,7 @@ import {
   TargetIcon, FlagIcon, CheckCircleIcon, LockIcon,
   ShareIcon, CopyIcon, SparklesIcon, AwardIcon,
   TrendingUpIcon, ChevronRightIcon, DollarSignIcon,
-  BrainIcon
+  BrainIcon, KeyboardIcon
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -318,7 +318,8 @@ export default function MissionTab() {
                             
                             // Apply the reward
                             if (tier.reward.includes('words')) {
-                              const words = parseInt(tier.reward.match(/\d+,?\d*/)[0].replace(',', ''))
+                              const match = tier.reward.match(/\d+,?\d*/)
+                              const words = match ? parseInt(match[0].replace(',', '')) : 0
                               const usage = JSON.parse(localStorage.getItem('slywriter-usage') || '{}')
                               usage.bonusWords = (usage.bonusWords || 0) + words
                               localStorage.setItem('slywriter-usage', JSON.stringify(usage))
@@ -380,6 +381,3 @@ export default function MissionTab() {
     </div>
   )
 }
-
-// Add missing imports
-import { KeyboardIcon, BrainIcon } from 'lucide-react'

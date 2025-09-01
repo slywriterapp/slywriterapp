@@ -71,8 +71,10 @@ class BetaTelemetryService {
     
     // Check if we're in development mode
     const isDevelopment = process.env.NODE_ENV === 'development' || 
-                         window.location.hostname === 'localhost' ||
-                         window.location.hostname === '127.0.0.1'
+                         (typeof window !== 'undefined' && (
+                           window.location.hostname === 'localhost' ||
+                           window.location.hostname === '127.0.0.1'
+                         ))
     
     if (!isDevelopment) {
       // Only auto-enable for production/beta builds
@@ -462,16 +464,16 @@ class BetaTelemetryService {
   }
 }
 
-// Create singleton instance
-export const betaTelemetry = new BetaTelemetryService()
+// Create singleton instance only on client
+export const betaTelemetry = typeof window !== 'undefined' ? new BetaTelemetryService() : null as any
 
 // Auto-track common actions
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && betaTelemetry) {
   // Track clicks
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement
     const id = target.id || target.className || 'unknown'
-    betaTelemetry.trackAction('click', id, {
+    betaTelemetry?.trackAction('click', id, {
       tag: target.tagName,
       text: target.textContent?.substring(0, 50)
     })
@@ -481,7 +483,7 @@ if (typeof window !== 'undefined') {
   const originalPushState = history.pushState
   history.pushState = function() {
     originalPushState.apply(history, arguments as any)
-    betaTelemetry.trackAction('navigation', 'route', {
+    betaTelemetry?.trackAction('navigation', 'route', {
       url: window.location.pathname
     })
   }

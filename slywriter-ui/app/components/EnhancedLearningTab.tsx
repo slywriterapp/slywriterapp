@@ -359,7 +359,7 @@ export default function EnhancedLearningTab() {
         console.error('Failed to parse AI response as JSON:', parseError)
         console.log('Raw response was:', generatedText.substring(0, 1000))
         // Use fallback lesson
-        throw new Error(`JSON parsing failed: ${parseError.message}`)
+        throw new Error(`JSON parsing failed: ${(parseError as Error).message}`)
       }
       
       // Validate and fill in missing fields with defaults
