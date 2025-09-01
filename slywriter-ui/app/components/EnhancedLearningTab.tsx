@@ -170,6 +170,22 @@ export default function EnhancedLearningTab() {
     if (storedSettings) {
       setSettings(JSON.parse(storedSettings))
     }
+    
+    // Load the current lesson if it exists
+    const storedCurrentLesson = localStorage.getItem('slywriter-current-lesson')
+    if (storedCurrentLesson) {
+      try {
+        const lesson = JSON.parse(storedCurrentLesson)
+        setCurrentLesson(lesson)
+        // Restore the learning mode if there was an active lesson
+        const storedLearningMode = localStorage.getItem('slywriter-learning-mode')
+        if (storedLearningMode && storedLearningMode !== 'overview') {
+          setLearningMode(storedLearningMode as any)
+        }
+      } catch (e) {
+        console.error('Failed to restore lesson:', e)
+      }
+    }
 
     // Listen for new topics from AI generation
     const handleNewTopic = (event: CustomEvent) => {
@@ -342,6 +358,34 @@ export default function EnhancedLearningTab() {
       
       setCurrentLesson(lessonData)
       setLearningMode('lesson')
+      
+      // Save lesson to localStorage for persistence
+      localStorage.setItem('slywriter-current-lesson', JSON.stringify(lessonData))
+      localStorage.setItem('slywriter-learning-mode', 'lesson')
+      
+      // Add to recent topics with full content
+      const lessonWithMetadata = {
+        ...lessonData,
+        generatedAt: new Date().toISOString(),
+        originalTopic: topic,
+        originalAnswer: answer,
+        interactionCount: 1
+      }
+      
+      // Save to topics list with lesson content
+      setTopics(prev => {
+        const updated = [
+          {
+            topic,
+            answer,
+            timestamp: new Date().toISOString(),
+            lessonContent: lessonWithMetadata
+          },
+          ...prev.filter(t => t.topic !== topic).slice(0, 19) // Keep max 20 topics
+        ]
+        localStorage.setItem('slywriter-learning-topics', JSON.stringify(updated))
+        return updated
+      })
       
       // Update progress
       updateProgress('topicStarted')
@@ -516,6 +560,34 @@ export default function EnhancedLearningTab() {
       
       setCurrentLesson(fallbackLesson)
       setLearningMode('lesson')
+      
+      // Save lesson to localStorage for persistence
+      localStorage.setItem('slywriter-current-lesson', JSON.stringify(fallbackLesson))
+      localStorage.setItem('slywriter-learning-mode', 'lesson')
+      
+      // Add to recent topics with full content
+      const lessonWithMetadata = {
+        ...fallbackLesson,
+        generatedAt: new Date().toISOString(),
+        originalTopic: topic,
+        originalAnswer: answer,
+        interactionCount: 1
+      }
+      
+      // Save to topics list with lesson content
+      setTopics(prev => {
+        const updated = [
+          {
+            topic,
+            answer,
+            timestamp: new Date().toISOString(),
+            lessonContent: lessonWithMetadata
+          },
+          ...prev.filter(t => t.topic !== topic).slice(0, 19) // Keep max 20 topics
+        ]
+        localStorage.setItem('slywriter-learning-topics', JSON.stringify(updated))
+        return updated
+      })
       
       // Update progress
       updateProgress('topicStarted')
@@ -915,7 +987,34 @@ export default function EnhancedLearningTab() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => generateComprehensiveLesson(selectedTopic.topic, selectedTopic.answer)}
+                      onClick={() => {
+                        // Check if this topic already has a saved lesson
+                        if (selectedTopic.lessonContent) {
+                          // Restore the saved lesson
+                          setCurrentLesson(selectedTopic.lessonContent)
+                          setLearningMode('lesson')
+                          localStorage.setItem('slywriter-current-lesson', JSON.stringify(selectedTopic.lessonContent))
+                          localStorage.setItem('slywriter-learning-mode', 'lesson')
+                          
+                          // Update interaction count
+                          const updatedLesson = {
+                            ...selectedTopic.lessonContent,
+                            interactionCount: (selectedTopic.lessonContent.interactionCount || 0) + 1
+                          }
+                          
+                          // Update in topics list
+                          setTopics(prev => prev.map(t => 
+                            t.topic === selectedTopic.topic 
+                              ? { ...t, lessonContent: updatedLesson }
+                              : t
+                          ))
+                          
+                          toast.success('📚 Lesson restored from your saved content!', { duration: 2000 })
+                        } else {
+                          // Generate new lesson
+                          generateComprehensiveLesson(selectedTopic.topic, selectedTopic.answer)
+                        }
+                      }}
                       disabled={isGenerating}
                       className="p-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium disabled:opacity-50"
                     >
@@ -927,7 +1026,7 @@ export default function EnhancedLearningTab() {
                       ) : (
                         <div className="flex flex-col items-center gap-2">
                           <BrainIcon className="w-6 h-6" />
-                          <span>Deep Learn</span>
+                          <span>{selectedTopic.lessonContent ? 'Resume' : 'Deep Learn'}</span>
                         </div>
                       )}
                     </motion.button>
@@ -998,7 +1097,10 @@ export default function EnhancedLearningTab() {
             <div className="max-w-4xl mx-auto">
               <div className="mb-6 flex justify-between items-center">
                 <button
-                  onClick={() => setLearningMode('overview')}
+                  onClick={() => {
+                    setLearningMode('overview')
+                    localStorage.setItem('slywriter-learning-mode', 'overview')
+                  }}
                   className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
                 >
                   <ChevronLeftIcon className="w-5 h-5" />
@@ -1007,13 +1109,39 @@ export default function EnhancedLearningTab() {
                 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setLearningMode('practice')}
+                    onClick={() => {
+                      setLearningMode('practice')
+                      localStorage.setItem('slywriter-learning-mode', 'practice')
+                      // Track interaction
+                      if (currentLesson) {
+                        const updatedLesson = {
+                          ...currentLesson,
+                          interactionCount: ((currentLesson as any).interactionCount || 0) + 1,
+                          lastInteraction: 'practice'
+                        }
+                        setCurrentLesson(updatedLesson)
+                        localStorage.setItem('slywriter-current-lesson', JSON.stringify(updatedLesson))
+                      }
+                    }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Practice Problems
                   </button>
                   <button
-                    onClick={() => setLearningMode('quiz')}
+                    onClick={() => {
+                      setLearningMode('quiz')
+                      localStorage.setItem('slywriter-learning-mode', 'quiz')
+                      // Track interaction
+                      if (currentLesson) {
+                        const updatedLesson = {
+                          ...currentLesson,
+                          interactionCount: ((currentLesson as any).interactionCount || 0) + 1,
+                          lastInteraction: 'quiz'
+                        }
+                        setCurrentLesson(updatedLesson)
+                        localStorage.setItem('slywriter-current-lesson', JSON.stringify(updatedLesson))
+                      }
+                    }}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Take Quiz
@@ -1135,7 +1263,10 @@ export default function EnhancedLearningTab() {
             <div className="max-w-3xl mx-auto">
               <div className="mb-6 flex justify-between items-center">
                 <button
-                  onClick={() => setLearningMode('lesson')}
+                  onClick={() => {
+                    setLearningMode('lesson')
+                    localStorage.setItem('slywriter-learning-mode', 'lesson')
+                  }}
                   className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
                 >
                   <ChevronLeftIcon className="w-5 h-5" />
