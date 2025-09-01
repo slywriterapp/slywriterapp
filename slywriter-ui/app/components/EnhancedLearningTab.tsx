@@ -668,24 +668,54 @@ export default function EnhancedLearningTab() {
     }
   }
 
-  const updateProgress = (action: string) => {
+  const updateProgress = (action: string, quizScore: number = 0) => {
     // Only update if gamification is enabled
     if (!settings.gamification) return
     
     setProgress(prev => {
       const updated = { ...prev }
       
+      // Track session time
+      const sessionMinutes = Math.floor(sessionTime / 60)
+      if (sessionMinutes > 0 && !updated.totalTime) {
+        updated.totalTime = sessionMinutes
+      } else if (sessionMinutes > 0) {
+        updated.totalTime += sessionMinutes
+      }
+      
       switch (action) {
         case 'topicStarted':
           updated.topicsLearned++
           updated.points += 10
-          updated.currentStreak++
+          
+          // Check if this is a new day for streak tracking
+          const lastActivity = localStorage.getItem('slywriter-last-learning-activity')
+          const today = new Date().toDateString()
+          const yesterday = new Date(Date.now() - 86400000).toDateString()
+          
+          if (lastActivity === yesterday || !lastActivity) {
+            updated.currentStreak++
+          } else if (lastActivity !== today) {
+            // Streak broken
+            updated.currentStreak = 1
+          }
+          
+          localStorage.setItem('slywriter-last-learning-activity', today)
+          
           if (updated.currentStreak > updated.bestStreak) {
             updated.bestStreak = updated.currentStreak
           }
           break
         case 'quizCompleted':
           updated.points += quizScore * 10
+          // Add topic to mastered if quiz score is high
+          if (quizScore >= 80 && currentLesson) {
+            const topic = (currentLesson as any).originalTopic || currentLesson.topic
+            if (!updated.masteredTopics.includes(topic)) {
+              updated.masteredTopics.push(topic)
+              toast('🌟 Topic Mastered!', { duration: 3000 })
+            }
+          }
           break
         case 'problemSolved':
           updated.points += 15
@@ -696,14 +726,44 @@ export default function EnhancedLearningTab() {
       updated.level = Math.floor(updated.points / 100) + 1
       
       // Check for achievements
+      if (updated.topicsLearned === 1 && !updated.achievements.includes('firstTopic')) {
+        updated.achievements.push('firstTopic')
+        toast('🎉 Achievement: First Topic Learned!', { duration: 5000 })
+      }
+      
+      if (updated.topicsLearned === 5 && !updated.achievements.includes('fiveTopics')) {
+        updated.achievements.push('fiveTopics')
+        toast('📚 Achievement: 5 Topics Learned!', { duration: 5000 })
+      }
+      
       if (updated.topicsLearned === 10 && !updated.achievements.includes('firstTen')) {
         updated.achievements.push('firstTen')
         toast('🏆 Achievement: Learned 10 topics!', { duration: 5000 })
       }
       
+      if (updated.topicsLearned === 25 && !updated.achievements.includes('quarterCentury')) {
+        updated.achievements.push('quarterCentury')
+        toast('💎 Achievement: 25 Topics Mastered!', { duration: 5000 })
+      }
+      
+      if (updated.currentStreak === 3 && !updated.achievements.includes('threeStreak')) {
+        updated.achievements.push('threeStreak')
+        toast('🔥 Achievement: 3-day learning streak!', { duration: 5000 })
+      }
+      
       if (updated.currentStreak === 7 && !updated.achievements.includes('weekStreak')) {
         updated.achievements.push('weekStreak')
         toast('🔥 Achievement: 7-day learning streak!', { duration: 5000 })
+      }
+      
+      if (updated.points >= 500 && !updated.achievements.includes('scholar')) {
+        updated.achievements.push('scholar')
+        toast('🎓 Achievement: Scholar Status (500 points)!', { duration: 5000 })
+      }
+      
+      if (updated.points >= 1000 && !updated.achievements.includes('expert')) {
+        updated.achievements.push('expert')
+        toast('👨‍🎓 Achievement: Expert Learner (1000 points)!', { duration: 5000 })
       }
       
       localStorage.setItem('slywriter-learning-progress', JSON.stringify(updated))
@@ -729,9 +789,9 @@ export default function EnhancedLearningTab() {
     
     setQuizScore(score)
     setShowQuizResults(true)
-    updateProgress('quizCompleted')
     
     const percentage = (score / currentLesson.quiz.length) * 100
+    updateProgress('quizCompleted', percentage)
     if (percentage === 100) {
       toast('🎉 Perfect score! You mastered this topic!', { duration: 5000 })
     } else if (percentage >= 80) {

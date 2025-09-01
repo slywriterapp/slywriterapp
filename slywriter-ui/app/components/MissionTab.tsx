@@ -7,7 +7,8 @@ import {
   StarIcon, ZapIcon, CrownIcon, RocketIcon,
   TargetIcon, FlagIcon, CheckCircleIcon, LockIcon,
   ShareIcon, CopyIcon, SparklesIcon, AwardIcon,
-  TrendingUpIcon, ChevronRightIcon, DollarSignIcon
+  TrendingUpIcon, ChevronRightIcon, DollarSignIcon,
+  BrainIcon
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -22,11 +23,30 @@ interface BattlePassTier {
 }
 
 export default function MissionTab() {
-  const [referralCode, setReferralCode] = useState('SLYWRITER2025')
+  const [referralCode, setReferralCode] = useState('')
   const [totalReferrals, setTotalReferrals] = useState(0)
   const [totalDonated, setTotalDonated] = useState(0)
   const [currentTier, setCurrentTier] = useState(0)
   const [copied, setCopied] = useState(false)
+  
+  // Load referral data from localStorage on mount
+  useEffect(() => {
+    // Generate unique referral code for user
+    const userId = localStorage.getItem('userId') || 'anonymous'
+    const userCode = `SLY${userId.slice(0, 6).toUpperCase()}`
+    setReferralCode(userCode)
+    
+    // Load referral stats
+    const referralData = JSON.parse(localStorage.getItem('slywriter-referrals') || '{}')
+    setTotalReferrals(referralData.count || 0)
+    setCurrentTier(referralData.claimedTier || 0)
+    
+    // Calculate donations (10 cents per referral + 10% of subscriptions)
+    const subscriptionData = JSON.parse(localStorage.getItem('slywriter-subscription') || '{}')
+    const subscriptionDonations = (subscriptionData.totalPaid || 0) * 0.1
+    const referralDonations = (referralData.count || 0) * 0.1
+    setTotalDonated(subscriptionDonations + referralDonations)
+  }, [])
   
   // Battle Pass Tiers
   const battlePassTiers: BattlePassTier[] = [
@@ -291,6 +311,37 @@ export default function MissionTab() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            // Claim the reward
+                            const referralData = JSON.parse(localStorage.getItem('slywriter-referrals') || '{}')
+                            referralData.claimedTier = tier.tier
+                            
+                            // Apply the reward
+                            if (tier.reward.includes('words')) {
+                              const words = parseInt(tier.reward.match(/\d+,?\d*/)[0].replace(',', ''))
+                              const usage = JSON.parse(localStorage.getItem('slywriter-usage') || '{}')
+                              usage.bonusWords = (usage.bonusWords || 0) + words
+                              localStorage.setItem('slywriter-usage', JSON.stringify(usage))
+                              toast.success(`🎁 Claimed ${words.toLocaleString()} bonus words!`)
+                            } else if (tier.reward.includes('Premium')) {
+                              // Add premium time
+                              const match = tier.reward.match(/(\d+)\s*(week|month)/)
+                              if (match) {
+                                const amount = parseInt(match[1])
+                                const unit = match[2]
+                                const days = unit === 'week' ? amount * 7 : amount * 30
+                                const subscription = JSON.parse(localStorage.getItem('slywriter-subscription') || '{}')
+                                const currentEnd = subscription.premiumUntil ? new Date(subscription.premiumUntil) : new Date()
+                                const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + days * 86400000)
+                                subscription.premiumUntil = newEnd.toISOString()
+                                localStorage.setItem('slywriter-subscription', JSON.stringify(subscription))
+                                toast.success(`🎁 Claimed ${tier.reward}! Premium extended to ${newEnd.toLocaleDateString()}`)
+                              }
+                            }
+                            
+                            localStorage.setItem('slywriter-referrals', JSON.stringify(referralData))
+                            setCurrentTier(tier.tier)
+                          }}
                           className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold"
                         >
                           Claim Reward
