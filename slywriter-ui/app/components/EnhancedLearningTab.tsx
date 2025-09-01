@@ -223,8 +223,8 @@ export default function EnhancedLearningTab() {
   const generateComprehensiveLesson = async (topic: string, answer: string) => {
     setIsGenerating(true)
     
-    // Skip AI generation for now - our fallback generates better structured content
-    const useAI = false
+    // Try AI generation first, fall back to enhanced content if it fails
+    const useAI = true
     
     try {
       if (useAI) {
@@ -284,9 +284,18 @@ export default function EnhancedLearningTab() {
       `
 
       // Call the Render server which has the OpenAI API key configured
+      console.log('Calling AI API at:', `${API_URL}/api/ai/generate`)
       const response = await axios.post(`${API_URL}/api/ai/generate`, {
         prompt: prompt + '\n\nIMPORTANT: Return ONLY valid JSON, no markdown formatting or extra text. Start with { and end with }',
-        user_id: localStorage.getItem('userId') || 'anonymous'
+        user_id: localStorage.getItem('userId') || 'anonymous',
+        settings: {
+          response_type: 'json',
+          response_length: 5, // Detailed response
+          grade_level: 12,
+          tone: 'Educational'
+        }
+      }, {
+        timeout: 30000 // 30 second timeout for AI generation
       })
 
       // The server returns text in response.data.text
@@ -339,11 +348,25 @@ export default function EnhancedLearningTab() {
       
       toast.success('🎓 Comprehensive lesson generated!', { duration: 3000 })
       } else {
-        // Directly use fallback
-        throw new Error('Using enhanced fallback')
+        // Use fallback when AI is disabled
+        console.log('AI generation disabled, using enhanced fallback')
+        throw new Error('AI disabled - using fallback')
       }
-    } catch (error) {
-      console.error('AI generation failed or returned invalid JSON, using enhanced fallback:', error)
+    } catch (error: any) {
+      console.error('AI generation failed, using enhanced fallback:', error.message || error)
+      
+      // Show user-friendly message based on error type
+      if (error.response?.status === 500) {
+        toast('⚡ Using enhanced content (AI service warming up)', { 
+          icon: '📚',
+          duration: 3000 
+        })
+      } else if (error.code === 'ECONNABORTED') {
+        toast('⏱️ AI generation timed out, using enhanced content', { 
+          icon: '📚',
+          duration: 3000 
+        })
+      }
       
       // Generate content based on user settings
       const conceptCount = settings.depth === 'surface' ? 3 : settings.depth === 'intermediate' ? 5 : 7
