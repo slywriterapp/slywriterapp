@@ -311,7 +311,7 @@ export default function EnhancedLearningTab() {
           tone: 'Educational'
         }
       }, {
-        timeout: 30000 // 30 second timeout for AI generation
+        timeout: 60000 // 60 second timeout for AI generation
       })
 
       // The server returns text in response.data.text
@@ -1034,7 +1034,23 @@ export default function EnhancedLearningTab() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-4 bg-blue-600 rounded-xl text-white font-medium"
+                      onClick={async () => {
+                        // First generate or restore lesson if needed
+                        if (!selectedTopic.lessonContent) {
+                          await generateComprehensiveLesson(selectedTopic.topic, selectedTopic.answer)
+                        } else {
+                          setCurrentLesson(selectedTopic.lessonContent)
+                          localStorage.setItem('slywriter-current-lesson', JSON.stringify(selectedTopic.lessonContent))
+                        }
+                        // Then switch to practice mode
+                        setTimeout(() => {
+                          setLearningMode('practice')
+                          localStorage.setItem('slywriter-learning-mode', 'practice')
+                          toast.success('🎯 Practice mode activated!', { duration: 2000 })
+                        }, 100)
+                      }}
+                      disabled={isGenerating}
+                      className="p-4 bg-blue-600 rounded-xl text-white font-medium disabled:opacity-50"
                     >
                       <div className="flex flex-col items-center gap-2">
                         <FlaskConicalIcon className="w-6 h-6" />
@@ -1045,7 +1061,23 @@ export default function EnhancedLearningTab() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-4 bg-green-600 rounded-xl text-white font-medium"
+                      onClick={async () => {
+                        // First generate or restore lesson if needed
+                        if (!selectedTopic.lessonContent) {
+                          await generateComprehensiveLesson(selectedTopic.topic, selectedTopic.answer)
+                        } else {
+                          setCurrentLesson(selectedTopic.lessonContent)
+                          localStorage.setItem('slywriter-current-lesson', JSON.stringify(selectedTopic.lessonContent))
+                        }
+                        // Then switch to quiz mode
+                        setTimeout(() => {
+                          setLearningMode('quiz')
+                          localStorage.setItem('slywriter-learning-mode', 'quiz')
+                          toast.success('🎮 Quiz mode activated!', { duration: 2000 })
+                        }, 100)
+                      }}
+                      disabled={isGenerating}
+                      className="p-4 bg-green-600 rounded-xl text-white font-medium disabled:opacity-50"
                     >
                       <div className="flex flex-col items-center gap-2">
                         <TargetIcon className="w-6 h-6" />
@@ -1056,7 +1088,30 @@ export default function EnhancedLearningTab() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="p-4 bg-orange-600 rounded-xl text-white font-medium"
+                      onClick={async () => {
+                        // First generate or restore lesson if needed
+                        if (!selectedTopic.lessonContent) {
+                          await generateComprehensiveLesson(selectedTopic.topic, selectedTopic.answer)
+                        } else {
+                          setCurrentLesson(selectedTopic.lessonContent)
+                          localStorage.setItem('slywriter-current-lesson', JSON.stringify(selectedTopic.lessonContent))
+                        }
+                        // Show lesson with exploration focus
+                        setTimeout(() => {
+                          setLearningMode('lesson')
+                          localStorage.setItem('slywriter-learning-mode', 'lesson')
+                          // Scroll to related topics section
+                          setTimeout(() => {
+                            const relatedSection = document.getElementById('related-topics-section')
+                            if (relatedSection) {
+                              relatedSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            }
+                          }, 500)
+                          toast.success('🔍 Explore related topics and applications!', { duration: 2000 })
+                        }, 100)
+                      }}
+                      disabled={isGenerating}
+                      className="p-4 bg-orange-600 rounded-xl text-white font-medium disabled:opacity-50"
                     >
                       <div className="flex flex-col items-center gap-2">
                         <MapIcon className="w-6 h-6" />
@@ -1254,6 +1309,55 @@ export default function EnhancedLearningTab() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+                
+                {/* Related Topics - for Explore button */}
+                <div id="related-topics-section" className="mb-8">
+                  <h3 className="text-xl font-semibold text-indigo-400 mb-4 flex items-center gap-2">
+                    <CompassIcon className="w-5 h-5" />
+                    Related Topics to Explore
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {currentLesson.relatedTopics.map((topic, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="p-4 bg-indigo-600/10 rounded-lg border border-indigo-500/30 hover:bg-indigo-600/20 transition-colors cursor-pointer"
+                        onClick={() => {
+                          // Create a new topic for exploration
+                          const newTopic = {
+                            topic: topic,
+                            answer: `Explore this related concept to deepen your understanding of ${currentLesson.topic}`,
+                            timestamp: new Date().toISOString()
+                          }
+                          setTopics(prev => [newTopic, ...prev])
+                          setSelectedTopic(newTopic)
+                          setLearningMode('overview')
+                          localStorage.setItem('slywriter-learning-mode', 'overview')
+                          toast.success(`Ready to explore: ${topic}`, { duration: 2000 })
+                        }}
+                      >
+                        <p className="text-indigo-300 font-medium">{topic}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Visual Aids Descriptions */}
+                <div className="mb-8">
+                  <h3 className="text-xl font-semibold text-yellow-400 mb-4 flex items-center gap-2">
+                    <LightbulbIcon className="w-5 h-5" />
+                    Visual Learning Aids
+                  </h3>
+                  <div className="space-y-3">
+                    {currentLesson.visualAids.map((aid, index) => (
+                      <div key={index} className="p-4 bg-yellow-600/10 rounded-lg">
+                        <p className="text-gray-300">📊 {aid}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </motion.div>
