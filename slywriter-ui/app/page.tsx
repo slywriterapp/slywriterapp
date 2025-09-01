@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import toast from 'react-hot-toast'
@@ -11,12 +11,15 @@ import TypingTabWithWPM from './components/TypingTabWithWPM'
 import AIHubTab from './components/AIHubTab'
 import StatisticsTab from './components/StatisticsTab'
 import SettingsTabComplete from './components/SettingsTabComplete'
-import LearningHub from './components/LearningHub'
-import OverlayWindowEnhanced from './components/OverlayWindowEnhanced'
-import HumanizerTabSimple from './components/HumanizerTabSimple'
+import EnhancedLearningTab from './components/EnhancedLearningTab'
+// Old overlay removed - using Electron overlay only
+import HumanizerTab from './components/HumanizerTab'
 import MissionTab from './components/MissionTab'
 import GlobalHotkeys from './components/GlobalHotkeys'
+import GlobalHotkeyListener from './components/GlobalHotkeyListener'
 import OnboardingFlow from './components/OnboardingFlow'
+import SplashScreen from './components/SplashScreen'
+import BetaDisclosure from './components/BetaDisclosure'
 import axios from 'axios'
 import { 
   KeyboardIcon, BrainIcon, BarChart3Icon, SettingsIcon,
@@ -29,8 +32,59 @@ const API_URL = 'https://slywriterapp.onrender.com'
 
 function SlyWriterApp() {
   const [activeTab, setActiveTab] = useState('typing')
+  const activeTabRef = useRef(activeTab)
   const [connected, setConnected] = useState(false)
-  const [showOverlay, setShowOverlay] = useState(false)
+  const [overlayVisible, setOverlayVisible] = useState(false)
+  const [aiReviewData, setAiReviewData] = useState<any>(null)
+  const aiReviewHandlerRef = useRef<(data: any) => void>(() => {})
+  
+  // Update ref when activeTab changes
+  useEffect(() => {
+    activeTabRef.current = activeTab
+  }, [activeTab])
+  
+  // Listen for overlay visibility changes and AI review from main process
+  useEffect(() => {
+    if (window.electron?.ipcRenderer) {
+      const handleOverlayVisibilityChange = (isVisible: boolean) => {
+        console.log('Overlay visibility changed:', isVisible)
+        setOverlayVisible(isVisible)
+      }
+      
+      const handleAiReview = (data: any) => {
+        console.log('🎯 [PAGE.TSX] Received AI review IPC event from electron!')
+        console.log('🎯 [PAGE.TSX] Full data object:', data)
+        console.log('🎯 [PAGE.TSX] Review text:', data?.text?.substring(0, 50) + '...')
+        console.log('🎯 [PAGE.TSX] Current active tab:', activeTab)
+        console.log('🎯 [PAGE.TSX] Data properties:', Object.keys(data || {}))
+        
+        // Switch to AI Hub tab (where the review modal is)
+        setActiveTab('ai-hub')
+        
+        // Dispatch event to show review modal after tab switch
+        setTimeout(() => {
+          console.log('🎯 [PAGE.TSX] Dispatching showAIReview DOM event to AIHubTab')
+          console.log('🎯 [PAGE.TSX] Event detail text:', (data?.text || '').substring(0, 50) + '...')
+          const reviewEvent = new CustomEvent('showAIReview', {
+            detail: { text: data?.text || '' }
+          })
+          window.dispatchEvent(reviewEvent)
+          console.log('🎯 [PAGE.TSX] showAIReview event dispatched!')
+        }, 500) // Give time for tab to mount
+      }
+      
+      window.electron.ipcRenderer.on('overlay-visibility-changed', handleOverlayVisibilityChange)
+      window.electron.ipcRenderer.on('show-ai-review', handleAiReview)
+      console.log('🎧 [PAGE.TSX] IPC listeners registered for show-ai-review')
+      
+      return () => {
+        if (window.electron?.ipcRenderer) {
+          window.electron.ipcRenderer.removeListener('overlay-visibility-changed', handleOverlayVisibilityChange)
+          window.electron.ipcRenderer.removeListener('show-ai-review', handleAiReview)
+        }
+      }
+    }
+  }, [])
   const [showOnboarding, setShowOnboarding] = useState(true)
   const [typingStatus, setTypingStatus] = useState({
     isTyping: false,
@@ -38,7 +92,6 @@ function SlyWriterApp() {
     wpm: 0,
     progress: 0
   })
-  const [pendingAIText, setPendingAIText] = useState<string | null>(null)
 
   // Check backend connection
   useEffect(() => {
@@ -55,42 +108,130 @@ function SlyWriterApp() {
     const interval = setInterval(checkConnection, 5000)
     return () => clearInterval(interval)
   }, [])
+  
+  // Listen for overlay toggle from Electron
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electron?.ipcRenderer) {
+      // Overlay toggle removed - handled entirely by Electron
+    }
+  }, [])
 
+  // Global event listener for tab switching
+  useEffect(() => {
+    const handleSwitchTab = (event: CustomEvent) => {
+      if (event.detail?.tab) {
+        console.log('App-level: Switching to tab:', event.detail.tab)
+        setActiveTab(event.detail.tab)
+      }
+    }
+    
+    window.addEventListener('switchTab', handleSwitchTab as EventListener)
+    
+    return () => {
+      window.removeEventListener('switchTab', handleSwitchTab as EventListener)
+    }
+  }, [])
+  
   // Global event listener for AI auto-typing (always active)
   useEffect(() => {
     const handleStartTyping = (event: CustomEvent) => {
       console.log('App-level: startTyping event received:', event.detail)
-      const { text, fromAI } = event.detail
       
-      if (text && fromAI) {
-        console.log('App-level: Processing AI text for auto-typing')
+      // Ensure event.detail exists and has the expected properties
+      if (!event.detail || typeof event.detail !== 'object') {
+        console.error('Invalid event detail:', event.detail)
+        return
+      }
+      
+      const aiText = event.detail.text
+      const isFromAI = event.detail.fromAI
+      
+      // Type check to ensure text is a string
+      if (typeof aiText !== 'string') {
+        console.error('Text is not a string:', typeof aiText, aiText)
+        return
+      }
+      
+      if (aiText && isFromAI) {
+        console.log('App-level: Processing AI text from hotkey/overlay')
         
-        // Store the pending AI text
-        setPendingAIText(text)
+        // Check if review mode is enabled
+        const aiHubSettings = localStorage.getItem('slywriter-ai-hub-settings')
+        let reviewMode = false
         
-        // Auto-switch to typing tab if not already there
-        if (activeTab !== 'typing') {
-          console.log('App-level: Auto-switching to typing tab')
-          setActiveTab('typing')
+        if (aiHubSettings) {
+          try {
+            const settings = JSON.parse(aiHubSettings)
+            reviewMode = settings.review_mode === true
+            console.log('App-level: Review mode enabled:', reviewMode)
+          } catch (e) {
+            console.error('Failed to parse AI hub settings:', e)
+          }
         }
         
-        // Set backup method on window
-        if (typeof window !== 'undefined') {
-          (window as any).pendingAIText = text
+        if (reviewMode) {
+          console.log('App-level: Switching to AI Hub tab for review')
+          // Switch to AI Hub tab and trigger review modal
+          setActiveTab('ai-hub')
+          
+          // Dispatch event to trigger review modal in AIHubTab with a longer delay to ensure component is ready
+          setTimeout(() => {
+            console.log('App-level: Dispatching showAIReview event with text:', aiText.substring(0, 50) + '...')
+            const reviewEvent = new CustomEvent('showAIReview', {
+              detail: { text: aiText }
+            })
+            window.dispatchEvent(reviewEvent)
+          }, 500) // Increased delay to ensure AIHubTab is mounted and ready
+        } else {
+          // Start typing in background without review
+          const startBackgroundTyping = async () => {
+            try {
+              // Get the current typing profile and WPM from localStorage
+              const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
+              const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+              
+              const response = await fetch('http://127.0.0.1:8000/api/typing/start', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  text: aiText,
+                  profile: savedProfile,
+                  custom_wpm: savedProfile === 'Custom' ? parseInt(savedWpm || '70') : null,
+                  preview_mode: false,
+                  typos_enabled: true,
+                  grammarly_mode: false
+                })
+              })
+              
+              if (response.ok) {
+                const data = await response.json()
+                console.log('Background typing started:', data)
+                toast.success('🤖 Typing AI content in background...', { duration: 2000 })
+              } else {
+                console.error('Failed to start background typing:', response.status)
+              }
+            } catch (error) {
+              console.error('Error starting background typing:', error)
+            }
+          }
+          
+          startBackgroundTyping()
         }
-        
-        toast.success('🤖 AI content ready! Switching to typing tab...', { duration: 2000 })
       }
     }
     
     window.addEventListener('startTyping', handleStartTyping as EventListener)
     console.log('App-level: startTyping event listener registered (always active)')
     
+    // No need for periodic checks or tab switching anymore
+    
     return () => {
       window.removeEventListener('startTyping', handleStartTyping as EventListener)
       console.log('App-level: startTyping event listener removed')
     }
-  }, [activeTab])
+  }, []) // Remove activeTab dependency to prevent re-registration
 
   const navItems = [
     { id: 'typing', label: 'Auto-Type', icon: KeyboardIcon, color: 'from-purple-500 to-blue-500', description: 'Types for you', badge: 'MAIN' },
@@ -104,6 +245,15 @@ function SlyWriterApp() {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Splash Screen */}
+      <SplashScreen />
+      
+      {/* Beta Testing Disclosure */}
+      <BetaDisclosure />
+      
+      {/* Global hotkey listener for Electron */}
+      <GlobalHotkeyListener />
+      
       {/* Purple wave effects around the edges */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {/* Top purple wave */}
@@ -132,10 +282,11 @@ function SlyWriterApp() {
               transition={{ delay: 0.2 }}
               className="flex items-center gap-3"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg relative">
-                <ZapIcon className="w-7 h-7 text-white" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-              </div>
+              <img 
+                src="/slywriter_logo.png" 
+                alt="SlyWriter Logo" 
+                className="w-12 h-12 object-contain"
+              />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   SlyWriter
@@ -213,12 +364,18 @@ function SlyWriterApp() {
               <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-2">Premium Features</h3>
               
               <button
-                onClick={() => setShowOverlay(!showOverlay)}
+                onClick={() => {
+                  // Toggle Electron overlay - state will be updated by visibility-changed event
+                  if (window.electron?.ipcRenderer) {
+                    window.electron.ipcRenderer.send('toggle-electron-overlay')
+                    // Don't update state here - wait for the visibility-changed event
+                  }
+                }}
                 className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 text-gray-400 hover:text-white transition-all"
               >
                 <LayersIcon className="w-4 h-4" />
                 <span className="text-sm">Overlay Window</span>
-                <span className={`ml-auto w-2 h-2 rounded-full ${showOverlay ? 'bg-green-400' : 'bg-gray-600'}`} />
+                <span className={`ml-auto w-2 h-2 rounded-full transition-colors ${overlayVisible ? 'bg-green-400' : 'bg-gray-600'}`} />
               </button>
 
               <button className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 text-gray-400 hover:text-white transition-all">
@@ -275,7 +432,7 @@ function SlyWriterApp() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             {activeTab === 'typing' && (
               <motion.div
                 key="typing"
@@ -286,8 +443,6 @@ function SlyWriterApp() {
               >
                 <TypingTabWithWPM 
                   connected={connected} 
-                  pendingAIText={pendingAIText}
-                  onAITextProcessed={() => setPendingAIText(null)}
                 />
               </motion.div>
             )}
@@ -300,21 +455,19 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <HumanizerTabSimple />
+                <HumanizerTab />
               </motion.div>
             )}
             
-            {activeTab === 'ai-hub' && (
-              <motion.div
-                key="ai-hub"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="h-full overflow-y-auto p-8"
-              >
-                <AIHubTab />
-              </motion.div>
-            )}
+            <motion.div
+              key="ai-hub"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`h-full overflow-y-auto p-8 ${activeTab === 'ai-hub' ? 'block' : 'hidden'}`}
+            >
+              <AIHubTab />
+            </motion.div>
             
             {activeTab === 'learning' && (
               <motion.div
@@ -324,7 +477,7 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <LearningHub />
+                <EnhancedLearningTab />
               </motion.div>
             )}
             
@@ -376,11 +529,7 @@ function SlyWriterApp() {
       {/* Global Hotkeys */}
       <GlobalHotkeys />
       
-      {/* Overlay Window */}
-      <OverlayWindowEnhanced
-        isVisible={showOverlay}
-        onClose={() => setShowOverlay(false)}
-      />
+      {/* Old React overlay removed - using Electron overlay only */}
     </div>
   )
 }
