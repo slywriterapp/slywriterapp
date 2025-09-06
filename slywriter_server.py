@@ -34,12 +34,14 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-jwt-secret-change-this')
 USAGE_FILE = "word_data.json"
 PLAN_FILE = "plan_data.json"
 REFERRAL_FILE = "referral_data.json"
+REFERRALS_FILE = "referrals.json"
 USERS_FILE = "users.json"
 USER_SETTINGS_FILE = "user_settings.json"
 SESSIONS_FILE = "sessions.json"
 PASSWORD_RESETS_FILE = "password_resets.json"
 TYPING_PROJECTS_FILE = "typing_projects.json"
 ANALYTICS_FILE = "analytics.json"
+GLOBAL_STATS_FILE = "global_stats.json"
 
 # ============== TELEMETRY DATABASE CLASS ==============
 class TelemetryDatabase:
@@ -1069,10 +1071,10 @@ def verify_token():
     
     # Get word limits based on plan
     word_limits = {
-        'free': 1000,
-        'basic': 50000,
-        'pro': 250000,
-        'premium': 1000000
+        'free': 2000,      # Free users: 2,000 words
+        'basic': 10000,    # Basic plan: 10,000 words
+        'pro': 20000,      # Pro plan: 20,000 words
+        'premium': 50000   # Premium plan: 50,000 words
     }
     
     return jsonify({
@@ -2439,12 +2441,13 @@ def get_billing_usage():
     plan = plans.get(user_id, 'free')
     words_used = usage.get(user_id, 0)
     
-    # Plan limits
+    # Plan limits (words per month)
     limits = {
-        'free': 1000,
-        'pro': 50000,
-        'premium': 200000,
-        'enterprise': float('inf')
+        'free': 2000,      # Free users: 2,000 words
+        'basic': 10000,    # Basic plan: 10,000 words
+        'pro': 20000,      # Pro plan: 20,000 words
+        'premium': 50000,  # Premium plan: 50,000 words
+        'enterprise': float('inf')  # Unlimited
     }
     
     limit = limits.get(plan, 1000)
@@ -2458,6 +2461,178 @@ def get_billing_usage():
     })
 
 # ---------------- ANALYTICS & REPORTING ----------------
+
+@app.route("/api/track-ai-generation", methods=["POST"])
+@require_auth
+def track_ai_generation():
+    """Track words used in AI generation"""
+    user_id = request.current_user['user_id']
+    data = request.get_json()
+    words_generated = data.get('words', 0)
+    
+    # Load current usage
+    usage = load_data(USAGE_FILE)
+    current_usage = usage.get(user_id, 0)
+    
+    # Get user plan and limits
+    plans = load_data(PLAN_FILE)
+    user_plan = plans.get(user_id, 'free')
+    
+    word_limits = {
+        'free': 2000,
+        'basic': 10000,
+        'pro': 20000,
+        'premium': 50000
+    }
+    
+    limit = word_limits.get(user_plan, 2000)
+    
+    # Check if user has enough words
+    if current_usage + words_generated > limit:
+        return jsonify({
+            "success": False,
+            "error": "Insufficient words remaining",
+            "words_remaining": max(0, limit - current_usage),
+            "words_needed": words_generated,
+            "plan": user_plan
+        }), 403
+    
+    # Update usage
+    usage[user_id] = current_usage + words_generated
+    save_data(USAGE_FILE, usage)
+    
+    # Update global counter
+    global_stats = load_data(GLOBAL_STATS_FILE)
+    global_stats['total_words'] = global_stats.get('total_words', 0) + words_generated
+    global_stats['total_generations'] = global_stats.get('total_generations', 0) + 1
+    save_data(GLOBAL_STATS_FILE, global_stats)
+    
+    # Log analytics event
+    log_analytics_event(user_id, 'ai_generation', {
+        'words': words_generated,
+        'plan': user_plan,
+        'remaining': limit - usage[user_id]
+    })
+    
+    return jsonify({
+        "success": True,
+        "words_used": words_generated,
+        "total_used": usage[user_id],
+        "words_remaining": limit - usage[user_id],
+        "word_limit": limit
+    })
+
+@app.route("/api/global-stats", methods=["GET"])
+def get_global_stats():
+    """Get global statistics for website counter"""
+    global_stats = load_data(GLOBAL_STATS_FILE)
+    
+    # Get total users count
+    users = load_data(USERS_FILE)
+    total_users = len(users)
+    
+    # Get active users (logged in within last 30 days)
+    thirty_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=30)).isoformat()
+    active_users = sum(1 for u in users.values() if u.get('last_login', '') > thirty_days_ago)
+    
+    return jsonify({
+        "success": True,
+        "stats": {
+            "total_words": global_stats.get('total_words', 0),
+            "total_generations": global_stats.get('total_generations', 0),
+            "total_users": total_users,
+            "active_users": active_users,
+            "total_typing_sessions": global_stats.get('total_typing_sessions', 0)
+        }
+    })
+
+@app.route("/api/user-dashboard", methods=["GET"])
+@require_auth
+def get_user_dashboard():
+    """Get comprehensive user dashboard data"""
+    user_id = request.current_user['user_id']
+    
+    # Get user data
+    users = load_data(USERS_FILE)
+    user_data = users.get(request.current_user['email'])
+    
+    # Get plan and usage
+    plans = load_data(PLAN_FILE)
+    user_plan = plans.get(user_id, 'free')
+    
+    usage = load_data(USAGE_FILE)
+    words_used = usage.get(user_id, 0)
+    
+    # Word limits
+    word_limits = {
+        'free': 2000,
+        'basic': 10000,
+        'pro': 20000,
+        'premium': 50000
+    }
+    
+    limit = word_limits.get(user_plan, 2000)
+    
+    # Feature access based on plan
+    features = {
+        'ai_generation': True,  # All plans get AI generation
+        'humanizer': user_plan != 'free',  # Only paid plans get humanizer
+        'premium_typing': user_plan != 'free',  # Only paid plans get premium typing
+        'learning_hub': True,  # All plans get learning hub
+        'missions': True,  # All plans get missions
+        'unlimited_profiles': user_plan != 'free',  # Free users limited to 3 profiles
+        'priority_support': user_plan in ['pro', 'premium'],
+        'advanced_analytics': user_plan in ['pro', 'premium']
+    }
+    
+    # Get referral data
+    referral_code = user_data.get('referral_code', '')
+    referrals = load_data(REFERRALS_FILE)
+    user_referrals = referrals.get(user_id, {})
+    
+    # Calculate bonus words from referrals
+    referral_bonus = user_referrals.get('successful_referrals', 0) * 500  # 500 words per referral
+    
+    return jsonify({
+        "success": True,
+        "dashboard": {
+            "user": {
+                "name": user_data.get('name'),
+                "email": request.current_user['email'],
+                "user_id": user_id,
+                "joined": user_data.get('created_at'),
+                "verified": user_data.get('email_verified', False)
+            },
+            "plan": {
+                "name": user_plan,
+                "words_limit": limit,
+                "words_used": words_used,
+                "words_remaining": max(0, limit - words_used),
+                "usage_percentage": min(100, (words_used / limit * 100)) if limit > 0 else 0,
+                "reset_date": get_next_reset_date(),
+                "features": features
+            },
+            "referrals": {
+                "code": referral_code,
+                "successful": user_referrals.get('successful_referrals', 0),
+                "pending": user_referrals.get('pending_referrals', 0),
+                "bonus_words": referral_bonus,
+                "share_link": f"https://slywriterapp.com?ref={referral_code}"
+            },
+            "stats": {
+                "total_generations": user_referrals.get('total_generations', 0),
+                "total_typing_sessions": user_referrals.get('total_typing_sessions', 0),
+                "favorite_profile": user_referrals.get('favorite_profile', 'Medium'),
+                "avg_wpm": user_referrals.get('avg_wpm', 70)
+            }
+        }
+    })
+
+def get_next_reset_date():
+    """Get the next monthly reset date"""
+    now = datetime.datetime.utcnow()
+    next_month = now.replace(day=1) + datetime.timedelta(days=32)
+    return next_month.replace(day=1).isoformat()
 
 @app.route("/analytics/dashboard", methods=["GET"])
 @require_auth

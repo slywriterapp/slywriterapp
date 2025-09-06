@@ -16,6 +16,36 @@ export default function HumanizerTab() {
   const [outputText, setOutputText] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [autoHumanize, setAutoHumanize] = useState(false)
+  const [userPlan, setUserPlan] = useState<string>('free')
+  const [hasAccess, setHasAccess] = useState(false)
+  
+  // Check user's plan and access
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const token = localStorage.getItem('auth_token')
+        if (!token) {
+          setHasAccess(false)
+          return
+        }
+
+        const response = await axios.get(`${API_URL}/api/user-dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.data.success) {
+          const plan = response.data.dashboard.plan.name
+          setUserPlan(plan)
+          setHasAccess(plan !== 'free')
+        }
+      } catch (error) {
+        console.error('Failed to check access:', error)
+        setHasAccess(false)
+      }
+    }
+    
+    checkAccess()
+  }, [])
   
   // Load and sync auto-humanize state with AI Writer tab
   useEffect(() => {
@@ -79,6 +109,105 @@ export default function HumanizerTab() {
   const clearAll = () => {
     setInputText('')
     setOutputText('')
+  }
+  
+  // Show upgrade message for free users
+  if (!hasAccess) {
+    return (
+      <div className="space-y-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-8 backdrop-blur-sm border border-purple-500/20"
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-purple-500/20 rounded-xl">
+              <Shield className="w-8 h-8 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Premium Feature: AI Text Humanizer
+              </h2>
+              <p className="text-gray-400 mt-1">Upgrade to unlock advanced humanization technology</p>
+            </div>
+          </div>
+          
+          <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700 mb-6">
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
+              <div>
+                <h3 className="text-white font-semibold mb-2">This feature requires a paid plan</h3>
+                <p className="text-gray-400 text-sm">
+                  The Humanizer uses advanced AI technology to transform text into natural, human-like writing. 
+                  Due to high API costs, this feature is available exclusively for our paid plans.
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-3 mt-6">
+              <h4 className="text-white font-medium">What you get with the Humanizer:</h4>
+              <ul className="space-y-2">
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  Transform AI-generated content to bypass detection
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  Maintain original meaning while improving naturalness
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  Advanced linguistic patterns and variations
+                </li>
+                <li className="flex items-center gap-2 text-gray-300 text-sm">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  Perfect for academic and professional writing
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 rounded-xl p-4 border border-green-500/30"
+            >
+              <h4 className="text-green-400 font-semibold mb-2">Basic Plan</h4>
+              <p className="text-2xl font-bold text-white mb-1">$9.99<span className="text-sm text-gray-400">/mo</span></p>
+              <p className="text-gray-400 text-xs">10,000 words + Humanizer</p>
+            </motion.div>
+            
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 rounded-xl p-4 border border-blue-500/30"
+            >
+              <h4 className="text-blue-400 font-semibold mb-2">Pro Plan</h4>
+              <p className="text-2xl font-bold text-white mb-1">$19.99<span className="text-sm text-gray-400">/mo</span></p>
+              <p className="text-gray-400 text-xs">20,000 words + All features</p>
+            </motion.div>
+            
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30"
+            >
+              <h4 className="text-purple-400 font-semibold mb-2">Premium Plan</h4>
+              <p className="text-2xl font-bold text-white mb-1">$39.99<span className="text-sm text-gray-400">/mo</span></p>
+              <p className="text-gray-400 text-xs">50,000 words + Priority</p>
+            </motion.div>
+          </div>
+          
+          <div className="mt-6 flex justify-center">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
+            >
+              Upgrade Now to Unlock Humanizer
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
+    )
   }
   
   return (

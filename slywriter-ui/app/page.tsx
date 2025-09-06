@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './context/AuthContext'
 import GoogleLogin from './components/GoogleLogin'
+import UserDashboard from './components/UserDashboard'
 import TypingTabWithWPM from './components/TypingTabWithWPM'
 import AIHubTab from './components/AIHubTab'
 import StatisticsTab from './components/StatisticsTab'
@@ -39,6 +40,7 @@ function SlyWriterApp() {
   const aiReviewHandlerRef = useRef<(data: any) => void>(() => {})
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [showDashboard, setShowDashboard] = useState(false)
   
   // Check authentication on mount
   useEffect(() => {
@@ -361,7 +363,7 @@ function SlyWriterApp() {
 
           {/* User Section */}
           <div className="px-6 py-4 border-b border-white/10">
-            <GoogleLogin />
+            <GoogleLogin onShowDashboard={() => setShowDashboard(true)} />
           </div>
 
           {/* Navigation */}
@@ -591,6 +593,11 @@ function SlyWriterApp() {
       
       {/* Global Hotkeys */}
       <GlobalHotkeys />
+      
+      {/* User Dashboard Modal */}
+      {showDashboard && (
+        <UserDashboard onClose={() => setShowDashboard(false)} />
+      )}
       
       {/* Old React overlay removed - using Electron overlay only */}
     </div>

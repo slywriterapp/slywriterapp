@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { motion } from 'framer-motion'
 import { LogInIcon, LogOutIcon, UserIcon } from 'lucide-react'
 
-export default function GoogleLogin() {
+export default function GoogleLogin({ onShowDashboard }: { onShowDashboard?: () => void }) {
   const { user, login, logout, isLoading } = useAuth()
   
   // Skip Google login if no client ID
@@ -40,10 +40,15 @@ export default function GoogleLogin() {
   if (user) {
     return (
       <div className="flex items-center gap-3">
-        <div className="text-right">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onShowDashboard}
+          className="flex-1 text-left hover:bg-white/5 rounded-lg p-2 transition-colors"
+        >
           <div className="text-sm font-medium text-white">{user.name || user.email}</div>
-          <div className="text-xs text-gray-400">{user.plan} plan</div>
-        </div>
+          <div className="text-xs text-gray-400">{user.plan} plan • Click for dashboard</div>
+        </motion.button>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

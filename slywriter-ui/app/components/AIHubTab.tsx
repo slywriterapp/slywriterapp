@@ -325,6 +325,47 @@ export default function AIHubTab() {
       return
     }
     
+    // Check if user has words remaining
+    try {
+      const token = localStorage.getItem('auth_token')
+      if (token) {
+        const dashboardResponse = await axios.get(`${API_URL}/api/user-dashboard`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        
+        if (dashboardResponse.data.success) {
+          const wordsRemaining = dashboardResponse.data.dashboard.plan.words_remaining
+          
+          if (wordsRemaining <= 0) {
+            toast.error('You have no words remaining!')
+            toast(
+              <div>
+                <p className="font-semibold mb-2">💡 Need more words?</p>
+                <p className="text-sm mb-3">Share your referral code to earn 500 bonus words per friend!</p>
+                <button 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('openDashboard', { detail: { tab: 'referrals' } }))
+                  }}
+                  className="px-4 py-2 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                >
+                  Get Your Referral Link
+                </button>
+              </div>,
+              { duration: 10000, icon: '🎁' }
+            )
+            return
+          }
+          
+          if (wordsRemaining < 500) {
+            toast.warning(`⚠️ Only ${wordsRemaining} words remaining!`, { duration: 3000 })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[AIHub] Failed to check word balance:', error)
+      // Continue anyway - server will reject if no words
+    }
+    
     console.log('[AIHub] Starting generation with settings:', settings)
     console.log('[AIHub] Review mode enabled?', settings.review_mode)
 
@@ -443,6 +484,60 @@ export default function AIHubTab() {
       }
       
       setOutput(generatedText)
+      
+      // Track word usage for billing
+      try {
+        const token = localStorage.getItem('auth_token')
+        if (token) {
+          const wordCount = generatedText.split(/\s+/).filter(word => word.length > 0).length
+          console.log('[AIHub] Tracking word usage:', wordCount)
+          
+          const trackResponse = await axios.post(`${API_URL}/api/track-ai-generation`, {
+            words: wordCount
+          }, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          if (trackResponse.data.success) {
+            console.log('[AIHub] Word tracking successful:', trackResponse.data)
+            
+            // Check if user is running low on words
+            if (trackResponse.data.words_remaining < 100) {
+              toast.warning(`⚠️ Only ${trackResponse.data.words_remaining} words remaining!`, {
+                duration: 5000
+              })
+              
+              // Show referral prompt if out of words
+              if (trackResponse.data.words_remaining <= 0) {
+                setTimeout(() => {
+                  toast(
+                    <div>
+                      <p className="font-semibold mb-2">💡 Need more words?</p>
+                      <p className="text-sm">Share your referral code to earn 500 bonus words per friend!</p>
+                      <button 
+                        onClick={() => {
+                          // Trigger dashboard opening with referrals tab
+                          window.dispatchEvent(new CustomEvent('openDashboard', { detail: { tab: 'referrals' } }))
+                        }}
+                        className="mt-2 px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                      >
+                        Get Referral Link
+                      </button>
+                    </div>,
+                    { duration: 8000, icon: '🎁' }
+                  )
+                }, 1000)
+              }
+            }
+          }
+        }
+      } catch (trackError) {
+        console.error('[AIHub] Failed to track word usage:', trackError)
+        // Don't block the flow if tracking fails
+      }
       
       // Add to history
       const newEntry = {
