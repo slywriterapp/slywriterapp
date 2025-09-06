@@ -37,6 +37,51 @@ function SlyWriterApp() {
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [aiReviewData, setAiReviewData] = useState<any>(null)
   const aiReviewHandlerRef = useRef<(data: any) => void>(() => {})
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check if running in Electron
+        if (typeof window !== 'undefined' && (window as any).electron) {
+          const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
+          setIsAuthenticated(result.authenticated)
+        } else {
+          // Check localStorage for token
+          const token = localStorage.getItem('auth_token')
+          if (token) {
+            // Verify token with server
+            const response = await fetch(`${API_URL}/auth/verify-token`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            })
+            const data = await response.json()
+            setIsAuthenticated(data.success)
+            
+            if (!data.success) {
+              localStorage.removeItem('auth_token')
+              localStorage.removeItem('user_data')
+              window.location.href = '/login'
+            }
+          } else {
+            window.location.href = '/login'
+          }
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error)
+        setIsAuthenticated(false)
+        window.location.href = '/login'
+      } finally {
+        setIsCheckingAuth(false)
+      }
+    }
+    
+    checkAuth()
+  }, [])
   
   // Update ref when activeTab changes
   useEffect(() => {
@@ -242,6 +287,24 @@ function SlyWriterApp() {
     { id: 'mission', label: 'Mission', icon: AwardIcon, color: 'from-yellow-400 to-orange-400', description: 'Our cause & rewards', badge: 'NEW' },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'from-indigo-400 to-purple-400', description: 'Customize' },
   ]
+
+  // Show loading screen while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Redirect to login if not authenticated
+  if (!isAuthenticated && typeof window !== 'undefined') {
+    window.location.href = '/login'
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-black">

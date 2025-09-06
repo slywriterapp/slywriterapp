@@ -108,23 +108,25 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true
     },
     icon: path.join(__dirname, 'assets', 'icon.ico'), // SlyWriter logo
     titleBarStyle: 'hiddenInset',
     show: false
   })
 
-  // Load the Next.js app
+  // Load the Next.js app - always start with login page
   if (isDev) {
     // Simple: Just wait a bit and load port 3000
     console.log('Loading Next.js from localhost:3000...')
     setTimeout(() => {
-      mainWindow.loadURL('http://localhost:3000')
+      // Always load login page first to ensure authentication
+      mainWindow.loadURL('http://localhost:3000/login')
     }, 2000)
   } else {
     // In production, we'll serve the built Next.js app
-    mainWindow.loadFile(path.join(__dirname, 'renderer', 'out', 'index.html'))
+    mainWindow.loadFile(path.join(__dirname, 'renderer', 'out', 'login.html'))
   }
 
   // Show window when ready
@@ -200,11 +202,10 @@ function createOverlay() {
     focusable: true, // Need to be focusable for clicks to work properly
     skipTaskbar: true, // Don't show in taskbar
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       backgroundThrottling: false,
-      webSecurity: false, // Allow all resources
-      allowRunningInsecureContent: true
+      webSecurity: true
     },
     show: false,
     hasShadow: true,
@@ -1498,4 +1499,80 @@ ipcMain.handle('hide-overlay', async () => {
     }
   }
   return true  // Return true to confirm action completed
+})
+
+// Authentication handlers
+ipcMain.handle('check-auth', async () => {
+  try {
+    // Check if user has valid token stored
+    const tokenPath = path.join(app.getPath('userData'), 'auth.json')
+    if (fs.existsSync(tokenPath)) {
+      const authData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'))
+      if (authData.token) {
+        // Verify token with server
+        const serverUrl = isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'
+        
+        if (axios) {
+          try {
+            const response = await axios.post(`${serverUrl}/auth/verify-token`, {}, {
+              headers: {
+                'Authorization': `Bearer ${authData.token}`
+              }
+            })
+            
+            if (response.data.success) {
+              return { authenticated: true, user: response.data }
+            }
+          } catch (err) {
+            console.error('Token verification failed:', err.message)
+          }
+        }
+      }
+    }
+    return { authenticated: false }
+  } catch (err) {
+    console.error('Auth check error:', err)
+    return { authenticated: false }
+  }
+})
+
+ipcMain.handle('save-auth', async (event, authData) => {
+  try {
+    const tokenPath = path.join(app.getPath('userData'), 'auth.json')
+    fs.writeFileSync(tokenPath, JSON.stringify(authData), 'utf8')
+    return { success: true }
+  } catch (err) {
+    console.error('Save auth error:', err)
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('clear-auth', async () => {
+  try {
+    const tokenPath = path.join(app.getPath('userData'), 'auth.json')
+    if (fs.existsSync(tokenPath)) {
+      fs.unlinkSync(tokenPath)
+    }
+    // Navigate to login page
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(isDev ? 'http://localhost:3000/login' : path.join(__dirname, 'renderer', 'out', 'login.html'))
+    }
+    return { success: true }
+  } catch (err) {
+    console.error('Clear auth error:', err)
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('navigate-to-app', async () => {
+  try {
+    // Navigate to main app after successful login
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL(isDev ? 'http://localhost:3000' : path.join(__dirname, 'renderer', 'out', 'index.html'))
+    }
+    return { success: true }
+  } catch (err) {
+    console.error('Navigation error:', err)
+    return { success: false, error: err.message }
+  }
 })

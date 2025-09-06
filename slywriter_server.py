@@ -17,6 +17,7 @@ from psycopg.rows import dict_row
 import logging
 from typing import Dict, List, Any
 import threading
+import requests
 
 app = Flask(__name__)
 CORS(app, origins='*')  # Enable CORS for all origins per your config
@@ -535,20 +536,22 @@ def require_auth(f):
     return decorated_function
 
 def send_email(to_email, subject, body, is_html=False):
-    """Send email via SMTP"""
+    """Send email via SMTP with Gmail App Password"""
     try:
-        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        smtp_username = os.environ.get('SMTP_USERNAME')
-        smtp_password = os.environ.get('SMTP_PASSWORD')
+        # Use Gmail SMTP with app password
+        smtp_server = 'smtp.gmail.com'
+        smtp_port = 587
+        smtp_username = os.environ.get('SMTP_USERNAME', 'slywriterapp@gmail.com')
+        smtp_password = os.environ.get('SMTP_PASSWORD')  # This should be the app password
         
         if not smtp_username or not smtp_password:
             print("SMTP credentials not configured")
+            print(f"Username: {smtp_username}, Password configured: {bool(smtp_password)}")
             return False
         
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = smtp_username
+        msg['From'] = f"SlyWriter <{smtp_username}>"
         msg['To'] = to_email
         
         if is_html:
@@ -556,12 +559,21 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, 'plain'))
         
+        # Connect to Gmail SMTP server
         server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
+        server.set_debuglevel(1)  # Enable debug output
+        server.starttls()  # Enable TLS encryption
         server.login(smtp_username, smtp_password)
+        
+        # Send the email
         server.send_message(msg)
         server.quit()
+        
+        print(f"Email sent successfully to {to_email}")
         return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"Gmail authentication failed - check app password: {e}")
+        return False
     except Exception as e:
         print(f"Email send failed: {e}")
         return False
@@ -901,23 +913,64 @@ def register():
     # Generate token
     token = generate_jwt_token(user_id, email)
     
-    # Send verification email
-    verification_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/verify-email?token={user_data['verification_token']}"
-    send_email(
-        email,
-        "Welcome to SlyWriter - Verify Your Email",
-        f"""
-        Welcome to SlyWriter, {name}!
-        
-        Please verify your email address by clicking this link:
-        {verification_link}
-        
-        If you didn't create this account, please ignore this email.
-        
-        Best regards,
-        The SlyWriter Team
-        """
-    )
+    # Send verification email with HTML formatting
+    verification_link = f"{os.environ.get('FRONTEND_URL', 'https://slywriterapp.onrender.com')}/verify-email?token={user_data['verification_token']}"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .button {{ display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Welcome to SlyWriter!</h1>
+            </div>
+            <div class="content">
+                <h2>Hi {name},</h2>
+                <p>Thank you for signing up for SlyWriter! We're excited to have you on board.</p>
+                <p>Please verify your email address by clicking the button below:</p>
+                <center>
+                    <a href="{verification_link}" class="button">Verify Email Address</a>
+                </center>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; background: #fff; padding: 10px; border: 1px solid #ddd;">
+                    {verification_link}
+                </p>
+                <p>If you didn't create this account, please ignore this email.</p>
+                <div class="footer">
+                    <p>Best regards,<br>The SlyWriter Team</p>
+                    <p>© 2024 SlyWriter. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    plain_text = f"""
+    Welcome to SlyWriter, {name}!
+    
+    Please verify your email address by clicking this link:
+    {verification_link}
+    
+    If you didn't create this account, please ignore this email.
+    
+    Best regards,
+    The SlyWriter Team
+    """
+    
+    # Try HTML first, fallback to plain text
+    if not send_email(email, "Welcome to SlyWriter - Verify Your Email", html_body, is_html=True):
+        send_email(email, "Welcome to SlyWriter - Verify Your Email", plain_text, is_html=False)
     
     # Log registration
     log_analytics_event(user_id, 'user_registered', {'email': email, 'referral_code': referral_code})
@@ -979,6 +1032,58 @@ def login():
         "verified": user_data.get('verified', False),
         "plan": user_plan,
         "words_used": words_used
+    })
+
+@app.route("/auth/verify-token", methods=["POST"])
+def verify_token():
+    """Verify JWT token and return user data"""
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"success": False, "error": "No token provided"}), 401
+    
+    token = auth_header.replace('Bearer ', '')
+    
+    # Verify the token
+    payload = verify_jwt_token(token)
+    
+    if not payload:
+        return jsonify({"success": False, "error": "Invalid or expired token"}), 401
+    
+    # Get user data
+    users = load_data(USERS_FILE)
+    user_data = users.get(payload.get('email'))
+    
+    if not user_data:
+        return jsonify({"success": False, "error": "User not found"}), 404
+    
+    if user_data.get('status') != 'active':
+        return jsonify({"success": False, "error": "Account is deactivated"}), 401
+    
+    # Get user plan and usage
+    plans = load_data(PLAN_FILE)
+    user_plan = plans.get(user_data['user_id'], 'free')
+    
+    usage = load_data(USAGE_FILE)
+    words_used = usage.get(user_data['user_id'], 0)
+    
+    # Get word limits based on plan
+    word_limits = {
+        'free': 1000,
+        'basic': 50000,
+        'pro': 250000,
+        'premium': 1000000
+    }
+    
+    return jsonify({
+        "success": True,
+        "user_id": user_data['user_id'],
+        "email": payload.get('email'),
+        "name": user_data['name'],
+        "plan": user_plan,
+        "words_used": words_used,
+        "word_limit": word_limits.get(user_plan, 1000),
+        "verified": user_data.get('email_verified', False)
     })
 
 @app.route("/auth/logout", methods=["POST"])
@@ -1703,6 +1808,8 @@ def ai_humanize_text():
             
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+# Balance check removed - admin use only
 
 # ---------------- LEARNING MODE - CREATE LESSON ----------------
 
