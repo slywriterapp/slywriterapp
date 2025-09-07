@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, redirect, session, url_for
 from flask_cors import CORS
 import json
 import os
@@ -18,6 +18,10 @@ import logging
 from typing import Dict, List, Any
 import threading
 import requests
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
+from google_auth_oauthlib.flow import Flow
+import pathlib
 
 app = Flask(__name__)
 CORS(app, origins='*')  # Enable CORS for all origins per your config
@@ -29,6 +33,21 @@ logger = logging.getLogger(__name__)
 # Security
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-jwt-secret-change-this')
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI', 'https://slywriterapp.onrender.com/auth/google/callback')
+
+# For local testing, override redirect URI
+if os.environ.get('ENV') == 'development':
+    GOOGLE_REDIRECT_URI = 'http://localhost:5000/auth/google/callback'
+
+# Session configuration for OAuth flow
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Data files (keeping your existing file-based storage)
 USAGE_FILE = "word_data.json"
@@ -1087,6 +1106,125 @@ def verify_token():
         "word_limit": word_limits.get(user_plan, 1000),
         "verified": user_data.get('email_verified', False)
     })
+
+@app.route("/auth/google/login", methods=["POST"])
+def google_login():
+    """Handle Google OAuth login from frontend"""
+    try:
+        data = request.get_json()
+        token = data.get('credential')  # This is the Google ID token
+        
+        if not token:
+            return jsonify({"success": False, "error": "No token provided"}), 400
+        
+        # Verify the Google token
+        try:
+            # Verify the token with Google
+            idinfo = id_token.verify_oauth2_token(
+                token, 
+                google_requests.Request(), 
+                GOOGLE_CLIENT_ID
+            )
+            
+            # Get user info from Google
+            google_user_id = idinfo['sub']
+            email = idinfo['email'].lower().strip()
+            name = idinfo.get('name', '')
+            picture = idinfo.get('picture', '')
+            email_verified = idinfo.get('email_verified', False)
+            
+        except ValueError as e:
+            return jsonify({"success": False, "error": "Invalid Google token"}), 401
+        
+        # Check if user exists
+        users = load_data(USERS_FILE)
+        user_data = users.get(email)
+        
+        if user_data:
+            # Existing user - update Google info
+            user_data['google_id'] = google_user_id
+            user_data['picture'] = picture
+            user_data['last_login'] = datetime.datetime.utcnow().isoformat()
+            if email_verified and not user_data.get('email_verified'):
+                user_data['email_verified'] = True
+            users[email] = user_data
+            save_data(USERS_FILE, users)
+            
+            user_id = user_data['user_id']
+            is_new_user = False
+        else:
+            # New user - create account
+            user_id = str(uuid.uuid4())
+            
+            # Generate referral code
+            referral_code = f"{name.split()[0].upper() if name else 'USER'}{secrets.token_hex(3).upper()}"
+            
+            user_data = {
+                'user_id': user_id,
+                'email': email,
+                'name': name,
+                'google_id': google_user_id,
+                'picture': picture,
+                'password_hash': None,  # No password for Google users
+                'created_at': datetime.datetime.utcnow().isoformat(),
+                'last_login': datetime.datetime.utcnow().isoformat(),
+                'email_verified': email_verified,
+                'status': 'active',
+                'referral_code': referral_code,
+                'auth_provider': 'google'
+            }
+            
+            users[email] = user_data
+            save_data(USERS_FILE, users)
+            
+            # Initialize user plan (free by default)
+            plans = load_data(PLAN_FILE)
+            plans[user_id] = 'free'
+            save_data(PLAN_FILE, plans)
+            
+            # Initialize usage
+            usage = load_data(USAGE_FILE)
+            usage[user_id] = 0
+            save_data(USAGE_FILE, usage)
+            
+            is_new_user = True
+            
+            # Log registration
+            log_analytics_event(user_id, 'user_registered', {
+                'email': email,
+                'provider': 'google'
+            })
+        
+        # Generate JWT token
+        token = generate_jwt_token(user_id, email)
+        
+        # Get user plan
+        plans = load_data(PLAN_FILE)
+        user_plan = plans.get(user_id, 'free')
+        
+        # Get usage
+        usage = load_data(USAGE_FILE)
+        words_used = usage.get(user_id, 0)
+        
+        # Log login
+        log_analytics_event(user_id, 'user_login', {'provider': 'google'})
+        
+        return jsonify({
+            "success": True,
+            "user_id": user_id,
+            "email": email,
+            "name": name,
+            "picture": picture,
+            "token": token,
+            "plan": user_plan,
+            "words_used": words_used,
+            "verified": email_verified,
+            "is_new_user": is_new_user
+        })
+        
+    except Exception as e:
+        logger.error(f"Google login error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/auth/logout", methods=["POST"])
 @require_auth
