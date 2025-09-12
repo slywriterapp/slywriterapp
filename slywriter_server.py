@@ -999,7 +999,7 @@ def register():
                 <p>If you didn't create this account, please ignore this email.</p>
                 <div class="footer">
                     <p>Best regards,<br>The SlyWriter Team</p>
-                    <p>© 2024 SlyWriter. All rights reserved.</p>
+                    <p>© 2025 SlyWriter. All rights reserved.</p>
                 </div>
             </div>
         </div>
