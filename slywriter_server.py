@@ -568,8 +568,8 @@ def send_email(to_email, subject, body, is_html=False):
         # Use SMTP configuration from environment variables
         smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        smtp_username = os.environ.get('SMTP_USERNAME', 'support@slywriter.ai')
-        smtp_password = os.environ.get('SMTP_PASSWORD')  # This should be the app password
+        smtp_username = os.environ.get('SMTP_USERNAME')  # No hardcoded default
+        smtp_password = os.environ.get('SMTP_PASSWORD')  # App password from Google
         
         if not smtp_username or not smtp_password:
             logger.error("SMTP credentials not configured")
