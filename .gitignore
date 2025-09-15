@@ -36,3 +36,11 @@ nul
 *.tmp
 *_fixed.py
 *_updated.py
+
+# Large files and build outputs
+*.zip
+SlyWriter_Beta_Complete/slywriter-electron/out/
+slywriter-electron/out/
+*.exe
+*.nupkg
+*.asar

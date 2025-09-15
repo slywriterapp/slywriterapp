@@ -27,6 +27,7 @@ export default function LoginPage() {
     name: ''
   })
 
+  // Always use Render production server for auth (has SMTP configured)
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com'
 
@@ -84,7 +85,19 @@ export default function LoginPage() {
           })
         }
       } else {
-        toast.error(data.error || 'Authentication failed')
+        // Handle duplicate email error
+        if (data.error && data.error.toLowerCase().includes('already exists')) {
+          toast.error('This email is already registered. Please login instead.')
+          setTimeout(() => {
+            setIsSignup(false)
+            toast('Switched to login mode. Enter your password to continue.', {
+              icon: '👉',
+              duration: 3000
+            })
+          }, 2000)
+        } else {
+          toast.error(data.error || 'Authentication failed')
+        }
       }
     } catch (error: any) {
       console.error('Auth error:', error)

@@ -915,7 +915,7 @@ def register():
         # Check if user already exists
         users = load_data(USERS_FILE)
         if email in users:
-            return jsonify({"success": False, "error": "Email already registered"}), 400
+            return jsonify({"success": False, "error": "Email already exists. Please login instead."}), 400
         
         # Create user
         user_id = str(uuid.uuid4())
@@ -965,7 +965,8 @@ def register():
         token = generate_jwt_token(user_id, email)
         
         # Send verification email with HTML formatting
-        verification_link = f"{os.environ.get('FRONTEND_URL', 'https://slywriterapp.onrender.com')}/verify-email?token={user_data['verification_token']}"
+        # Send verification email to Webflow site for professional branded experience
+        verification_link = f"https://slywriter-site.webflow.io/verify-email?token={user_data['verification_token']}"
         
         html_body = f"""
     <!DOCTYPE html>
@@ -1387,11 +1388,17 @@ def get_profile():
         "last_login": user_data.get('last_login')
     })
 
-@app.route("/auth/verify-email", methods=["POST"])
+@app.route("/auth/verify-email", methods=["GET", "POST", "OPTIONS"])
+@cross_origin(origins=["https://slywriter-site.webflow.io", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002"])
 def verify_email():
-    """Verify user email address"""
-    data = request.get_json()
-    token = data.get('token')
+    """Verify user email address - supports both GET (from email link) and POST (from API)"""
+    # Handle GET request from email link
+    if request.method == 'GET':
+        token = request.args.get('token')
+    else:
+        # Handle POST request from API
+        data = request.get_json()
+        token = data.get('token') if data else None
     
     if not token:
         return jsonify({"success": False, "error": "Missing verification token"}), 400
