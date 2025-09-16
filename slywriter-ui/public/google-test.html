@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google OAuth Test - Minimal</title>
+    <meta name="google-signin-client_id" content="675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <h1>Minimal Google OAuth Test</h1>
+    <p>Testing on: http://localhost:3000/google-test.html</p>
+    
+    <div id="g_id_onload"
+         data-client_id="675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div class="g_id_signin" data-type="standard"></div>
+    
+    <script>
+        function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+            alert("Success! Check console for token.");
+        }
+    </script>
+</body>
+</html>

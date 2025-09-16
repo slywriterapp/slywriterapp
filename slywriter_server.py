@@ -611,6 +611,57 @@ def send_email(to_email, subject, body, is_html=False):
         logger.error(f"Exception type: {type(e).__name__}")
         return False
 
+def send_welcome_email(email, name, verification_token):
+    """Send welcome email for new users (both regular and Google Sign-In) with verification link"""
+    subject = "Verify Your SlyWriter Account"
+    
+    # Use the exact same email template as regular registration
+    verification_link = f"https://slywriter-site.webflow.io/verify-email?token={verification_token}"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .button {{ display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Welcome to SlyWriter!</h1>
+            </div>
+            <div class="content">
+                <h2>Hi {name},</h2>
+                <p>Thank you for creating an account with SlyWriter! We're excited to have you on board.</p>
+                <p>Please verify your email address by clicking the button below:</p>
+                <center>
+                    <a href="{verification_link}" class="button">Verify Email Address</a>
+                </center>
+                <p>Or copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; font-size: 12px; color: #666;">
+                    {verification_link}
+                </p>
+                <p>This link will expire in 24 hours for security reasons.</p>
+                <p>If you didn't create an account with SlyWriter, please ignore this email.</p>
+                <p>Best regards,<br>The SlyWriter Team</p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2025 SlyWriter. All rights reserved.</p>
+                <p>You're receiving this email because you signed up for SlyWriter.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(email, subject, html_body, is_html=True)
+
 def log_analytics_event(user_id, event_type, event_data=None):
     """Log analytics event"""
     analytics = load_data(ANALYTICS_FILE)
@@ -1147,11 +1198,14 @@ def verify_token():
 @app.route("/auth/google/login", methods=["POST"])
 def google_login():
     """Handle Google OAuth login from frontend"""
+    logger.info("=== GOOGLE LOGIN ATTEMPT ===")
     try:
         data = request.get_json()
+        logger.info(f"Received data keys: {data.keys() if data else 'No data'}")
         token = data.get('credential')  # This is the Google ID token
         
         if not token:
+            logger.error("No credential token provided in request")
             return jsonify({"success": False, "error": "No token provided"}), 400
         
         # Check if Google Client ID is configured
@@ -1204,6 +1258,7 @@ def google_login():
         
         if user_data:
             # Existing user - update Google info
+            logger.info(f"Existing Google user logging in: {email}")
             user_data['google_id'] = google_user_id
             user_data['picture'] = picture
             user_data['last_login'] = datetime.datetime.utcnow().isoformat()
@@ -1215,11 +1270,15 @@ def google_login():
             user_id = user_data['user_id']
             is_new_user = False
         else:
+            logger.info(f"NEW Google user signing up: {email}")
             # New user - create account
             user_id = str(uuid.uuid4())
             
             # Generate referral code
             referral_code = f"{name.split()[0].upper() if name else 'USER'}{secrets.token_hex(3).upper()}"
+            
+            # Generate verification token (even though Google users are pre-verified, we use it for the welcome email)
+            verification_token = secrets.token_urlsafe(32)
             
             user_data = {
                 'user_id': user_id,
@@ -1231,6 +1290,7 @@ def google_login():
                 'created_at': datetime.datetime.utcnow().isoformat(),
                 'last_login': datetime.datetime.utcnow().isoformat(),
                 'email_verified': email_verified,
+                'verification_token': verification_token,
                 'status': 'active',
                 'referral_code': referral_code,
                 'auth_provider': 'google'
@@ -1250,6 +1310,14 @@ def google_login():
             save_data(USAGE_FILE, usage)
             
             is_new_user = True
+            
+            # Send welcome email for new Google Sign-In users
+            try:
+                send_welcome_email(email, name, verification_token)
+                logger.info(f"Welcome email sent to new Google user: {email}")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email to {email}: {str(e)}")
+                # Don't fail the registration if email fails
             
             # Log registration
             log_analytics_event(user_id, 'user_registered', {

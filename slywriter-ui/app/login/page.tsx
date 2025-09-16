@@ -27,8 +27,11 @@ export default function LoginPage() {
     name: ''
   })
 
-  // Always use Render production server for auth (has SMTP configured)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
+  // Use local server in development, Render in production
+  const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost'
+  const API_URL = isDevelopment 
+    ? 'http://localhost:5000' 
+    : (process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com')
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com'
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +39,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const endpoint = isSignup ? '/auth/signup' : '/auth/login'
+      const endpoint = isSignup ? '/auth/register' : '/auth/login'
       const body = isSignup 
         ? { email: formData.email, password: formData.password, name: formData.name }
         : { email: formData.email, password: formData.password }
@@ -109,6 +112,8 @@ export default function LoginPage() {
 
   // Google Sign-In handler
   const handleGoogleLogin = async (response: any) => {
+    console.log('Google Sign-In response received:', response)
+    console.log('Sending to backend:', API_URL)
     setIsLoading(true)
     
     try {
@@ -177,6 +182,9 @@ export default function LoginPage() {
           callback: handleGoogleLogin,
           auto_select: false,
           cancel_on_tap_outside: true,
+          ux_mode: 'popup',
+          hosted_domain: undefined,
+          login_uri: undefined,
         })
         
         // Render the Google Sign-In button
@@ -190,7 +198,7 @@ export default function LoginPage() {
               type: 'standard',
               shape: 'rectangular',
               text: isSignup ? 'signup_with' : 'signin_with',
-              width: '100%'
+              width: 360
             }
           )
         }

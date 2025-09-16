@@ -24,7 +24,9 @@
       "Bash(git checkout:*)",
       "Bash(Start-Process \"http://localhost:3000\")",
       "Bash(del nul)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": [],
