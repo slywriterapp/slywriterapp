@@ -3055,6 +3055,217 @@ def export_user_data():
     
     return jsonify({"success": True, "data": export_data})
 
+# ---------------- PUBLIC STATS & REFERRAL ENDPOINTS ----------------
+
+@app.route("/api/public/global-words", methods=["GET"])
+def get_global_word_count():
+    """Get the total number of words typed by all users - public endpoint for website"""
+    try:
+        # Load word data from all users
+        usage_data = load_data(USAGE_FILE)
+        total_words = sum(usage_data.values())
+        
+        # Also get total users count
+        users = load_data(USERS_FILE)
+        total_users = len(users)
+        
+        # Get today's word count
+        analytics = load_data(ANALYTICS_FILE)
+        today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+        today_words = sum(
+            event.get('event_data', {}).get('words', 0) 
+            for event in analytics.get('events', []) 
+            if event.get('date') == today and 'words' in event.get('event_data', {})
+        )
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "total_words": total_words,
+                "total_users": total_users,
+                "words_today": today_words,
+                "last_updated": datetime.datetime.utcnow().isoformat()
+            }
+        })
+    except Exception as e:
+        print(f"Error getting global word count: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to retrieve global stats"
+        }), 500
+
+@app.route("/api/referral/create-link", methods=["POST"])
+@require_auth
+def create_referral_link():
+    """Create a unique referral link for the authenticated user"""
+    try:
+        user_id = request.current_user['user_id']
+        email = request.current_user['email']
+        name = request.current_user.get('name', 'User')
+        
+        # Check if user already has a referral code
+        users = load_data(USERS_FILE)
+        user_data = users.get(email)
+        
+        if user_data and user_data.get('referral_code'):
+            referral_code = user_data['referral_code']
+        else:
+            # Generate unique referral code
+            # Format: First 3 letters of name + random 6 character alphanumeric
+            name_prefix = ''.join(filter(str.isalpha, name))[:3].upper()
+            if not name_prefix:
+                name_prefix = "USR"
+            
+            # Generate unique token
+            unique_token = secrets.token_hex(3).upper()
+            referral_code = f"{name_prefix}{unique_token}"
+            
+            # Save to user data
+            if user_data:
+                user_data['referral_code'] = referral_code
+                users[email] = user_data
+                save_data(USERS_FILE, users)
+            
+            # Save to referral mapping
+            ref_data = load_data(REFERRAL_FILE)
+            if 'code_map' not in ref_data:
+                ref_data['code_map'] = {}
+            ref_data['code_map'][referral_code] = user_id
+            save_data(REFERRAL_FILE, ref_data)
+        
+        # Create the referral link
+        referral_link = f"https://slywriterapp.com/?ref={referral_code}"
+        
+        # Get current referral stats
+        ref_data = load_data(REFERRAL_FILE)
+        referred_by = ref_data.get('referred_by', {})
+        
+        # Count successful referrals
+        successful_referrals = sum(
+            1 for uid, referrer in referred_by.items() 
+            if referrer == user_id
+        )
+        
+        # Calculate rewards based on tiers (from MissionTab.tsx)
+        def get_referral_rewards(referrals):
+            """Calculate total rewards based on referral tiers"""
+            rewards = {
+                "total_words": 0,
+                "premium_days": 0,
+                "current_tier": 0,
+                "next_tier_referrals": 1,
+                "next_tier_reward": "Extra 1,000 words"
+            }
+            
+            # Tier rewards structure
+            tiers = [
+                {"tier": 1, "referrals": 1, "words": 1000, "premium_days": 0},
+                {"tier": 2, "referrals": 2, "words": 2500, "premium_days": 0},
+                {"tier": 3, "referrals": 3, "words": 0, "premium_days": 7},
+                {"tier": 4, "referrals": 5, "words": 5000, "premium_days": 0},
+                {"tier": 5, "referrals": 7, "words": 0, "premium_days": 14},
+                {"tier": 6, "referrals": 10, "words": 10000, "premium_days": 0},
+                {"tier": 7, "referrals": 15, "words": 0, "premium_days": 30},
+                {"tier": 8, "referrals": 20, "words": 25000, "premium_days": 0},
+                {"tier": 9, "referrals": 30, "words": 0, "premium_days": 60},
+                {"tier": 10, "referrals": 50, "words": 0, "premium_days": 180}
+            ]
+            
+            # Calculate cumulative rewards
+            for tier in tiers:
+                if referrals >= tier["referrals"]:
+                    rewards["total_words"] += tier["words"]
+                    rewards["premium_days"] += tier["premium_days"]
+                    rewards["current_tier"] = tier["tier"]
+                else:
+                    # Found the next tier
+                    rewards["next_tier_referrals"] = tier["referrals"]
+                    if tier["words"] > 0:
+                        rewards["next_tier_reward"] = f"Extra {tier['words']:,} words"
+                    else:
+                        days = tier["premium_days"]
+                        if days == 7:
+                            rewards["next_tier_reward"] = "1 week free Premium"
+                        elif days == 14:
+                            rewards["next_tier_reward"] = "2 weeks free Premium"
+                        elif days == 30:
+                            rewards["next_tier_reward"] = "1 month free Premium"
+                        elif days == 60:
+                            rewards["next_tier_reward"] = "2 months free Premium"
+                        elif days == 180:
+                            rewards["next_tier_reward"] = "6 months free Premium"
+                    break
+            
+            return rewards
+        
+        rewards = get_referral_rewards(successful_referrals)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "referral_code": referral_code,
+                "referral_link": referral_link,
+                "successful_referrals": successful_referrals,
+                "current_tier": rewards["current_tier"],
+                "total_words_earned": rewards["total_words"],
+                "premium_days_earned": rewards["premium_days"],
+                "next_tier": {
+                    "referrals_needed": rewards["next_tier_referrals"] - successful_referrals,
+                    "reward": rewards["next_tier_reward"]
+                },
+                "charity_donated": successful_referrals * 0.10  # $0.10 per referral to charity
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error creating referral link: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to create referral link"
+        }), 500
+
+@app.route("/api/referral/validate", methods=["GET"])
+def validate_referral_code():
+    """Validate a referral code - public endpoint for signup page"""
+    code = request.args.get('code', '').strip()
+    
+    if not code:
+        return jsonify({
+            "success": False,
+            "error": "No referral code provided"
+        }), 400
+    
+    ref_data = load_data(REFERRAL_FILE)
+    code_map = ref_data.get('code_map', {})
+    
+    if code in code_map:
+        # Get referrer info
+        referrer_id = code_map[code]
+        users = load_data(USERS_FILE)
+        
+        # Find referrer name
+        referrer_name = "A friend"
+        for email, user_data in users.items():
+            if user_data.get('user_id') == referrer_id:
+                referrer_name = user_data.get('name', 'A friend')
+                break
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "valid": True,
+                "referrer_name": referrer_name,
+                "bonus_message": "You'll both get 500 bonus words when you sign up!"
+            }
+        })
+    else:
+        return jsonify({
+            "success": True,
+            "data": {
+                "valid": False
+            }
+        })
+
 # ---------------- ENHANCED ADMIN ENDPOINTS ----------------
 
 @app.route("/admin/dashboard", methods=["GET"])

@@ -29,7 +29,10 @@ import {
   CrownIcon, GiftIcon, SparklesIcon
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+// Use local server in development, Render in production
+const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000' 
+  : 'https://slywriterapp.onrender.com'
 
 function SlyWriterApp() {
   const [activeTab, setActiveTab] = useState('typing')
@@ -49,27 +52,48 @@ function SlyWriterApp() {
         // Check if running in Electron
         if (typeof window !== 'undefined' && (window as any).electron) {
           const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
-          setIsAuthenticated(result.authenticated)
+          console.log('Electron auth check result:', result)
+          
+          if (result.authenticated) {
+            setIsAuthenticated(true)
+          } else {
+            // Check localStorage as fallback
+            const token = localStorage.getItem('auth_token')
+            if (token) {
+              setIsAuthenticated(true) // Trust the token for now
+            } else {
+              window.location.href = '/login'
+            }
+          }
         } else {
           // Check localStorage for token
           const token = localStorage.getItem('auth_token')
-          if (token) {
-            // Verify token with server
-            const response = await fetch(`${API_URL}/auth/verify-token`, {
+          const userData = localStorage.getItem('user_data')
+          
+          if (token && userData) {
+            // We have a token and user data, assume authenticated for now
+            // This avoids race conditions with the login redirect
+            setIsAuthenticated(true)
+            
+            // Verify token asynchronously (non-blocking)
+            fetch(`${API_URL}/auth/verify-token`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${token}`
               }
+            }).then(response => response.json()).then(data => {
+              if (!data.success) {
+                // Token is invalid, clear and redirect
+                localStorage.removeItem('auth_token')
+                localStorage.removeItem('user_data')
+                window.location.href = '/login'
+              }
+            }).catch(error => {
+              console.error('Token verification error:', error)
+              // Don't redirect on network errors, user might be offline
             })
-            const data = await response.json()
-            setIsAuthenticated(data.success)
-            
-            if (!data.success) {
-              localStorage.removeItem('auth_token')
-              localStorage.removeItem('user_data')
-              window.location.href = '/login'
-            }
           } else {
+            // No token, redirect to login
             window.location.href = '/login'
           }
         }

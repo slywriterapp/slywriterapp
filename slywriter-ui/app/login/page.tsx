@@ -78,23 +78,37 @@ export default function LoginPage() {
           user_id: data.user_id
         }))
 
-        // If in Electron, save auth data
-        if (typeof window !== 'undefined' && (window as any).electron) {
-          await (window as any).electron.ipcRenderer.invoke('save-auth', {
-            token: data.token,
-            email: data.email,
-            name: data.name,
-            plan: data.plan,
-            user_id: data.user_id
-          })
-          // Navigate to main app
-          await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
+        toast.success(isSignup ? 'Account created successfully!' : 'Logged in successfully!')
+        
+        // Check if we're in Electron
+        const isElectron = typeof window !== 'undefined' && (window as any).electron
+        console.log('Regular login - Is Electron environment:', isElectron)
+        
+        if (isElectron) {
+          try {
+            await (window as any).electron.ipcRenderer.invoke('save-auth', {
+              token: data.token,
+              email: data.email,
+              name: data.name,
+              plan: data.plan,
+              user_id: data.user_id
+            })
+            // Navigate to main app
+            const navResult = await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
+            console.log('Regular login - Navigation result:', navResult)
+            
+            // If navigation didn't work, force reload
+            if (!navResult?.success) {
+              window.location.href = '/'
+            }
+          } catch (navError) {
+            console.error('Regular login - Electron navigation error:', navError)
+            window.location.href = '/'
+          }
         } else {
           // In browser, navigate to main page
           router.push('/')
         }
-
-        toast.success(isSignup ? 'Account created successfully!' : 'Logged in successfully!')
         
         if (isSignup && !data.verified) {
           toast.success('Please check your email to verify your account', {
@@ -155,24 +169,44 @@ export default function LoginPage() {
           picture: data.picture
         }))
 
-        // If in Electron, save auth data
-        if (typeof window !== 'undefined' && (window as any).electron) {
-          await (window as any).electron.ipcRenderer.invoke('save-auth', {
-            token: data.token,
-            email: data.email,
-            name: data.name,
-            plan: data.plan,
-            user_id: data.user_id,
-            picture: data.picture
-          })
-          // Navigate to main app
-          await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
+        // Show success message first
+        toast.success(data.is_new_user ? 'Welcome to SlyWriter!' : 'Welcome back!')
+        
+        // Check if we're in Electron
+        const isElectron = typeof window !== 'undefined' && (window as any).electron
+        console.log('Is Electron environment:', isElectron)
+        
+        if (isElectron) {
+          try {
+            console.log('Saving auth data to Electron...')
+            await (window as any).electron.ipcRenderer.invoke('save-auth', {
+              token: data.token,
+              email: data.email,
+              name: data.name,
+              plan: data.plan,
+              user_id: data.user_id,
+              picture: data.picture
+            })
+            console.log('Auth data saved, navigating to app...')
+            // Navigate to main app
+            const navResult = await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
+            console.log('Navigation result:', navResult)
+            
+            // If navigation didn't work, force reload to main page
+            if (!navResult?.success) {
+              console.log('Navigation failed, forcing reload...')
+              window.location.href = '/'
+            }
+          } catch (navError) {
+            console.error('Electron navigation error:', navError)
+            // Fallback: force browser navigation
+            window.location.href = '/'
+          }
         } else {
           // In browser, navigate to main page
+          console.log('Browser environment, using router.push')
           router.push('/')
         }
-
-        toast.success(data.is_new_user ? 'Welcome to SlyWriter!' : 'Welcome back!')
       } else {
         toast.error(data.error || 'Google login failed')
       }

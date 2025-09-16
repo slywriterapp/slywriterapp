@@ -1568,7 +1568,10 @@ ipcMain.handle('navigate-to-app', async () => {
   try {
     // Navigate to main app after successful login
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(isDev ? 'http://localhost:3000' : path.join(__dirname, 'renderer', 'out', 'index.html'))
+      // Always use the URL for the Next.js app
+      const targetUrl = 'http://localhost:3000'
+      console.log('Navigating to main app:', targetUrl)
+      mainWindow.loadURL(targetUrl)
     }
     return { success: true }
   } catch (err) {
