@@ -49,53 +49,68 @@ function SlyWriterApp() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if running in Electron
+        // Add a small delay to allow localStorage to be written from login page
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // First check localStorage for token (works for both Electron and browser)
+        const token = localStorage.getItem('auth_token')
+        const userData = localStorage.getItem('user_data')
+        
+        console.log('Auth check - Token exists:', !!token)
+        console.log('Auth check - User data exists:', !!userData)
+        
+        if (token && userData) {
+          // We have auth data, set authenticated immediately
+          setIsAuthenticated(true)
+          setIsCheckingAuth(false)
+          
+          // Then check with Electron for additional validation if available
+          if (typeof window !== 'undefined' && (window as any).electron) {
+            const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
+            console.log('Electron auth check result:', result)
+            // Don't redirect even if Electron says not authenticated - trust localStorage
+          }
+          
+          return // Exit early, we're authenticated
+        }
+        
+        // Check if we're coming from login with a pending auth
+        const referrer = document.referrer
+        const isFromLogin = referrer && referrer.includes('/login')
+        
+        if (isFromLogin) {
+          // Give it another chance - might be mid-redirect from successful login
+          console.log('Coming from login page, checking auth again...')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          const retryToken = localStorage.getItem('auth_token')
+          const retryUserData = localStorage.getItem('user_data')
+          
+          if (retryToken && retryUserData) {
+            console.log('Found auth on retry!')
+            setIsAuthenticated(true)
+            setIsCheckingAuth(false)
+            return
+          }
+        }
+        
+        // No token in localStorage, check Electron
         if (typeof window !== 'undefined' && (window as any).electron) {
           const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
-          console.log('Electron auth check result:', result)
+          console.log('Electron auth check result (no localStorage):', result)
           
           if (result.authenticated) {
             setIsAuthenticated(true)
           } else {
-            // Check localStorage as fallback
-            const token = localStorage.getItem('auth_token')
-            if (token) {
-              setIsAuthenticated(true) // Trust the token for now
-            } else {
-              window.location.href = '/login'
-            }
-          }
-        } else {
-          // Check localStorage for token
-          const token = localStorage.getItem('auth_token')
-          const userData = localStorage.getItem('user_data')
-          
-          if (token && userData) {
-            // We have a token and user data, assume authenticated for now
-            // This avoids race conditions with the login redirect
-            setIsAuthenticated(true)
-            
-            // Verify token asynchronously (non-blocking)
-            fetch(`${API_URL}/auth/verify-token`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            }).then(response => response.json()).then(data => {
-              if (!data.success) {
-                // Token is invalid, clear and redirect
-                localStorage.removeItem('auth_token')
-                localStorage.removeItem('user_data')
-                window.location.href = '/login'
-              }
-            }).catch(error => {
-              console.error('Token verification error:', error)
-              // Don't redirect on network errors, user might be offline
-            })
-          } else {
-            // No token, redirect to login
+            // No auth anywhere, redirect to login
+            console.log('No auth found, redirecting to login...')
             window.location.href = '/login'
           }
+        } else {
+          // Browser environment, no Electron
+          // No token found, redirect to login
+          console.log('No auth found (browser), redirecting to login...')
+          window.location.href = '/login'
         }
       } catch (error) {
         console.error('Auth check failed:', error)

@@ -1568,10 +1568,13 @@ ipcMain.handle('navigate-to-app', async () => {
   try {
     // Navigate to main app after successful login
     if (mainWindow && !mainWindow.isDestroyed()) {
-      // Always use the URL for the Next.js app
+      // Navigate to the root page, not login
       const targetUrl = 'http://localhost:3000'
       console.log('Navigating to main app:', targetUrl)
-      mainWindow.loadURL(targetUrl)
+      // Use webContents to navigate instead of loadURL
+      mainWindow.webContents.executeJavaScript(`
+        window.location.href = '/';
+      `)
     }
     return { success: true }
   } catch (err) {

@@ -93,21 +93,16 @@ export default function LoginPage() {
               plan: data.plan,
               user_id: data.user_id
             })
-            // Navigate to main app
-            const navResult = await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
-            console.log('Regular login - Navigation result:', navResult)
-            
-            // If navigation didn't work, force reload
-            if (!navResult?.success) {
-              window.location.href = '/'
-            }
+            // Navigate directly to root
+            console.log('Regular login - Navigating directly to root...')
+            window.location.replace('/')
           } catch (navError) {
             console.error('Regular login - Electron navigation error:', navError)
-            window.location.href = '/'
+            window.location.replace('/')
           }
         } else {
           // In browser, navigate to main page
-          router.push('/')
+          window.location.replace('/')
         }
         
         if (isSignup && !data.verified) {
@@ -188,24 +183,19 @@ export default function LoginPage() {
               picture: data.picture
             })
             console.log('Auth data saved, navigating to app...')
-            // Navigate to main app
-            const navResult = await (window as any).electron.ipcRenderer.invoke('navigate-to-app')
-            console.log('Navigation result:', navResult)
             
-            // If navigation didn't work, force reload to main page
-            if (!navResult?.success) {
-              console.log('Navigation failed, forcing reload...')
-              window.location.href = '/'
-            }
+            // Don't use Electron navigation, just navigate directly
+            console.log('Navigating directly to root...')
+            window.location.replace('/')
           } catch (navError) {
             console.error('Electron navigation error:', navError)
             // Fallback: force browser navigation
-            window.location.href = '/'
+            window.location.replace('/')
           }
         } else {
           // In browser, navigate to main page
-          console.log('Browser environment, using router.push')
-          router.push('/')
+          console.log('Browser environment, using window.location.replace')
+          window.location.replace('/')
         }
       } else {
         toast.error(data.error || 'Google login failed')
