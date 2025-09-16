@@ -45,6 +45,15 @@
       },
       "timestamp": "2025-09-16T00:17:33.504388",
       "date": "2025-09-16"
+    },
+    {
+      "user_id": "36d544dc-8d48-4bb1-a010-64be95b5d8a5",
+      "event_type": "user_login",
+      "event_data": {
+        "provider": "google"
+      },
+      "timestamp": "2025-09-16T00:32:57.945471",
+      "date": "2025-09-16"
     }
   ]
 }

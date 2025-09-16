@@ -28,10 +28,24 @@ export default function LoginPage() {
   })
 
   // Use local server in development, Render in production
-  const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost'
-  const API_URL = isDevelopment 
-    ? 'http://localhost:5000' 
-    : (process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com')
+  // Check if we're in the browser and force Render server if URL has ?server=render
+  const [forceRender, setForceRender] = useState(false)
+  const [apiUrl, setApiUrl] = useState('http://localhost:5000')
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const shouldForceRender = params.get('server') === 'render'
+      setForceRender(shouldForceRender)
+      
+      const url = shouldForceRender 
+        ? 'https://slywriterapp.onrender.com'
+        : (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com')
+      setApiUrl(url)
+    }
+  }, [])
+  
+  const API_URL = apiUrl
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com'
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,6 +128,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async (response: any) => {
     console.log('Google Sign-In response received:', response)
     console.log('Sending to backend:', API_URL)
+    console.log('Server mode:', forceRender ? 'FORCED RENDER' : 'AUTO-DETECTED')
     setIsLoading(true)
     
     try {

@@ -28,7 +28,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Use local server in development, Render in production
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+// Dynamically determine API URL based on environment
+const getApiUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side rendering
+    return process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
+  }
+  // Client-side: use local for localhost development, Render for production
+  return window.location.hostname === 'localhost' 
+    ? 'http://localhost:5000' 
+    : 'https://slywriterapp.onrender.com'
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -48,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const response = await axios.get(`${API_URL}/api/auth/me`, {
+      const response = await axios.get(`${getApiUrl()}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
@@ -68,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (googleToken: string) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/google`, {
+      const response = await axios.post(`${getApiUrl()}/api/auth/google`, {
         token: googleToken
       })
 
