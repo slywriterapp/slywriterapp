@@ -49,8 +49,8 @@ function SlyWriterApp() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Add a small delay to allow localStorage to be written from login page
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Add a longer delay to ensure localStorage is written
+        await new Promise(resolve => setTimeout(resolve, 200))
         
         // First check localStorage for token (works for both Electron and browser)
         const token = localStorage.getItem('auth_token')
@@ -61,6 +61,7 @@ function SlyWriterApp() {
         
         if (token && userData) {
           // We have auth data, set authenticated immediately
+          console.log('Authentication successful - token found')
           setIsAuthenticated(true)
           setIsCheckingAuth(false)
           
@@ -81,7 +82,7 @@ function SlyWriterApp() {
         if (isFromLogin) {
           // Give it another chance - might be mid-redirect from successful login
           console.log('Coming from login page, checking auth again...')
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 1000))
           
           const retryToken = localStorage.getItem('auth_token')
           const retryUserData = localStorage.getItem('user_data')
