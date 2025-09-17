@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { spawn, exec } = require('child_process')
@@ -1444,6 +1444,13 @@ app.on('will-quit', () => {
 ipcMain.handle('get-clipboard', async () => {
   const { clipboard } = require('electron')
   return clipboard.readText()
+})
+
+// Open external URLs in the default browser
+ipcMain.handle('open-external', async (event, url) => {
+  console.log('Opening external URL:', url)
+  shell.openExternal(url)
+  return { success: true }
 })
 
 // Focus window when AI text is ready
