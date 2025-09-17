@@ -235,6 +235,33 @@
       },
       "timestamp": "2025-09-17T01:15:13.423056",
       "date": "2025-09-17"
+    },
+    {
+      "user_id": "b362bd74-98a2-43db-b67b-8c6da9d5f555",
+      "event_type": "user_login",
+      "event_data": {
+        "provider": "google"
+      },
+      "timestamp": "2025-09-17T01:17:24.046682",
+      "date": "2025-09-17"
+    },
+    {
+      "user_id": "b362bd74-98a2-43db-b67b-8c6da9d5f555",
+      "event_type": "user_login",
+      "event_data": {
+        "provider": "google"
+      },
+      "timestamp": "2025-09-17T01:17:53.292935",
+      "date": "2025-09-17"
+    },
+    {
+      "user_id": "b362bd74-98a2-43db-b67b-8c6da9d5f555",
+      "event_type": "user_login",
+      "event_data": {
+        "provider": "google"
+      },
+      "timestamp": "2025-09-17T01:18:02.613561",
+      "date": "2025-09-17"
     }
   ]
 }

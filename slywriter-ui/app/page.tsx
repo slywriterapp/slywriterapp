@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import toast from 'react-hot-toast'
+import { LocalStorageMonitor } from './utils/localStorage-monitor'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './context/AuthContext'
 import GoogleLogin from './components/GoogleLogin'
@@ -48,22 +49,53 @@ function SlyWriterApp() {
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('=== MAIN PAGE AUTH CHECK START ===')
+      console.log('[MAIN-1] Current URL:', window.location.href)
+      console.log('[MAIN-2] Referrer:', document.referrer)
+      console.log('[MAIN-3] Query params:', window.location.search)
+      console.log('[MAIN-4] Hash:', window.location.hash)
+      
+      // Start localStorage monitoring
+      LocalStorageMonitor.start()
+      console.log('[MAIN-5] Initial localStorage state:')
+      LocalStorageMonitor.logCurrentState()
+      
       try {
         // Add a longer delay to ensure localStorage is written
+        console.log('[MAIN-6] Waiting 200ms before auth check...')
         await new Promise(resolve => setTimeout(resolve, 200))
+        
+        console.log('[MAIN-7] After wait - checking localStorage again:')
+        LocalStorageMonitor.logCurrentState()
         
         // First check localStorage for token (works for both Electron and browser)
         const token = localStorage.getItem('auth_token')
         const userData = localStorage.getItem('user_data')
         
-        console.log('Auth check - Token exists:', !!token)
-        console.log('Auth check - User data exists:', !!userData)
+        console.log('[MAIN-8] localStorage check results:')
+        console.log('  - Token exists:', !!token)
+        console.log('  - User data exists:', !!userData)
+        if (token) {
+          console.log('  - Token preview:', token.substring(0, 20) + '...')
+          console.log('  - Token length:', token.length)
+        }
+        if (userData) {
+          try {
+            const parsed = JSON.parse(userData)
+            console.log('  - User email:', parsed.email)
+            console.log('  - User ID:', parsed.user_id)
+          } catch (e) {
+            console.log('  - Failed to parse user data:', e)
+          }
+        }
         
         if (token && userData) {
           // We have auth data, set authenticated immediately
-          console.log('Authentication successful - token found')
+          console.log('[MAIN-9] ✅ Authentication successful - token found!')
+          console.log('[MAIN-10] Setting isAuthenticated to true')
           setIsAuthenticated(true)
           setIsCheckingAuth(false)
+          console.log('=== MAIN PAGE AUTH CHECK END (SUCCESS) ===')
           
           // Then check with Electron for additional validation if available
           if (typeof window !== 'undefined' && (window as any).electron) {
@@ -96,21 +128,29 @@ function SlyWriterApp() {
         }
         
         // No token in localStorage, check Electron
+        console.log('[MAIN-11] No token found in localStorage')
+        console.log('[MAIN-12] All localStorage keys:', Object.keys(localStorage))
+        
         if (typeof window !== 'undefined' && (window as any).electron) {
+          console.log('[MAIN-13] Checking Electron auth...')
           const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
-          console.log('Electron auth check result (no localStorage):', result)
+          console.log('[MAIN-14] Electron auth check result:', result)
           
           if (result.authenticated) {
+            console.log('[MAIN-15] Electron has auth, setting authenticated')
             setIsAuthenticated(true)
           } else {
             // No auth anywhere, redirect to login
-            console.log('No auth found, redirecting to login...')
+            console.log('[MAIN-16] No auth in Electron either, redirecting to login...')
+            console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
             window.location.href = '/login'
           }
         } else {
           // Browser environment, no Electron
           // No token found, redirect to login
-          console.log('No auth found (browser), redirecting to login...')
+          console.log('[MAIN-13] Browser environment (no Electron)')
+          console.log('[MAIN-14] No auth found, redirecting to login...')
+          console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
           window.location.href = '/login'
         }
       } catch (error) {

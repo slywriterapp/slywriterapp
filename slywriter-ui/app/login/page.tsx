@@ -6,6 +6,7 @@ import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Script from 'next/script'
+import { LocalStorageMonitor } from '../utils/localStorage-monitor'
 
 declare global {
   interface Window {
@@ -35,6 +36,10 @@ export default function LoginPage() {
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Start localStorage monitoring
+      LocalStorageMonitor.start()
+      LocalStorageMonitor.logCurrentState()
+      
       const params = new URLSearchParams(window.location.search)
       const shouldForceRender = params.get('server') === 'render'
       setForceRender(shouldForceRender)
@@ -139,9 +144,13 @@ export default function LoginPage() {
 
   // Google Sign-In handler
   const handleGoogleLogin = async (response: any) => {
-    console.log('Google Sign-In response received:', response)
-    console.log('Sending to backend:', API_URL)
-    console.log('Server mode:', forceRender ? 'FORCED RENDER' : 'AUTO-DETECTED')
+    console.log('=== GOOGLE SIGN-IN DEBUG START ===')
+    console.log('[1] Google Sign-In response received:', response)
+    console.log('[2] Current localStorage before auth:')
+    console.log('  - auth_token:', localStorage.getItem('auth_token') ? 'EXISTS' : 'MISSING')
+    console.log('  - user_data:', localStorage.getItem('user_data') ? 'EXISTS' : 'MISSING')
+    console.log('[3] Sending to backend:', API_URL)
+    console.log('[4] Server mode:', forceRender ? 'FORCED RENDER' : 'AUTO-DETECTED')
     setIsLoading(true)
     
     try {
@@ -158,7 +167,16 @@ export default function LoginPage() {
       const data = await result.json()
 
       if (data.success) {
+        console.log('[5] Backend returned success!')
+        console.log('[6] Token from backend:', data.token ? `${data.token.substring(0, 20)}...` : 'MISSING')
+        
+        // Clear any existing auth data first
+        console.log('[7] Clearing old auth data...')
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user_data')
+        
         // Save token to localStorage and Electron if available
+        console.log('[8] Saving new auth data to localStorage...')
         localStorage.setItem('auth_token', data.token)
         localStorage.setItem('user_data', JSON.stringify({
           email: data.email,
@@ -167,13 +185,21 @@ export default function LoginPage() {
           user_id: data.user_id,
           picture: data.picture
         }))
+        
+        // Verify it was saved
+        console.log('[9] Verification - localStorage after save:')
+        const savedToken = localStorage.getItem('auth_token')
+        const savedUserData = localStorage.getItem('user_data')
+        console.log('  - auth_token:', savedToken ? `${savedToken.substring(0, 20)}...` : 'MISSING')
+        console.log('  - user_data:', savedUserData ? 'SAVED' : 'MISSING')
 
         // Show success message first
         toast.success(data.is_new_user ? 'Welcome to SlyWriter!' : 'Welcome back!')
         
         // Check if we're in Electron
         const isElectron = typeof window !== 'undefined' && (window as any).electron
-        console.log('Is Electron environment:', isElectron)
+        console.log('[10] Is Electron environment:', isElectron)
+        console.log('[11] Window location before redirect:', window.location.href)
         
         if (isElectron) {
           try {
@@ -189,8 +215,10 @@ export default function LoginPage() {
             console.log('Auth data saved, navigating to app...')
             
             // Navigate to auth-redirect page which will handle the final redirect
-            console.log('Navigating to auth redirect page...')
+            console.log('[12] Electron: Navigating to auth redirect page...')
+            console.log('[13] Using window.location.href = /auth-redirect')
             window.location.href = '/auth-redirect'
+            console.log('[14] Navigation command sent!')
           } catch (navError) {
             console.error('Electron navigation error:', navError)
             // Fallback: force browser navigation
@@ -198,9 +226,12 @@ export default function LoginPage() {
           }
         } else {
           // In browser, navigate to auth redirect page
-          console.log('Browser environment, navigating to auth redirect')
+          console.log('[12] Browser: Navigating to auth redirect page...')
+          console.log('[13] Using window.location.href = /auth-redirect')
           window.location.href = '/auth-redirect'
+          console.log('[14] Navigation command sent!')
         }
+        console.log('=== GOOGLE SIGN-IN DEBUG END ===')
       } else {
         toast.error(data.error || 'Google login failed')
       }
