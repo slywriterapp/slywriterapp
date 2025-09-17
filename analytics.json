@@ -172,6 +172,15 @@
       },
       "timestamp": "2025-09-16T02:39:09.129590",
       "date": "2025-09-16"
+    },
+    {
+      "user_id": "b362bd74-98a2-43db-b67b-8c6da9d5f555",
+      "event_type": "user_login",
+      "event_data": {
+        "provider": "google"
+      },
+      "timestamp": "2025-09-17T00:46:39.518748",
+      "date": "2025-09-17"
     }
   ]
 }
