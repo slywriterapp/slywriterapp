@@ -97,16 +97,16 @@ export default function LoginPage() {
               plan: data.plan,
               user_id: data.user_id
             })
-            // Navigate directly to root
-            console.log('Regular login - Navigating directly to root...')
-            window.location.replace('/')
+            // Navigate to auth-redirect page
+            console.log('Regular login - Navigating to auth redirect...')
+            window.location.href = '/auth-redirect'
           } catch (navError) {
             console.error('Regular login - Electron navigation error:', navError)
             window.location.replace('/')
           }
         } else {
-          // In browser, navigate to main page
-          window.location.replace('/')
+          // In browser, navigate to auth redirect page
+          window.location.href = '/auth-redirect'
         }
         
         if (isSignup && !data.verified) {
@@ -188,21 +188,18 @@ export default function LoginPage() {
             })
             console.log('Auth data saved, navigating to app...')
             
-            // Add a small delay to ensure localStorage is fully written
-            await new Promise(resolve => setTimeout(resolve, 100))
-            
-            // Don't use Electron navigation, just navigate directly
-            console.log('Navigating directly to root...')
-            window.location.href = '/'
+            // Navigate to auth-redirect page which will handle the final redirect
+            console.log('Navigating to auth redirect page...')
+            window.location.href = '/auth-redirect'
           } catch (navError) {
             console.error('Electron navigation error:', navError)
             // Fallback: force browser navigation
             window.location.replace('/')
           }
         } else {
-          // In browser, navigate to main page
-          console.log('Browser environment, using window.location.replace')
-          window.location.replace('/')
+          // In browser, navigate to auth redirect page
+          console.log('Browser environment, navigating to auth redirect')
+          window.location.href = '/auth-redirect'
         }
       } else {
         toast.error(data.error || 'Google login failed')
