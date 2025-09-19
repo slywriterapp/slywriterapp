@@ -5,9 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 import toast from 'react-hot-toast'
 import { LocalStorageMonitor } from './utils/localStorage-monitor'
-import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './context/AuthContext'
-import GoogleLogin from './components/GoogleLogin'
 import UserDashboard from './components/UserDashboard'
 import TypingTabWithWPM from './components/TypingTabWithWPM'
 import AIHubTab from './components/AIHubTab'
@@ -685,24 +683,20 @@ function SlyWriterApp() {
 }
 
 export default function Page() {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '670659562469-i3i49sdl2b7qdp8jsh5dp7upb0g6k9kk.apps.googleusercontent.com'
-  
   return (
-    <GoogleOAuthProvider clientId={clientId}>
-      <AuthProvider>
-        <SlyWriterApp />
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#1f2937',
-              color: '#fff',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-            },
-          }}
-        />
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <AuthProvider>
+      <SlyWriterApp />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1f2937',
+            color: '#fff',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+          },
+        }}
+      />
+    </AuthProvider>
   )
 }

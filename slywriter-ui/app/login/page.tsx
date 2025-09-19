@@ -508,6 +508,28 @@ export default function LoginPage() {
           <p className="text-xs text-gray-500 text-center">
             By continuing, you agree to SlyWriter's Terms of Service and Privacy Policy
           </p>
+          
+          {/* Skip button for development/testing */}
+          <button
+            onClick={() => {
+              console.log('Skip button clicked - bypassing authentication')
+              // Set a minimal guest auth token
+              localStorage.setItem('auth_token', 'guest-mode-token')
+              localStorage.setItem('user_data', JSON.stringify({
+                email: 'guest@slywriter.com',
+                name: 'Guest User',
+                plan: 'free',
+                user_id: 'guest-user-id',
+                is_guest: true
+              }))
+              
+              // Navigate directly to main app
+              window.location.href = '/'
+            }}
+            className="mt-4 w-full py-2 text-gray-400 hover:text-white text-sm transition-colors underline"
+          >
+            Skip Login (Continue as Guest)
+          </button>
         </div>
       </motion.div>
       </div>
