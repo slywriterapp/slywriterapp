@@ -3266,6 +3266,74 @@ def validate_referral_code():
             }
         })
 
+# ---------------- API DOCUMENTATION ENDPOINT ----------------
+
+@app.route("/api/docs", methods=["GET"])
+def api_documentation():
+    """Returns a list of all available API endpoints"""
+    endpoints = []
+    
+    # Collect all registered routes
+    for rule in app.url_map.iter_rules():
+        if rule.endpoint != 'static':
+            methods = ','.join(sorted(rule.methods - {'HEAD', 'OPTIONS'}))
+            endpoints.append({
+                'endpoint': rule.rule,
+                'methods': methods,
+                'name': rule.endpoint
+            })
+    
+    # Sort by endpoint path
+    endpoints.sort(key=lambda x: x['endpoint'])
+    
+    # Organize by category
+    categorized = {
+        'Authentication': [],
+        'Public API': [],
+        'User API': [],
+        'Admin API': [],
+        'AI Services': [],
+        'Learning': [],
+        'Referral': [],
+        'Telemetry': [],
+        'Health & Stats': [],
+        'Other': []
+    }
+    
+    for ep in endpoints:
+        path = ep['endpoint']
+        if '/auth/' in path:
+            categorized['Authentication'].append(ep)
+        elif '/api/public/' in path:
+            categorized['Public API'].append(ep)
+        elif '/api/user/' in path or '/user-' in path:
+            categorized['User API'].append(ep)
+        elif '/admin/' in path or '/api/admin/' in path:
+            categorized['Admin API'].append(ep)
+        elif '/api/ai/' in path or '/humanize' in path:
+            categorized['AI Services'].append(ep)
+        elif '/learning/' in path:
+            categorized['Learning'].append(ep)
+        elif '/referral/' in path:
+            categorized['Referral'].append(ep)
+        elif '/telemetry' in path:
+            categorized['Telemetry'].append(ep)
+        elif '/health' in path or '/stats' in path or '/global-' in path:
+            categorized['Health & Stats'].append(ep)
+        else:
+            categorized['Other'].append(ep)
+    
+    # Remove empty categories
+    categorized = {k: v for k, v in categorized.items() if v}
+    
+    return jsonify({
+        'success': True,
+        'server_url': 'https://slywriterapp.onrender.com',
+        'total_endpoints': len(endpoints),
+        'endpoints_by_category': categorized,
+        'all_endpoints': endpoints
+    })
+
 # ---------------- ENHANCED ADMIN ENDPOINTS ----------------
 
 @app.route("/admin/dashboard", methods=["GET"])
