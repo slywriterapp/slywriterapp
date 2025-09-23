@@ -1,9 +1,16 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard, shell, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { spawn, exec } = require('child_process')
 const http = require('http')
 const https = require('https')
+const { autoUpdater } = require('electron-updater')
+
+// Handle Squirrel events (for installer/updater)
+if (require('electron-squirrel-startup')) {
+  app.quit()
+}
+
 // Try to load axios, fall back to http if not available
 let axios
 try {
@@ -11,6 +18,10 @@ try {
 } catch (e) {
   console.log('Axios not found, will use http module')
 }
+
+// Configure auto-updater
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = true
 
 // Wrap console methods to prevent EPIPE errors
 const originalLog = console.log
@@ -509,14 +520,96 @@ function createTray() {
   }
 }
 
+// Auto-updater setup
+function setupAutoUpdater() {
+  // Check for updates immediately and then every 30 minutes
+  autoUpdater.checkForUpdates()
+  setInterval(() => {
+    autoUpdater.checkForUpdates()
+  }, 30 * 60 * 1000) // 30 minutes
+
+  // Auto-updater event handlers
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version)
+
+    // Show dialog to user
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version (${info.version}) is available!`,
+      detail: 'Would you like to download it now? The update will be installed when you restart the app.',
+      buttons: ['Download Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then(result => {
+      if (result.response === 0) {
+        autoUpdater.downloadUpdate()
+
+        // Show download progress in tray or main window
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update-downloading', info)
+        }
+      }
+    })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('No updates available')
+  })
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`Download progress: ${progressObj.percent}%`)
+
+    // Send progress to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-progress', progressObj)
+    }
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info.version)
+
+    // Notify user that update is ready
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: 'Update has been downloaded!',
+      detail: 'The application will be updated after restart. Would you like to restart now?',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then(result => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall()
+      }
+    })
+  })
+
+  autoUpdater.on('error', (error) => {
+    console.error('Update error:', error)
+
+    // Only show error in development
+    if (process.env.NODE_ENV === 'development') {
+      dialog.showErrorBox('Update Error', error.toString())
+    }
+  })
+}
+
 // App event handlers
 app.whenReady().then(() => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
-  
+
   createWindow()
   createOverlay()
   createTray()
+
+  // Initialize auto-updater
+  setupAutoUpdater()
   
   // Store hotkey handlers for reuse globally
   global.startTypingHandler = null
@@ -1444,6 +1537,15 @@ app.on('will-quit', () => {
 ipcMain.handle('get-clipboard', async () => {
   const { clipboard } = require('electron')
   return clipboard.readText()
+})
+
+// Auto-updater IPC handlers
+ipcMain.handle('check-for-updates', async () => {
+  return await autoUpdater.checkForUpdates()
+})
+
+ipcMain.handle('get-app-version', async () => {
+  return app.getVersion()
 })
 
 // Open external URLs in the default browser

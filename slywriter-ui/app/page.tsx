@@ -141,7 +141,7 @@ function SlyWriterApp() {
             // No auth anywhere, redirect to login
             console.log('[MAIN-16] No auth in Electron either, redirecting to login...')
             console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
-            window.location.href = '/login'
+            window.location.href = window.location.origin + '/login'
           }
         } else {
           // Browser environment, no Electron
@@ -149,12 +149,12 @@ function SlyWriterApp() {
           console.log('[MAIN-13] Browser environment (no Electron)')
           console.log('[MAIN-14] No auth found, redirecting to login...')
           console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
-          window.location.href = '/login'
+          window.location.href = window.location.origin + '/login'
         }
       } catch (error) {
         console.error('Auth check failed:', error)
         setIsAuthenticated(false)
-        window.location.href = '/login'
+        window.location.href = window.location.origin + '/login'
       } finally {
         setIsCheckingAuth(false)
       }
@@ -382,7 +382,7 @@ function SlyWriterApp() {
   
   // Redirect to login if not authenticated
   if (!isAuthenticated && typeof window !== 'undefined') {
-    window.location.href = '/login'
+    window.location.href = window.location.origin + '/login'
     return null
   }
 

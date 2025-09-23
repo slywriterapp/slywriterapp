@@ -49,7 +49,7 @@ export default function AuthRedirectPage() {
         console.log('Redirecting to main app /')
         
         // Use replace to prevent back button issues
-        window.location.replace('/')
+        window.location.replace(window.location.origin + '/')
       } else {
         // No token, something went wrong, go back to login
         logs.push('No token found! Redirecting back to login...')
@@ -57,7 +57,7 @@ export default function AuthRedirectPage() {
         
         // Wait a bit before redirecting to login so user can see the debug info
         await new Promise(resolve => setTimeout(resolve, 2000))
-        window.location.replace('/login')
+        window.location.replace(window.location.origin + '/login')
       }
     }
     

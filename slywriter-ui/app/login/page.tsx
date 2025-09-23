@@ -104,14 +104,14 @@ export default function LoginPage() {
             })
             // Navigate to auth-redirect page
             console.log('Regular login - Navigating to auth redirect...')
-            window.location.href = '/auth-redirect'
+            window.location.href = window.location.origin + '/auth-redirect'
           } catch (navError) {
             console.error('Regular login - Electron navigation error:', navError)
-            window.location.replace('/')
+            window.location.replace(window.location.origin + '/')
           }
         } else {
           // In browser, navigate to auth redirect page
-          window.location.href = '/auth-redirect'
+          window.location.href = window.location.origin + '/auth-redirect'
         }
         
         if (isSignup && !data.verified) {
@@ -216,19 +216,19 @@ export default function LoginPage() {
             
             // Navigate to auth-redirect page which will handle the final redirect
             console.log('[12] Electron: Navigating to auth redirect page...')
-            console.log('[13] Using window.location.href = /auth-redirect')
-            window.location.href = '/auth-redirect'
+            console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
+            window.location.href = window.location.origin + '/auth-redirect'
             console.log('[14] Navigation command sent!')
           } catch (navError) {
             console.error('Electron navigation error:', navError)
             // Fallback: force browser navigation
-            window.location.replace('/')
+            window.location.replace(window.location.origin + '/')
           }
         } else {
           // In browser, navigate to auth redirect page
           console.log('[12] Browser: Navigating to auth redirect page...')
-          console.log('[13] Using window.location.href = /auth-redirect')
-          window.location.href = '/auth-redirect'
+          console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
+          window.location.href = window.location.origin + '/auth-redirect'
           console.log('[14] Navigation command sent!')
         }
         console.log('=== GOOGLE SIGN-IN DEBUG END ===')
@@ -523,8 +523,10 @@ export default function LoginPage() {
                 is_guest: true
               }))
               
-              // Navigate directly to main app
-              window.location.href = '/'
+              // Force navigation with replace to prevent back button issues
+              console.log('Navigating to main app...')
+              // Use the current origin to maintain the same port
+              window.location.replace(window.location.origin + '/')
             }}
             className="mt-4 w-full py-2 text-gray-400 hover:text-white text-sm transition-colors underline"
           >

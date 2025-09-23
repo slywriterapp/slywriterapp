@@ -27,7 +27,9 @@
       "Bash(del:*)",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(if exist:*)"
+      "Bash(if exist:*)",
+      "Bash(git init:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],
