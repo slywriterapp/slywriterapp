@@ -1452,6 +1452,7 @@ def get_profile():
         "verified": user_data.get('email_verified', False),
         "plan": plans.get(user_id, 'free'),
         "words_used": usage.get(user_id, 0),
+        "referral_code": user_data.get('referral_code', user_id[:8]),  # Use first 8 chars of user_id as fallback
         "created_at": user_data.get('created_at'),
         "last_login": user_data.get('last_login')
     })
