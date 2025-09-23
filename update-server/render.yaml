@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: slywriter-update-server
+    env: node
+    repo: https://github.com/yourusername/slywriter  # Your repo
+    buildCommand: cd update-server && npm install
+    startCommand: cd update-server && npm start
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false  # Set in Render dashboard
+      - key: REPO_OWNER
+        value: yourusername
+      - key: REPO_NAME
+        value: slywriter
+      - key: NODE_ENV
+        value: production
