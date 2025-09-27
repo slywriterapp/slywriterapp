@@ -41,8 +41,9 @@ function SlyWriterApp() {
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [aiReviewData, setAiReviewData] = useState<any>(null)
   const aiReviewHandlerRef = useRef<(data: any) => void>(() => {})
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  // TEMPORARY: Default to authenticated to bypass auth check
+  const [isAuthenticated, setIsAuthenticated] = useState(true)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
   
   // Check authentication on mount
