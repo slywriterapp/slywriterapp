@@ -357,7 +357,7 @@ export default function AIHubTab() {
           }
           
           if (wordsRemaining < 500) {
-            toast.warning(`⚠️ Only ${wordsRemaining} words remaining!`, { duration: 3000 })
+            toast(`⚠️ Only ${wordsRemaining} words remaining!`, { duration: 3000 })
           }
         }
       }
