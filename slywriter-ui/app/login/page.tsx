@@ -76,12 +76,17 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      // Determine API URL directly here to avoid state timing issues
+      const isElectronEnv = !!(window as any).electron
+      const isDev = window.location.hostname === 'localhost' && window.location.port === '3000' && !isElectronEnv
+      const backendUrl = isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'
+
       const endpoint = isSignup ? '/auth/register' : '/auth/login'
-      const body = isSignup 
+      const body = isSignup
         ? { email: formData.email, password: formData.password, name: formData.name }
         : { email: formData.email, password: formData.password }
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${backendUrl}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,12 +168,18 @@ export default function LoginPage() {
     console.log('[2] Current localStorage before auth:')
     console.log('  - auth_token:', localStorage.getItem('auth_token') ? 'EXISTS' : 'MISSING')
     console.log('  - user_data:', localStorage.getItem('user_data') ? 'EXISTS' : 'MISSING')
-    console.log('[3] Sending to backend:', API_URL)
-    console.log('[4] Server mode:', forceRender ? 'FORCED RENDER' : 'AUTO-DETECTED')
+
+    // Determine API URL directly here to avoid state timing issues
+    const isElectronEnv = !!(window as any).electron
+    const isDev = window.location.hostname === 'localhost' && window.location.port === '3000' && !isElectronEnv
+    const backendUrl = isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'
+
+    console.log('[3] Sending to backend:', backendUrl)
+    console.log('[4] Environment:', { isElectron: isElectronEnv, isDev, hostname: window.location.hostname })
     setIsLoading(true)
-    
+
     try {
-      const result = await fetch(`${API_URL}/auth/google/login`, {
+      const result = await fetch(`${backendUrl}/auth/google/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
