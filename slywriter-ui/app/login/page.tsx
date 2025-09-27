@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { toast } from '@/lib/toast'
 import Script from 'next/script'
 import { LocalStorageMonitor } from '../utils/localStorage-monitor'
 
