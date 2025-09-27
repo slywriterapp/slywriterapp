@@ -115,11 +115,10 @@ function SlyWriterApp() {
           return // Exit early, we're authenticated
         }
         
-        // Check if we're coming from login with a pending auth
-        const referrer = document.referrer
-        const isFromLogin = referrer && referrer.includes('/login')
-        
-        if (isFromLogin) {
+        // Check if we're coming from login with a pending auth (reuse the referrer variable)
+        const isFromLoginRetry = referrer && referrer.includes('/login')
+
+        if (isFromLoginRetry) {
           // Give it another chance - might be mid-redirect from successful login
           console.log('Coming from login page, checking auth again...')
           await new Promise(resolve => setTimeout(resolve, 1000))
