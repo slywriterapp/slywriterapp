@@ -20,7 +20,7 @@ import GlobalHotkeyListener from './components/GlobalHotkeyListener'
 import OnboardingFlow from './components/OnboardingFlow'
 import SplashScreen from './components/SplashScreen'
 import BetaDisclosure from './components/BetaDisclosure'
-import GoogleLogin from './components/GoogleLogin'
+import UserProfile from './components/UserProfile'
 import axios from 'axios'
 import { 
   KeyboardIcon, BrainIcon, BarChart3Icon, SettingsIcon,
@@ -504,7 +504,7 @@ function SlyWriterApp() {
 
           {/* User Section */}
           <div className="px-6 py-4 border-b border-white/10">
-            <GoogleLogin onShowDashboard={() => setShowDashboard(true)} />
+            <UserProfile onShowDashboard={() => setShowDashboard(true)} />
           </div>
 
           {/* Navigation */}
