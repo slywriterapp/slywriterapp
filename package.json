@@ -1,0 +1,8 @@
+{
+  "name": "slywriter-monorepo",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd slywriter-ui && npm install && npm run build",
+    "start": "cd slywriter-ui && npm start"
+  }
+}
