@@ -39,7 +39,9 @@
       "Bash(gh auth:*)",
       "Bash(npx asar list:*)",
       "Bash(gh release upload:*)",
-      "Bash(gh release view:*)"
+      "Bash(gh release view:*)",
+      "Bash(git ls-tree:*)",
+      "WebFetch(domain:slywriter-ui.onrender.com)"
     ],
     "deny": [],
     "ask": [],
