@@ -489,7 +489,7 @@ export default function AIHubTab() {
       try {
         const token = localStorage.getItem('auth_token')
         if (token) {
-          const wordCount = generatedText.split(/\s+/).filter(word => word.length > 0).length
+          const wordCount = generatedText.split(/\s+/).filter((word: string) => word.length > 0).length
           console.log('[AIHub] Tracking word usage:', wordCount)
           
           const trackResponse = await axios.post(`${API_URL}/api/track-ai-generation`, {
