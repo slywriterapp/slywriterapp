@@ -136,8 +136,11 @@ function createWindow() {
       mainWindow.loadURL('http://localhost:3000/login')
     }, 2000)
   } else {
-    // In production, we'll serve the built Next.js app
-    mainWindow.loadFile(path.join(__dirname, 'renderer', 'out', 'login.html'))
+    // In production, try local first then fallback to simple HTML
+    mainWindow.loadURL('http://localhost:3000/login').catch(() => {
+      // If local server isn't running, show a simple message
+      mainWindow.loadURL('data:text/html,<h1>Please start the SlyWriter UI server</h1>')
+    })
   }
 
   // Show window when ready
@@ -522,6 +525,12 @@ function createTray() {
 
 // Auto-updater setup
 function setupAutoUpdater() {
+  // Configure auto-updater
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: 'https://slywriter-update-server.onrender.com/updates'
+  })
+
   // Check for updates immediately and then every 30 minutes
   autoUpdater.checkForUpdates()
   setInterval(() => {
@@ -1664,7 +1673,7 @@ ipcMain.handle('clear-auth', async () => {
     }
     // Navigate to login page
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(isDev ? 'http://localhost:3000/login' : path.join(__dirname, 'renderer', 'out', 'login.html'))
+      mainWindow.loadURL(isDev ? 'http://localhost:3000/login' : 'http://localhost:3000/login')
     }
     return { success: true }
   } catch (err) {

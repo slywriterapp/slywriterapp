@@ -29,7 +29,17 @@
       "Bash(findstr:*)",
       "Bash(if exist:*)",
       "Bash(git init:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(npm run dist:squirrel:*)",
+      "Bash(npm run dist:nsis:*)",
+      "Bash(electron-builder:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(git tag:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh auth:*)",
+      "Bash(npx asar list:*)",
+      "Bash(gh release upload:*)",
+      "Bash(gh release view:*)"
     ],
     "deny": [],
     "ask": [],

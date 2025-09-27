@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.0.0",
+  "version": "2.0.4",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -23,13 +23,13 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "electron-squirrel-startup": "^1.0.1",
     "electron-winstaller": "^5.4.0"
   },
   "dependencies": {
     "axios": "^1.11.0",
     "electron-store": "^8.1.0",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "electron-squirrel-startup": "^1.0.1"
   },
   "build": {
     "appId": "com.slywriter.desktop",
@@ -37,6 +37,13 @@
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "main.js",
+      "preload.js",
+      "overlay.html",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
     "publish": {
       "provider": "github",
       "owner": "slywriterapp",
@@ -46,19 +53,21 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "squirrel",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "assets/icon.ico",
       "publisherName": "SlyWriter"
     },
     "squirrelWindows": {
-      "remoteReleases": "https://slywriter-update-server.onrender.com/updates",
-      "loadingGif": "assets/installing.gif",
+      "iconUrl": "https://raw.githubusercontent.com/slywriterapp/slywriterapp/main/slywriter-electron/assets/icon.ico",
       "useAppIdAsId": true,
       "msi": false
     },
@@ -67,9 +76,6 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "SlyWriter"
