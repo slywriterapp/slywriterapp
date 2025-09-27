@@ -1624,9 +1624,15 @@ ipcMain.handle('check-auth', async () => {
     if (fs.existsSync(tokenPath)) {
       const authData = JSON.parse(fs.readFileSync(tokenPath, 'utf8'))
       if (authData.token) {
+        // Trust the local token - don't verify with server on every check
+        // This prevents redirect loops when server is slow
+        console.log('Auth token found in Electron storage')
+        return { authenticated: true, user: authData }
+
+        /* Server verification disabled to prevent redirect loops
         // Verify token with server
         const serverUrl = isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'
-        
+
         if (axios) {
           try {
             const response = await axios.post(`${serverUrl}/auth/verify-token`, {}, {
@@ -1634,7 +1640,7 @@ ipcMain.handle('check-auth', async () => {
                 'Authorization': `Bearer ${authData.token}`
               }
             })
-            
+
             if (response.data.success) {
               return { authenticated: true, user: response.data }
             }
@@ -1642,6 +1648,7 @@ ipcMain.handle('check-auth', async () => {
             console.error('Token verification failed:', err.message)
           }
         }
+        */
       }
     }
     return { authenticated: false }
