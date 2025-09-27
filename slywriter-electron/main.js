@@ -136,11 +136,8 @@ function createWindow() {
       mainWindow.loadURL('http://localhost:3000/login')
     }, 2000)
   } else {
-    // In production, try local first then fallback to simple HTML
-    mainWindow.loadURL('http://localhost:3000/login').catch(() => {
-      // If local server isn't running, show a simple message
-      mainWindow.loadURL('data:text/html,<h1>Please start the SlyWriter UI server</h1>')
-    })
+    // In production, load from deployed UI
+    mainWindow.loadURL('https://slywriter-ui.onrender.com/login')
   }
 
   // Show window when ready
@@ -1673,7 +1670,7 @@ ipcMain.handle('clear-auth', async () => {
     }
     // Navigate to login page
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL(isDev ? 'http://localhost:3000/login' : 'http://localhost:3000/login')
+      mainWindow.loadURL(isDev ? 'http://localhost:3000/login' : 'https://slywriter-ui.onrender.com/login')
     }
     return { success: true }
   } catch (err) {
