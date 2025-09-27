@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
+  // DISABLED - Auth is handled client-side with localStorage
+  // This middleware was interfering with the auth flow
+  return NextResponse.next()
+
+  /* Original middleware code - kept for reference
   const { pathname } = request.nextUrl
-  
-  // Allow access to login page, API routes, and static files
+
+  // Allow access to login page, auth-redirect page, API routes, and static files
   if (
     pathname.startsWith('/login') ||
+    pathname.startsWith('/auth-redirect') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
@@ -24,6 +30,7 @@ export function middleware(request: NextRequest) {
   }
 
   return NextResponse.next()
+  */
 }
 
 export const config = {
