@@ -239,21 +239,25 @@ export default function LoginPage() {
             })
             console.log('Auth data saved, navigating to app...')
             
-            // Navigate directly to main app since auth is saved
-            console.log('[12] Electron: Navigating to main app...')
-            console.log('[13] Using window.location.href = ' + window.location.origin + '/')
-            window.location.href = window.location.origin + '/'
+            // Navigate to auth-redirect page for proper auth settling
+            console.log('[12] Electron: Navigating to auth-redirect...')
+            console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
+            console.log('[13.1] Current localStorage before navigation:')
+            console.log('  - auth_token exists:', !!localStorage.getItem('auth_token'))
+            console.log('  - user_data exists:', !!localStorage.getItem('user_data'))
+            console.log('[13.2] Triggering navigation NOW')
+            window.location.href = window.location.origin + '/auth-redirect'
             console.log('[14] Navigation command sent!')
           } catch (navError) {
             console.error('Electron navigation error:', navError)
-            // Fallback: force browser navigation
-            window.location.replace(window.location.origin + '/')
+            // Fallback: force browser navigation to auth-redirect
+            window.location.replace(window.location.origin + '/auth-redirect')
           }
         } else {
-          // In browser, navigate directly to main app
-          console.log('[12] Browser: Navigating to main app...')
-          console.log('[13] Using window.location.href = ' + window.location.origin + '/')
-          window.location.href = window.location.origin + '/'
+          // In browser, navigate to auth-redirect page for proper auth settling
+          console.log('[12] Browser: Navigating to auth-redirect...')
+          console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
+          window.location.href = window.location.origin + '/auth-redirect'
           console.log('[14] Navigation command sent!')
         }
         console.log('=== GOOGLE SIGN-IN DEBUG END ===')

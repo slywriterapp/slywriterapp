@@ -28,12 +28,19 @@ export default function AuthRedirectPage() {
       // Wait a moment for localStorage to be fully written
       logs.push('Waiting 500ms for localStorage...')
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // Check again after wait
       const token = localStorage.getItem('auth_token')
       const userData = localStorage.getItem('user_data')
       logs.push(`After wait - Token: ${token ? 'EXISTS' : 'MISSING'}`)
       logs.push(`After wait - User data: ${userData ? 'EXISTS' : 'MISSING'}`)
+
+      // Extra check if still missing
+      if (!token && immediateToken) {
+        logs.push('Token disappeared! Restoring from immediate check...')
+        localStorage.setItem('auth_token', immediateToken)
+        localStorage.setItem('user_data', immediateUserData || '')
+      }
       
       // Log to console
       console.log('=== Auth Redirect Debug ===')

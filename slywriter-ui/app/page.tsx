@@ -41,9 +41,8 @@ function SlyWriterApp() {
   const [overlayVisible, setOverlayVisible] = useState(false)
   const [aiReviewData, setAiReviewData] = useState<any>(null)
   const aiReviewHandlerRef = useRef<(data: any) => void>(() => {})
-  // TEMPORARY: Default to authenticated to bypass auth check
-  const [isAuthenticated, setIsAuthenticated] = useState(true)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [showDashboard, setShowDashboard] = useState(false)
   
   // Check authentication on mount
@@ -54,33 +53,57 @@ function SlyWriterApp() {
       console.log('[MAIN-2] Referrer:', document.referrer)
       console.log('[MAIN-3] Query params:', window.location.search)
       console.log('[MAIN-4] Hash:', window.location.hash)
-      
+      console.log('[MAIN-4.1] Window.electron exists?', !!(window as any).electron)
+      console.log('[MAIN-4.2] Current time:', new Date().toISOString())
+      console.log('[MAIN-4.3] Document ready state:', document.readyState)
+
       // Start localStorage monitoring
       LocalStorageMonitor.start()
       console.log('[MAIN-5] Initial localStorage state:')
+      console.log('[MAIN-5.1] localStorage length:', localStorage.length)
+      console.log('[MAIN-5.2] All localStorage keys:', Object.keys(localStorage))
       LocalStorageMonitor.logCurrentState()
-      
+
       try {
+        // IMMEDIATE synchronous check - no delays first
+        console.log('[MAIN-5.3] SYNCHRONOUS AUTH CHECK')
+        const immediateToken = localStorage.getItem('auth_token')
+        const immediateUserData = localStorage.getItem('user_data')
+        console.log('[MAIN-5.4] Immediate token exists:', !!immediateToken)
+        console.log('[MAIN-5.5] Immediate user data exists:', !!immediateUserData)
+
+        if (immediateToken && immediateUserData) {
+          // Found auth immediately - set state and return
+          console.log('[MAIN-5.6] ✅ IMMEDIATE AUTH SUCCESS - Setting authenticated true')
+          setIsAuthenticated(true)
+          setIsCheckingAuth(false)
+          console.log('[MAIN-5.7] States set, returning early')
+          console.log('=== MAIN PAGE AUTH CHECK END (IMMEDIATE SUCCESS) ===')
+          return
+        }
+
         // Check if we're coming from login page
         const referrer = document.referrer
         const isFromLogin = referrer && (referrer.includes('/login') || referrer.includes('slywriter-ui.onrender.com'))
 
         if (isFromLogin) {
-          console.log('[MAIN-5.5] Coming from login, waiting for auth to settle...')
-          await new Promise(resolve => setTimeout(resolve, 500))
+          console.log('[MAIN-5.8] Coming from login, waiting for auth to settle...')
+          await new Promise(resolve => setTimeout(resolve, 1000)) // Increased wait time
+        } else {
+          // Not from login, still give a small delay for localStorage
+          console.log('[MAIN-6] Waiting 200ms before secondary auth check...')
+          await new Promise(resolve => setTimeout(resolve, 200))
         }
 
-        // Add a longer delay to ensure localStorage is written
-        console.log('[MAIN-6] Waiting 200ms before auth check...')
-        await new Promise(resolve => setTimeout(resolve, 200))
-        
         console.log('[MAIN-7] After wait - checking localStorage again:')
         LocalStorageMonitor.logCurrentState()
-        
-        // First check localStorage for token (works for both Electron and browser)
+
+        // Secondary check after delay
+        console.log('[MAIN-7.5] Secondary localStorage check...')
         const token = localStorage.getItem('auth_token')
         const userData = localStorage.getItem('user_data')
-        
+        console.log('[MAIN-7.6] Read complete. Token type:', typeof token, 'UserData type:', typeof userData)
+
         console.log('[MAIN-8] localStorage check results:')
         console.log('  - Token exists:', !!token)
         console.log('  - User data exists:', !!userData)
@@ -97,81 +120,108 @@ function SlyWriterApp() {
             console.log('  - Failed to parse user data:', e)
           }
         }
-        
+
         if (token && userData) {
           // We have auth data, set authenticated immediately
-          console.log('[MAIN-9] ✅ Authentication successful - token found!')
+          console.log('[MAIN-9] ✅ Authentication successful - token found on secondary check!')
           console.log('[MAIN-10] Setting isAuthenticated to true')
           setIsAuthenticated(true)
           setIsCheckingAuth(false)
-          console.log('=== MAIN PAGE AUTH CHECK END (SUCCESS) ===')
-          
+          console.log('[MAIN-10.3] States set successfully')
+          console.log('=== MAIN PAGE AUTH CHECK END (SECONDARY SUCCESS) ===')
+
           // Then check with Electron for additional validation if available
           if (typeof window !== 'undefined' && (window as any).electron) {
             const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
             console.log('Electron auth check result:', result)
             // Don't redirect even if Electron says not authenticated - trust localStorage
           }
-          
+
           return // Exit early, we're authenticated
         }
         
-        // Check if we're coming from login with a pending auth (reuse the referrer variable)
-        const isFromLoginRetry = referrer && referrer.includes('/login')
+        // Final retry for login redirects
+        if (isFromLogin) {
+          console.log('[MAIN-11] Final retry for login redirect...')
+          await new Promise(resolve => setTimeout(resolve, 500))
 
-        if (isFromLoginRetry) {
-          // Give it another chance - might be mid-redirect from successful login
-          console.log('Coming from login page, checking auth again...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
           const retryToken = localStorage.getItem('auth_token')
           const retryUserData = localStorage.getItem('user_data')
-          
+
           if (retryToken && retryUserData) {
-            console.log('Found auth on retry!')
+            console.log('[MAIN-11.1] ✅ Found auth on final retry!')
             setIsAuthenticated(true)
             setIsCheckingAuth(false)
+            console.log('=== MAIN PAGE AUTH CHECK END (RETRY SUCCESS) ===')
             return
           }
+          console.log('[MAIN-11.2] ❌ No auth found on final retry')
         }
         
         // No token in localStorage, check Electron
-        console.log('[MAIN-11] No token found in localStorage')
-        console.log('[MAIN-12] All localStorage keys:', Object.keys(localStorage))
+        console.log('[MAIN-12] No token found in localStorage after all retries')
+        console.log('[MAIN-13] All localStorage keys:', Object.keys(localStorage))
         
         if (typeof window !== 'undefined' && (window as any).electron) {
-          console.log('[MAIN-13] Checking Electron auth...')
+          console.log('[MAIN-14] Checking Electron auth...')
           const result = await (window as any).electron.ipcRenderer.invoke('check-auth')
-          console.log('[MAIN-14] Electron auth check result:', result)
-          
+          console.log('[MAIN-15] Electron auth check result:', result)
+
           if (result.authenticated) {
-            console.log('[MAIN-15] Electron has auth, setting authenticated')
+            console.log('[MAIN-16] Electron has auth, setting authenticated')
             setIsAuthenticated(true)
+            setIsCheckingAuth(false)
+            console.log('=== MAIN PAGE AUTH CHECK END (ELECTRON SUCCESS) ===')
+            return
           } else {
-            // No auth anywhere, redirect to login
-            console.log('[MAIN-16] No auth in Electron either, redirecting to login...')
-            console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
-            window.location.href = window.location.origin + '/login'
+            // No auth anywhere, redirect to login (with loop protection)
+            const urlParams = new URLSearchParams(window.location.search)
+            const redirectCount = parseInt(urlParams.get('auth_attempt') || '0')
+
+            if (redirectCount >= 2) {
+              console.log('[MAIN-17] Redirect loop detected! Staying on page without auth')
+              console.log('[MAIN-17.1] This prevents infinite loops')
+              setIsAuthenticated(false)
+              setIsCheckingAuth(false)
+            } else {
+              console.log('[MAIN-18] No auth in Electron either, redirecting to login...')
+              console.log('[MAIN-18.1] Redirect attempt:', redirectCount + 1)
+              setIsCheckingAuth(false) // Set this before redirect
+              console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
+              window.location.href = `${window.location.origin}/login?from=main&auth_attempt=${redirectCount + 1}`
+            }
           }
         } else {
           // Browser environment, no Electron
           // No token found, redirect to login
-          console.log('[MAIN-13] Browser environment (no Electron)')
-          console.log('[MAIN-14] No auth found, redirecting to login...')
+          console.log('[MAIN-19] Browser environment (no Electron)')
+          console.log('[MAIN-20] No auth found, redirecting to login...')
+          setIsCheckingAuth(false) // Set this before redirect
           console.log('=== MAIN PAGE AUTH CHECK END (REDIRECT TO LOGIN) ===')
           window.location.href = window.location.origin + '/login'
         }
       } catch (error) {
-        console.error('Auth check failed:', error)
+        console.error('[MAIN-ERROR] Auth check failed:', error)
+        console.error('[MAIN-ERROR] Error stack:', (error as Error).stack)
         setIsAuthenticated(false)
-        window.location.href = window.location.origin + '/login'
-      } finally {
         setIsCheckingAuth(false)
+        console.log('[MAIN-ERROR] Will redirect to login due to error')
+        window.location.href = window.location.origin + '/login'
       }
     }
     
+    console.log('[MAIN-INIT] Starting auth check...')
     checkAuth()
   }, [])
+
+  // Log when auth state changes
+  useEffect(() => {
+    console.log('[MAIN-STATE] isAuthenticated changed to:', isAuthenticated)
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    console.log('[MAIN-STATE] isCheckingAuth changed to:', isCheckingAuth)
+  }, [isCheckingAuth])
   
   // Update ref when activeTab changes
   useEffect(() => {
