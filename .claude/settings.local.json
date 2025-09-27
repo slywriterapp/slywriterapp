@@ -41,7 +41,8 @@
       "Bash(gh release upload:*)",
       "Bash(gh release view:*)",
       "Bash(git ls-tree:*)",
-      "WebFetch(domain:slywriter-ui.onrender.com)"
+      "WebFetch(domain:slywriter-ui.onrender.com)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": [],

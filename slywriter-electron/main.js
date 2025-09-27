@@ -93,11 +93,97 @@ let overlayWindow
 let tray
 let nextServer
 let nextPort = 3000
+let typingServerProcess = null
 
 // Remove the isQuitting flag since we're not using it anymore
 
 // Enable live reload for Electron in dev mode
 const isDev = process.argv.includes('--dev')
+
+// Start the typing server (backend_api.py)
+function startTypingServer() {
+  console.log('Starting typing server...')
+
+  // Check if app is packaged
+  const isPackaged = app.isPackaged
+
+  // Get the path to the typing server
+  const typingServerPath = isPackaged
+    ? path.join(process.resourcesPath, 'backend_api.py')  // Production: resources folder
+    : path.join(__dirname, '..', 'backend_api.py')  // Development: parent directory
+
+  console.log('Typing server path:', typingServerPath)
+  console.log('Current directory:', __dirname)
+  console.log('isPackaged:', isPackaged)
+
+  // Check if the file exists
+  if (!fs.existsSync(typingServerPath)) {
+    console.error('Backend API file not found at:', typingServerPath)
+    return
+  }
+
+  // Check if Python is installed and try to start the server
+  const pythonCommands = ['python', 'python3', 'py']
+  let serverStarted = false
+
+  for (const pythonCmd of pythonCommands) {
+    if (serverStarted) break
+
+    try {
+      typingServerProcess = spawn(pythonCmd, [typingServerPath], {
+        cwd: path.dirname(typingServerPath),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true
+      })
+
+      typingServerProcess.stdout.on('data', (data) => {
+        console.log(`Typing server: ${data}`)
+      })
+
+      typingServerProcess.stderr.on('data', (data) => {
+        const message = data.toString()
+        console.log(`Typing server: ${message}`)
+        // Check if server started successfully
+        if (message.includes('Uvicorn running on') || message.includes('8000')) {
+          serverStarted = true
+          console.log('Typing server started successfully on port 8000')
+        }
+      })
+
+      typingServerProcess.on('error', (error) => {
+        console.error(`Failed to start typing server with ${pythonCmd}:`, error.message)
+      })
+
+      typingServerProcess.on('exit', (code) => {
+        console.log(`Typing server exited with code ${code}`)
+        typingServerProcess = null
+      })
+
+      // Give it a moment to see if it starts
+      setTimeout(() => {
+        if (typingServerProcess && !typingServerProcess.killed) {
+          serverStarted = true
+        }
+      }, 1000)
+
+    } catch (error) {
+      console.error(`Failed to start typing server with ${pythonCmd}:`, error.message)
+    }
+  }
+
+  if (!serverStarted) {
+    console.error('Could not start typing server - Python may not be installed')
+  }
+}
+
+// Stop the typing server
+function stopTypingServer() {
+  if (typingServerProcess) {
+    console.log('Stopping typing server...')
+    typingServerProcess.kill()
+    typingServerProcess = null
+  }
+}
 
 // Simple cleanup - no complex killing
 function cleanupPreviousInstances() {
@@ -609,6 +695,9 @@ function setupAutoUpdater() {
 app.whenReady().then(() => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
+
+  // Start the typing server
+  startTypingServer()
 
   createWindow()
   createOverlay()
@@ -1516,7 +1605,10 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   // Unregister all shortcuts
   globalShortcut.unregisterAll()
-  
+
+  // Stop the typing server
+  stopTypingServer()
+
   // Kill all spawned processes
   console.log('Cleaning up all processes...')
   
