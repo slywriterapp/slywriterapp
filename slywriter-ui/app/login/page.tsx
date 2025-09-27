@@ -239,10 +239,10 @@ export default function LoginPage() {
             })
             console.log('Auth data saved, navigating to app...')
             
-            // Navigate to auth-redirect page which will handle the final redirect
-            console.log('[12] Electron: Navigating to auth redirect page...')
-            console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
-            window.location.href = window.location.origin + '/auth-redirect'
+            // Navigate directly to main app since auth is saved
+            console.log('[12] Electron: Navigating to main app...')
+            console.log('[13] Using window.location.href = ' + window.location.origin + '/')
+            window.location.href = window.location.origin + '/'
             console.log('[14] Navigation command sent!')
           } catch (navError) {
             console.error('Electron navigation error:', navError)
@@ -250,10 +250,10 @@ export default function LoginPage() {
             window.location.replace(window.location.origin + '/')
           }
         } else {
-          // In browser, navigate to auth redirect page
-          console.log('[12] Browser: Navigating to auth redirect page...')
-          console.log('[13] Using window.location.href = ' + window.location.origin + '/auth-redirect')
-          window.location.href = window.location.origin + '/auth-redirect'
+          // In browser, navigate directly to main app
+          console.log('[12] Browser: Navigating to main app...')
+          console.log('[13] Using window.location.href = ' + window.location.origin + '/')
+          window.location.href = window.location.origin + '/'
           console.log('[14] Navigation command sent!')
         }
         console.log('=== GOOGLE SIGN-IN DEBUG END ===')

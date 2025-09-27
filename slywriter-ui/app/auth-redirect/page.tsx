@@ -47,14 +47,19 @@ export default function AuthRedirectPage() {
         // We have a token, go to main app
         logs.push('Token found! Redirecting to main app...')
         console.log('Redirecting to main app /')
-        
+        console.log('Full redirect URL:', window.location.origin + '/')
+
+        // Small delay to ensure localStorage is fully written
+        await new Promise(resolve => setTimeout(resolve, 100))
+
         // Use replace to prevent back button issues
         window.location.replace(window.location.origin + '/')
       } else {
         // No token, something went wrong, go back to login
         logs.push('No token found! Redirecting back to login...')
         console.log('No token, redirecting back to /login')
-        
+        console.log('localStorage keys:', Object.keys(localStorage))
+
         // Wait a bit before redirecting to login so user can see the debug info
         await new Promise(resolve => setTimeout(resolve, 2000))
         window.location.replace(window.location.origin + '/login')
