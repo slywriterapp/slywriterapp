@@ -44,9 +44,11 @@ export default function LoginPage() {
       const shouldForceRender = params.get('server') === 'render'
       setForceRender(shouldForceRender)
       
-      const url = shouldForceRender 
+      // Always use production backend when loaded from Render or Electron
+      const isDevelopment = window.location.hostname === 'localhost' && window.location.port === '3000'
+      const url = shouldForceRender
         ? 'https://slywriterapp.onrender.com'
-        : (window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com')
+        : (isDevelopment ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com')
       setApiUrl(url)
       
       // Detect Electron environment
