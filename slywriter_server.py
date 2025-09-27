@@ -26,8 +26,22 @@ import pathlib
 app = Flask(__name__)
 
 # Configure CORS properly for development and production
-CORS(app, 
-     resources={r"/*": {"origins": "*"}},  # Allow all origins in development
+# Allowed origins for CORS
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Local development
+    "http://localhost:5000",  # Local backend
+    "https://slywriter-ui.onrender.com",  # Deployed UI
+    "https://slywriter-site.webflow.io",  # Marketing website
+    "https://slywriter.com",  # Main domain
+    "https://slywriter.app",  # App domain
+    "https://slywriter.ai",  # AI domain
+    "https://www.slywriter.com",  # WWW variants
+    "https://www.slywriter.app",
+    "https://www.slywriter.ai"
+]
+
+CORS(app,
+     resources={r"/*": {"origins": ALLOWED_ORIGINS}},
      allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      supports_credentials=True)
