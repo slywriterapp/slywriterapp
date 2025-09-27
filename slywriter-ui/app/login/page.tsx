@@ -45,8 +45,19 @@ export default function LoginPage() {
       setForceRender(shouldForceRender)
       
       // Always use production backend when loaded from Render or Electron
-      // Fixed: Only use localhost:5000 when running in actual dev mode (localhost:3000)
-      const isDevelopment = window.location.hostname === 'localhost' && window.location.port === '3000'
+      // Fixed: Check if we're in Electron or production environment
+      const isElectronEnv = !!(window as any).electron
+      const isProduction = window.location.hostname !== 'localhost' || isElectronEnv
+      const isDevelopment = window.location.hostname === 'localhost' && window.location.port === '3000' && !isElectronEnv
+
+      console.log('Environment detection:', {
+        hostname: window.location.hostname,
+        port: window.location.port,
+        isElectron: isElectronEnv,
+        isDevelopment,
+        isProduction
+      })
+
       const url = shouldForceRender
         ? 'https://slywriterapp.onrender.com'
         : (isDevelopment ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com')
