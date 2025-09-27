@@ -506,7 +506,7 @@ export default function AIHubTab() {
             
             // Check if user is running low on words
             if (trackResponse.data.words_remaining < 100) {
-              toast.warning(`⚠️ Only ${trackResponse.data.words_remaining} words remaining!`, {
+              toast(`⚠️ Only ${trackResponse.data.words_remaining} words remaining!`, {
                 duration: 5000
               })
               
