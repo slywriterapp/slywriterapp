@@ -60,6 +60,15 @@ function SlyWriterApp() {
       LocalStorageMonitor.logCurrentState()
       
       try {
+        // Check if we're coming from login page
+        const referrer = document.referrer
+        const isFromLogin = referrer && (referrer.includes('/login') || referrer.includes('slywriter-ui.onrender.com'))
+
+        if (isFromLogin) {
+          console.log('[MAIN-5.5] Coming from login, waiting for auth to settle...')
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+
         // Add a longer delay to ensure localStorage is written
         console.log('[MAIN-6] Waiting 200ms before auth check...')
         await new Promise(resolve => setTimeout(resolve, 200))
@@ -381,11 +390,14 @@ function SlyWriterApp() {
     )
   }
   
-  // Redirect to login if not authenticated
+  // Don't redirect here - already handled in useEffect
+  // This was causing redirect loops
+  /*
   if (!isAuthenticated && typeof window !== 'undefined') {
     window.location.href = window.location.origin + '/login'
     return null
   }
+  */
 
   return (
     <div className="min-h-screen bg-black">
