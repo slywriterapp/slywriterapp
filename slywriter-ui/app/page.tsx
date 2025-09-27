@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
-import toast from 'react-hot-toast'
+import { toast } from '@/lib/toast'
 import { LocalStorageMonitor } from './utils/localStorage-monitor'
 import { AuthProvider } from './context/AuthContext'
 import UserDashboard from './components/UserDashboard'
@@ -20,6 +20,7 @@ import GlobalHotkeyListener from './components/GlobalHotkeyListener'
 import OnboardingFlow from './components/OnboardingFlow'
 import SplashScreen from './components/SplashScreen'
 import BetaDisclosure from './components/BetaDisclosure'
+import GoogleLogin from './components/GoogleLogin'
 import axios from 'axios'
 import { 
   KeyboardIcon, BrainIcon, BarChart3Icon, SettingsIcon,
