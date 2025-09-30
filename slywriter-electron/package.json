@@ -7,7 +7,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "electron-builder",
-    "dist": "electron-builder --win",
+    "dist": "electron-builder --win --publish never",
     "dist:nsis": "electron-builder --win nsis",
     "dist:squirrel": "electron-builder --win squirrel",
     "pack:win": "electron-builder --win --dir"
