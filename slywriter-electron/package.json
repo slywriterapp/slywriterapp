@@ -91,7 +91,6 @@
       "releaseType": "release"
     },
     "win": {
-      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -118,8 +117,6 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "./assets/icon.ico",
-      "uninstallerIcon": "./assets/icon.ico",
       "installerHeader": "./assets/installerHeader.bmp",
       "installerSidebar": "./assets/installerSidebar.bmp",
       "license": "../license.txt",
