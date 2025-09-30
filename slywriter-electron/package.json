@@ -133,7 +133,7 @@
       "installerLanguages": ["en_US"],
       "menuCategory": true,
       "packElevateHelper": true,
-      "precompressedFileExtensions": [".mp4", ".webm", ".png", ".jpg"],
+      "preCompressedFileExtensions": [".mp4", ".webm", ".png", ".jpg"],
       "warningsAsErrors": false
     }
   }
