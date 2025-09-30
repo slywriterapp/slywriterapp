@@ -122,7 +122,7 @@ The Software is not intended for users under 13 years of age. If You are under 1
 
 19. CONTACT INFORMATION
 For questions about this Agreement, contact us at:
-Email: legal@slywriter.ai
+Email: support@slywriter.ai
 Website: slywriter.ai
 
 BY INSTALLING OR USING THE SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY ALL TERMS OF THIS AGREEMENT.
