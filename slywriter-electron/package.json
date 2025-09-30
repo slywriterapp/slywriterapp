@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -42,10 +42,15 @@
       "main.js",
       "preload.js",
       "overlay.html",
+      "splash.html",
+      "splash-preload.js",
+      "update.html",
       "setup-python.js",
       "assets/**/*",
       "node_modules/**/*"
     ],
+    "includeSubNodeModules": true,
+    "asar": false,
     "extraResources": [
       {
         "from": "../backend_api.py",
@@ -76,12 +81,200 @@
         "to": "sly_config.py"
       },
       {
+        "from": "../slywriter_server.py",
+        "to": "slywriter_server.py"
+      },
+      {
+        "from": "../gui_main.py",
+        "to": "gui_main.py"
+      },
+      {
+        "from": "../sly_app.py",
+        "to": "sly_app.py"
+      },
+      {
+        "from": "../tab_typing.py",
+        "to": "tab_typing.py"
+      },
+      {
+        "from": "../tab_account.py",
+        "to": "tab_account.py"
+      },
+      {
+        "from": "../tab_humanizer.py",
+        "to": "tab_humanizer.py"
+      },
+      {
+        "from": "../tab_hotkeys.py",
+        "to": "tab_hotkeys.py"
+      },
+      {
+        "from": "../tab_stats.py",
+        "to": "tab_stats.py"
+      },
+      {
+        "from": "../typing_ui.py",
+        "to": "typing_ui.py"
+      },
+      {
+        "from": "../sly_theme.py",
+        "to": "sly_theme.py"
+      },
+      {
+        "from": "../sly_hotkeys.py",
+        "to": "sly_hotkeys.py"
+      },
+      {
+        "from": "../utils.py",
+        "to": "utils.py"
+      },
+      {
+        "from": "../premium_ui.py",
+        "to": "premium_ui.py"
+      },
+      {
+        "from": "../account_usage.py",
+        "to": "account_usage.py"
+      },
+      {
+        "from": "../ai_text_generator.py",
+        "to": "ai_text_generator.py"
+      },
+      {
+        "from": "../modern_theme.py",
+        "to": "modern_theme.py"
+      },
+      {
+        "from": "../modern_components.py",
+        "to": "modern_components.py"
+      },
+      {
+        "from": "../account_theme.py",
+        "to": "account_theme.py"
+      },
+      {
+        "from": "../referral_manager.py",
+        "to": "referral_manager.py"
+      },
+      {
+        "from": "../modern_cards.py",
+        "to": "modern_cards.py"
+      },
+      {
+        "from": "../modern_overlay.py",
+        "to": "modern_overlay.py"
+      },
+      {
+        "from": "../typing_theme.py",
+        "to": "typing_theme.py"
+      },
+      {
+        "from": "../ai_clipboard_handler.py",
+        "to": "ai_clipboard_handler.py"
+      },
+      {
+        "from": "../tab_learn.py",
+        "to": "tab_learn.py"
+      },
+      {
+        "from": "../premium_animations.py",
+        "to": "premium_animations.py"
+      },
+      {
+        "from": "../premium_notifications.py",
+        "to": "premium_notifications.py"
+      },
+      {
+        "from": "../feature_spotlight.py",
+        "to": "feature_spotlight.py"
+      },
+      {
+        "from": "../mousewheel_scroll.py",
+        "to": "mousewheel_scroll.py"
+      },
+      {
+        "from": "../purple_button_theme.py",
+        "to": "purple_button_theme.py"
+      },
+      {
+        "from": "../sly_splash.py",
+        "to": "sly_splash.py"
+      },
+      {
+        "from": "../tab_overlay.py",
+        "to": "tab_overlay.py"
+      },
+      {
+        "from": "../modern_notebook.py",
+        "to": "modern_notebook.py"
+      },
+      {
+        "from": "../modern_ui_2025.py",
+        "to": "modern_ui_2025.py"
+      },
+      {
+        "from": "../grammarly_simulator.py",
+        "to": "grammarly_simulator.py"
+      },
+      {
+        "from": "../telemetry_postgres.py",
+        "to": "telemetry_postgres.py"
+      },
+      {
+        "from": "../telemetry_endpoints.py",
+        "to": "telemetry_endpoints.py"
+      },
+      {
+        "from": "../websocket_typing.py",
+        "to": "websocket_typing.py"
+      },
+      {
+        "from": "../settings_sync.py",
+        "to": "settings_sync.py"
+      },
+      {
         "from": "../requirements.txt",
         "to": "requirements.txt"
       },
       {
         "from": "../install_typing_deps.bat",
         "to": "install_typing_deps.bat"
+      },
+      {
+        "from": "../config.json",
+        "to": "config.json"
+      },
+      {
+        "from": "../usage_data.json",
+        "to": "usage_data.json"
+      },
+      {
+        "from": "../typing_log.txt",
+        "to": "typing_log.txt"
+      },
+      {
+        "from": "../hotkeys.json",
+        "to": "hotkeys.json"
+      },
+      {
+        "from": "../plan_data.json",
+        "to": "plan_data.json"
+      },
+      {
+        "from": "../word_data.json",
+        "to": "word_data.json"
+      },
+      {
+        "from": "../analytics.json",
+        "to": "analytics.json"
+      },
+      {
+        "from": "../users.json",
+        "to": "users.json"
+      },
+      {
+        "from": "../client_secret.json",
+        "to": "client_secret.json"
       }
     ],
     "publish": {

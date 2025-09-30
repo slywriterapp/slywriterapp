@@ -43,7 +43,13 @@
       "Bash(git ls-tree:*)",
       "WebFetch(domain:slywriter-ui.onrender.com)",
       "Bash(pip install:*)",
-      "Bash(xcopy:*)"
+      "Bash(xcopy:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(timeout 300 gh run watch 18118039938 --repo slywriterapp/slywriterapp --interval 15 --exit-status)",
+      "Bash(gh release download:*)"
     ],
     "deny": [],
     "ask": [],
