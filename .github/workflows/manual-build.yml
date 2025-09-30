@@ -1,0 +1,45 @@
+name: Manual Build for Existing Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build for (e.g., v2.1.1)'
+        required: true
+        default: 'v2.1.2'
+
+jobs:
+  build-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: slywriter-electron/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./slywriter-electron
+        run: npm ci
+
+      - name: Build Electron app
+        working-directory: ./slywriter-electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      - name: Upload to existing release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            slywriter-electron/dist/SlyWriter-Setup-*.exe
+            slywriter-electron/dist/latest.yml
+          tag_name: ${{ github.event.inputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,105 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: slywriter-electron/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./slywriter-electron
+        run: npm ci
+
+      - name: Get version from package.json
+        id: package-version
+        working-directory: ./slywriter-electron
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        shell: powershell
+
+      - name: Build Electron app
+        working-directory: ./slywriter-electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      - name: List dist directory
+        working-directory: ./slywriter-electron
+        run: |
+          echo "Contents of dist directory:"
+          dir dist
+        shell: cmd
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-installer
+          path: |
+            slywriter-electron/dist/SlyWriter-Setup-*.exe
+            slywriter-electron/dist/latest.yml
+            slywriter-electron/dist/*.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-installer
+          path: dist
+
+      - name: List downloaded files
+        run: |
+          echo "Downloaded files:"
+          ls -la dist/
+
+      - name: Get release version
+        id: get-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/SlyWriter-Setup-*.exe
+            dist/latest.yml
+            dist/*.exe
+          draft: false
+          prerelease: false
+          tag_name: ${{ steps.get-version.outputs.VERSION }}
+          name: Release ${{ steps.get-version.outputs.VERSION }}
+          body: |
+            ## 🚀 SlyWriter ${{ steps.get-version.outputs.VERSION }}
+
+            ### Installation
+            Download `SlyWriter-Setup-*.exe` below and run it to install or update SlyWriter.
+
+            ### Auto-Update
+            If you have SlyWriter installed, it will automatically detect this update and prompt you to install it.
+
+            ---
+            *This release was automatically built and published by GitHub Actions.*
+          token: ${{ secrets.GITHUB_TOKEN }}
