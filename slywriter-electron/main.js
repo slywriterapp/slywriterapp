@@ -119,12 +119,19 @@ function startTypingServer() {
   // Check if the file exists
   if (!fs.existsSync(typingServerPath)) {
     console.error('Backend API file not found at:', typingServerPath)
+    // Show error to user
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.executeJavaScript(`
+        console.error('Typing server file not found. Typing features will not work.');
+      `)
+    }
     return
   }
 
   // Check if Python is installed and try to start the server
   const pythonCommands = ['python', 'python3', 'py']
   let serverStarted = false
+  let pythonFound = false
 
   for (const pythonCmd of pythonCommands) {
     if (serverStarted) break
@@ -144,9 +151,20 @@ function startTypingServer() {
         const message = data.toString()
         console.log(`Typing server: ${message}`)
         // Check if server started successfully
-        if (message.includes('Uvicorn running on') || message.includes('8000')) {
+        if (message.includes('Uvicorn running on') || message.includes('8000') || message.includes('Started server')) {
           serverStarted = true
+          pythonFound = true
           console.log('Typing server started successfully on port 8000')
+          // Notify the renderer process that server is ready
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.executeJavaScript(`
+              console.log('✅ Typing server started successfully on port 8000');
+            `)
+          }
+        }
+        // Check for common Python module errors
+        if (message.includes('ModuleNotFoundError')) {
+          console.error('Python dependencies missing. User needs to install requirements.')
         }
       })
 
@@ -171,9 +189,20 @@ function startTypingServer() {
     }
   }
 
-  if (!serverStarted) {
-    console.error('Could not start typing server - Python may not be installed')
-  }
+  // Wait a bit to see if any Python command worked
+  setTimeout(() => {
+    if (!serverStarted) {
+      console.error('Could not start typing server - Python may not be installed or dependencies missing')
+      // Notify user in the renderer
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          console.error('⚠️ Typing server failed to start. Make sure Python is installed.');
+          console.error('You can still use AI features, but typing automation won\\'t work.');
+          console.log('To fix: Install Python from https://python.org');
+        `)
+      }
+    }
+  }, 3000)
 }
 
 // Stop the typing server

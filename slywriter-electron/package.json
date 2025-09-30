@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -50,8 +50,36 @@
         "to": "backend_api.py"
       },
       {
+        "from": "../typing_engine.py",
+        "to": "typing_engine.py"
+      },
+      {
+        "from": "../typing_logic.py",
+        "to": "typing_logic.py"
+      },
+      {
+        "from": "../premium_typing.py",
+        "to": "premium_typing.py"
+      },
+      {
+        "from": "../auth.py",
+        "to": "auth.py"
+      },
+      {
+        "from": "../config.py",
+        "to": "config.py"
+      },
+      {
+        "from": "../sly_config.py",
+        "to": "sly_config.py"
+      },
+      {
         "from": "../requirements.txt",
         "to": "requirements.txt"
+      },
+      {
+        "from": "../install_typing_deps.bat",
+        "to": "install_typing_deps.bat"
       }
     ],
     "publish": {
