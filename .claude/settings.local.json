@@ -49,7 +49,9 @@
       "Bash(gh run view:*)",
       "Bash(gh run watch:*)",
       "Bash(timeout 300 gh run watch 18118039938 --repo slywriterapp/slywriterapp --interval 15 --exit-status)",
-      "Bash(gh release download:*)"
+      "Bash(gh release download:*)",
+      "Bash(timeout 30 gh run watch 18118626159 --repo slywriterapp/slywriterapp --interval 5 --exit-status)",
+      "Bash(gh run download:*)"
     ],
     "deny": [],
     "ask": [],
