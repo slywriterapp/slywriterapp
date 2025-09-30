@@ -130,6 +130,20 @@ async function startTypingServer() {
   // Check if the file exists
   if (!fs.existsSync(typingServerPath)) {
     console.error('Backend API file not found at:', typingServerPath)
+    console.error('Looking for backend_api.py in:', process.resourcesPath)
+
+    // List files in resources directory to debug
+    if (isPackaged) {
+      const resourcesDir = process.resourcesPath
+      console.log('Files in resources directory:')
+      try {
+        const files = fs.readdirSync(resourcesDir)
+        files.forEach(file => console.log('  -', file))
+      } catch (e) {
+        console.error('Could not read resources directory:', e.message)
+      }
+    }
+
     // Show error to user
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.executeJavaScript(`
@@ -161,8 +175,19 @@ async function startTypingServer() {
         }
       })
       console.log('Bundled Python ready at:', pythonPath)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          console.log('✅ Python environment ready');
+        `)
+      }
     } catch (error) {
       console.error('Failed to setup bundled Python:', error)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          console.error('⚠️ Failed to setup Python: ${error.message}');
+          console.log('Will attempt to use system Python as fallback...');
+        `)
+      }
     }
   }
 
@@ -270,12 +295,19 @@ async function startTypingServer() {
   setTimeout(() => {
     if (!serverStarted) {
       console.error('Could not start typing server - Python may not be installed or dependencies missing')
+      console.error('This is expected on first run. Python will be downloaded automatically.')
+      console.error('If this persists, install Python manually from python.org')
+
       // Notify user in the renderer
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(`
-          console.error('⚠️ Typing server failed to start. Make sure Python is installed.');
-          console.error('You can still use AI features, but typing automation won\\'t work.');
-          console.log('To fix: Install Python from https://python.org');
+          console.error('⚠️ Typing server is not running');
+          console.log('📥 Python environment is being set up. This may take a few minutes on first run.');
+          console.log('The app will download Python (~20MB) and install dependencies (~50MB).');
+          console.log('If this doesn\\'t work automatically, you may need to:');
+          console.log('  1. Install Python from https://python.org');
+          console.log('  2. Run: pip install fastapi uvicorn keyboard openai python-dotenv');
+          console.log('  3. Restart SlyWriter');
         `)
       }
     }
