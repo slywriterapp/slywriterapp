@@ -848,7 +848,7 @@ class PremiumHeader:
                 "type": "update",
                 "title": "🚀 SlyWriter v2.0 Released!",
                 "message": "New AI detection avoidance, improved typing patterns, and better performance.",
-                "timestamp": "2024-01-15T10:00:00Z",
+                "timestamp": "2025-09-15T10:00:00Z",
                 "action_text": "View Changelog",
                 "action_url": "https://yourwebsite.com/changelog"
             },
@@ -857,7 +857,7 @@ class PremiumHeader:
                 "type": "discount",
                 "title": "💰 50% Off Premium - Limited Time!",
                 "message": "Use code WINTER50 for 50% off your first month of Premium.",
-                "timestamp": "2024-01-10T15:30:00Z",
+                "timestamp": "2025-09-10T15:30:00Z",
                 "action_text": "Claim Discount",
                 "action_url": "https://yourwebsite.com/premium?code=WINTER50"
             },
@@ -866,7 +866,7 @@ class PremiumHeader:
                 "type": "info",
                 "title": "📢 Join Our Discord Community",
                 "message": "Get the latest updates, discount codes, and connect with other users.",
-                "timestamp": "2024-01-05T12:00:00Z",
+                "timestamp": "2025-09-05T12:00:00Z",
                 "action_text": "Join Discord",
                 "action_url": "https://discord.gg/your-invite-code"
             }
@@ -921,7 +921,7 @@ class PremiumHeader:
                 # Try to parse timestamp - handle different formats
                 timestamp = notification['timestamp']
                 if 'T' in timestamp and 'Z' in timestamp:
-                    # ISO format: 2024-01-15T10:00:00Z
+                    # ISO format: 2025-09-15T10:00:00Z
                     dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                 else:
                     # Try to parse as timestamp

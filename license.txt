@@ -1,0 +1,130 @@
+SLYWRITER END USER LICENSE AGREEMENT (EULA)
+IMPORTANT - READ CAREFULLY
+
+Last Updated: September 2025
+
+This End User License Agreement ("Agreement") is a legal agreement between you ("User," "You," or "Your") and SlyWriter ("Company," "We," "Us," or "Our") for the SlyWriter desktop application software, including any updates, upgrades, bug fixes, and/or modified versions ("Software").
+
+BY CLICKING "I AGREE," INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE TO THE TERMS OF THIS AGREEMENT, DO NOT INSTALL OR USE THE SOFTWARE AND PROMPTLY DELETE ANY COPIES.
+
+1. GRANT OF LICENSE
+Subject to Your compliance with this Agreement, We grant You a limited, non-exclusive, non-transferable, revocable license to use the Software solely for Your personal or internal business purposes. This license is for one (1) user per license purchased.
+
+2. RESTRICTIONS
+You agree NOT to:
+a) Copy, modify, adapt, translate, decompile, reverse engineer, disassemble, or create derivative works based on the Software
+b) Rent, lease, loan, sell, sublicense, distribute, or transfer the Software
+c) Remove, alter, or obscure any proprietary notices on the Software
+d) Use the Software for any unlawful purpose or in violation of any applicable laws
+e) Use the Software to violate the terms of service of any third-party platform or service
+f) Share Your account credentials or license key with others
+g) Use the Software to generate content that infringes on intellectual property rights
+h) Use the Software for academic dishonesty, plagiarism, or cheating
+i) Circumvent any license limitations or authentication mechanisms
+j) Use automated means to create multiple accounts or abuse the service
+
+3. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT:
+a) The Software will meet Your requirements
+b) The Software will be uninterrupted, timely, secure, or error-free
+c) The results obtained from the Software will be accurate or reliable
+d) Any errors in the Software will be corrected
+
+YOU EXPRESSLY UNDERSTAND AND AGREE THAT YOUR USE OF THE SOFTWARE IS AT YOUR SOLE RISK.
+
+4. LIMITATION OF LIABILITY
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL SLYWRITER OR ITS AFFILIATES, OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, OR LICENSORS BE LIABLE FOR:
+a) ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES
+b) ANY LOSS OF PROFITS, REVENUE, DATA, OR USE
+c) ANY DAMAGES EXCEEDING THE AMOUNT YOU PAID FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM
+d) ANY MATTER BEYOND OUR REASONABLE CONTROL
+
+THIS LIMITATION APPLIES REGARDLESS OF THE THEORY OF LIABILITY (CONTRACT, TORT, NEGLIGENCE, STRICT LIABILITY, OR OTHERWISE) AND EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+5. INDEMNIFICATION
+You agree to indemnify, defend, and hold harmless SlyWriter and its affiliates, officers, directors, employees, agents, and licensors from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable attorneys' fees) arising from:
+a) Your use or misuse of the Software
+b) Your violation of this Agreement
+c) Your violation of any rights of a third party
+d) Any content You generate using the Software
+e) Your violation of applicable laws or regulations
+
+6. PRIVACY AND DATA COLLECTION
+a) The Software may collect certain usage data and statistics to improve the service
+b) We do not sell Your personal information to third parties
+c) Your use is subject to our Privacy Policy available at slywriter.ai/privacy
+d) You consent to the collection and use of technical information about Your device and Software usage
+
+7. UPDATES AND MODIFICATIONS
+a) We may provide updates, patches, or upgrades to the Software at our discretion
+b) Updates may be automatically downloaded and installed
+c) We reserve the right to modify or discontinue the Software at any time
+d) Continued use after updates constitutes acceptance of any modified terms
+
+8. TERMINATION
+a) This Agreement remains effective until terminated
+b) We may terminate Your license immediately if You breach this Agreement
+c) Upon termination, You must cease all use and destroy all copies of the Software
+d) Sections 3-6, 9-17 shall survive termination
+
+9. INTELLECTUAL PROPERTY
+a) The Software and all intellectual property rights therein are owned by SlyWriter
+b) This Agreement does not grant You any rights to trademarks, trade names, or logos
+c) Any feedback You provide may be used by Us without compensation to You
+
+10. SUBSCRIPTION AND PAYMENTS
+a) Certain features require a paid subscription
+b) Subscriptions auto-renew unless cancelled
+c) No refunds for partial subscription periods
+d) We reserve the right to change pricing with 30 days notice
+e) You are responsible for all applicable taxes
+
+11. THIRD-PARTY SERVICES
+a) The Software may interact with third-party services
+b) Your use of third-party services is governed by their terms
+c) We are not responsible for third-party services or content
+d) You assume all risk associated with using third-party services through the Software
+
+12. PROHIBITED USES
+You agree not to use the Software:
+a) To harass, abuse, stalk, threaten, or defame any person
+b) To generate spam, phishing attempts, or malicious content
+c) For any illegal activities or to promote illegal activities
+d) To violate academic integrity policies
+e) To impersonate any person or entity
+f) To interfere with or disrupt the Software or servers
+
+13. EXPORT RESTRICTIONS
+The Software may be subject to export laws and regulations. You agree to comply with all applicable export and re-export restrictions and regulations.
+
+14. GOVERNING LAW AND DISPUTES
+a) This Agreement is governed by the laws of the United States and the State of Delaware
+b) Any disputes shall be resolved through binding arbitration under AAA rules
+c) The arbitration shall be conducted in Delaware
+d) You waive any right to a jury trial or class action
+e) You must bring any claim within one (1) year of the cause of action
+
+15. SEVERABILITY
+If any provision of this Agreement is held invalid or unenforceable, the remaining provisions shall continue in full force and effect.
+
+16. ENTIRE AGREEMENT
+This Agreement constitutes the entire agreement between You and SlyWriter regarding the Software and supersedes all prior agreements and understandings.
+
+17. MISCELLANEOUS
+a) We may assign this Agreement without Your consent
+b) You may not assign this Agreement without our written consent
+c) No waiver shall be effective unless in writing
+d) Headings are for convenience only and do not affect interpretation
+e) "Including" means "including without limitation"
+
+18. NOTICE REGARDING MINORS
+The Software is not intended for users under 13 years of age. If You are under 18, You must have parental consent to use the Software.
+
+19. CONTACT INFORMATION
+For questions about this Agreement, contact us at:
+Email: legal@slywriter.ai
+Website: slywriter.ai
+
+BY INSTALLING OR USING THE SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY ALL TERMS OF THIS AGREEMENT.
+
+© 2025 SlyWriter. All rights reserved.

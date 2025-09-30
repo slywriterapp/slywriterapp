@@ -299,6 +299,39 @@ function cleanupPreviousInstances() {
 
 // Removed unused port and waiting functions - keeping it simple
 
+let splashWindow = null
+
+function createSplashScreen() {
+  splashWindow = new BrowserWindow({
+    width: 500,
+    height: 350,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    center: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'splash-preload.js')
+    }
+  })
+
+  splashWindow.loadFile('splash.html')
+
+  // Destroy splash window after 3 seconds
+  setTimeout(() => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.destroy()
+      splashWindow = null
+      // Show main window after splash
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show()
+      }
+    }
+  }, 3000)
+}
+
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -308,6 +341,7 @@ function createWindow() {
     minHeight: 700,
     frame: true,
     backgroundColor: '#000000',
+    show: false, // Don't show until splash is done
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -804,6 +838,9 @@ app.whenReady().then(() => {
 
   // Start the typing server
   startTypingServer()
+
+  // Show splash screen first
+  createSplashScreen()
 
   createWindow()
   createOverlay()
@@ -1757,6 +1794,127 @@ ipcMain.handle('open-external', async (event, url) => {
   console.log('Opening external URL:', url)
   shell.openExternal(url)
   return { success: true }
+})
+
+// Hotkey recording handlers
+let recordingHotkey = false
+let recordedKeys = []
+
+ipcMain.handle('start-recording-hotkey', async () => {
+  console.log('Starting hotkey recording...')
+  recordingHotkey = true
+  recordedKeys = []
+
+  // Temporarily unregister all hotkeys to avoid conflicts
+  globalShortcut.unregisterAll()
+
+  return { recording: true }
+})
+
+ipcMain.handle('stop-recording-hotkey', async () => {
+  console.log('Stopping hotkey recording')
+  recordingHotkey = false
+
+  // Re-register previous hotkeys
+  try {
+    const hotkeyPath = path.join(app.getPath('userData'), 'hotkeys.json')
+    if (fs.existsSync(hotkeyPath)) {
+      const hotkeys = JSON.parse(fs.readFileSync(hotkeyPath, 'utf8'))
+      registerHotkeys(hotkeys)
+    }
+  } catch (err) {
+    console.error('Failed to re-register hotkeys:', err)
+  }
+
+  return { recording: false }
+})
+
+ipcMain.handle('capture-hotkey', async () => {
+  console.log('Waiting for hotkey capture...')
+
+  return new Promise((resolve) => {
+    // Try common modifier combinations
+    const modifiers = ['CommandOrControl', 'Alt', 'Shift']
+    const keys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+                  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+                  'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+                  'Space', 'Tab', 'Enter', 'Escape', 'Backspace', 'Delete',
+                  'Up', 'Down', 'Left', 'Right', 'Home', 'End', 'PageUp', 'PageDown']
+
+    let capturedHotkey = null
+    const registeredAccelerators = []
+
+    // Function to test and register combinations
+    const tryRegisterCombination = (combo) => {
+      if (!recordingHotkey) return false
+
+      try {
+        const registered = globalShortcut.register(combo, () => {
+          if (recordingHotkey && !capturedHotkey) {
+            capturedHotkey = combo
+            console.log('Captured hotkey:', combo)
+
+            // Unregister all test accelerators
+            registeredAccelerators.forEach(acc => {
+              try {
+                globalShortcut.unregister(acc)
+              } catch (e) {
+                // Ignore
+              }
+            })
+
+            resolve({ success: true, hotkey: combo })
+          }
+        })
+
+        if (registered) {
+          registeredAccelerators.push(combo)
+        }
+
+        return registered
+      } catch (e) {
+        return false
+      }
+    }
+
+    // Try single keys first
+    keys.forEach(key => {
+      tryRegisterCombination(key)
+    })
+
+    // Try with single modifiers
+    modifiers.forEach(mod => {
+      keys.forEach(key => {
+        tryRegisterCombination(`${mod}+${key}`)
+      })
+    })
+
+    // Try with two modifiers
+    tryRegisterCombination('CommandOrControl+Shift+A')
+    tryRegisterCombination('CommandOrControl+Shift+B')
+    tryRegisterCombination('CommandOrControl+Shift+C')
+    tryRegisterCombination('CommandOrControl+Alt+A')
+    tryRegisterCombination('CommandOrControl+Alt+B')
+    tryRegisterCombination('Alt+Shift+A')
+    tryRegisterCombination('Alt+Shift+B')
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      if (!capturedHotkey) {
+        // Unregister all test accelerators
+        registeredAccelerators.forEach(acc => {
+          try {
+            globalShortcut.unregister(acc)
+          } catch (e) {
+            // Ignore
+          }
+        })
+
+        resolve({ success: false, error: 'Timeout - no hotkey captured' })
+      }
+    }, 10000)
+  })
 })
 
 // Focus window when AI text is ready

@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -90,6 +90,7 @@
       "repo": "slywriterapp"
     },
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -112,13 +113,27 @@
       "msi": false
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "./assets/icon.ico",
+      "uninstallerIcon": "./assets/icon.ico",
+      "installerHeader": "./assets/installerHeader.bmp",
+      "installerSidebar": "./assets/installerSidebar.bmp",
+      "license": "../license.txt",
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "SlyWriter"
+      "shortcutName": "SlyWriter",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "SlyWriter-Setup-${version}.${ext}",
+      "displayLanguageSelector": false,
+      "installerLanguages": ["en_US"],
+      "menuCategory": true,
+      "packElevateHelper": true,
+      "precompressedFileExtensions": [".mp4", ".webm", ".png", ".jpg"],
+      "warningsAsErrors": false
     }
   }
 }
