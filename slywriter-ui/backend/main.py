@@ -407,9 +407,27 @@ async def login(auth: UserAuthRequest):
 
 @app.get("/api/auth/user/{user_id}")
 async def get_user(user_id: str):
-    """Get user information"""
+    """Get user information with plan limits"""
     if user_id in users_db:
-        return users_db[user_id]
+        user = users_db[user_id]
+
+        # Plan limits (words per day)
+        PLAN_LIMITS = {
+            "Free": 10000,
+            "Basic": 10000,
+            "Pro": 50000,
+            "Premium": -1  # -1 indicates unlimited
+        }
+
+        # Add word limit to response
+        plan = user.get("plan", "Free")
+        word_limit = PLAN_LIMITS.get(plan, 10000)
+
+        return {
+            **user,
+            "word_limit": word_limit,
+            "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/day"
+        }
     raise HTTPException(status_code=404, detail="User not found")
 
 # Usage tracking

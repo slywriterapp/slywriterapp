@@ -166,13 +166,35 @@ async def google_auth():
 async def auth_status():
     """Get current authentication status"""
     if state.user:
+        # Determine user's plan and word limit
+        is_premium = state.usage_manager.is_premium() if state.usage_manager else False
+
+        # Plan limits (words per day)
+        PLAN_LIMITS = {
+            "Free": 10000,
+            "Basic": 10000,
+            "Pro": 50000,
+            "Premium": -1  # -1 indicates unlimited
+        }
+
+        # Determine current plan
+        if is_premium:
+            plan = "Premium"
+        else:
+            plan = "Free"
+
+        word_limit = PLAN_LIMITS.get(plan, 10000)
+
         return {
             "authenticated": True,
             "user": {
                 "email": state.user.get('email'),
                 "name": state.user.get('name'),
                 "picture": state.user.get('picture'),
-                "is_premium": state.usage_manager.is_premium() if state.usage_manager else False
+                "is_premium": is_premium,
+                "plan": plan,
+                "word_limit": word_limit,
+                "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/day"
             }
         }
     return {"authenticated": False}
