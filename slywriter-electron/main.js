@@ -100,8 +100,19 @@ let typingServerProcess = null
 // Enable live reload for Electron in dev mode
 const isDev = process.argv.includes('--dev')
 
+// Import Python setup
+let setupPython, PYTHON_EXE, PYTHON_DIR
+try {
+  const pythonSetup = require('./setup-python')
+  setupPython = pythonSetup.setupPython
+  PYTHON_EXE = pythonSetup.PYTHON_EXE
+  PYTHON_DIR = pythonSetup.PYTHON_DIR
+} catch (e) {
+  console.log('Python setup module not found, will use system Python')
+}
+
 // Start the typing server (backend_api.py)
-function startTypingServer() {
+async function startTypingServer() {
   console.log('Starting typing server...')
 
   // Check if app is packaged
@@ -128,16 +139,37 @@ function startTypingServer() {
     return
   }
 
-  // Check if Python is installed and try to start the server
-  const pythonCommands = ['python', 'python3', 'py']
+  // Try to use bundled Python first, then fall back to system Python
+  let pythonPath = null
   let serverStarted = false
-  let pythonFound = false
 
-  for (const pythonCmd of pythonCommands) {
-    if (serverStarted) break
-
+  // Setup bundled Python if available
+  if (setupPython) {
     try {
-      typingServerProcess = spawn(pythonCmd, [typingServerPath], {
+      console.log('Setting up bundled Python...')
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`
+          console.log('🔧 Setting up Python environment... This may take a moment on first run.');
+        `)
+      }
+      pythonPath = await setupPython((message, progress) => {
+        console.log(`Setup progress: ${message} (${progress}%)`)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.executeJavaScript(`
+            console.log('📦 ${message}');
+          `)
+        }
+      })
+      console.log('Bundled Python ready at:', pythonPath)
+    } catch (error) {
+      console.error('Failed to setup bundled Python:', error)
+    }
+  }
+
+  // If bundled Python is available, use it
+  if (pythonPath && fs.existsSync(pythonPath)) {
+    try {
+      typingServerProcess = spawn(pythonPath, [typingServerPath], {
         cwd: path.dirname(typingServerPath),
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true
@@ -153,23 +185,18 @@ function startTypingServer() {
         // Check if server started successfully
         if (message.includes('Uvicorn running on') || message.includes('8000') || message.includes('Started server')) {
           serverStarted = true
-          pythonFound = true
-          console.log('Typing server started successfully on port 8000')
+          console.log('Typing server started successfully on port 8000 (bundled Python)')
           // Notify the renderer process that server is ready
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.executeJavaScript(`
-              console.log('✅ Typing server started successfully on port 8000');
+              console.log('✅ Typing server started successfully (bundled Python)');
             `)
           }
-        }
-        // Check for common Python module errors
-        if (message.includes('ModuleNotFoundError')) {
-          console.error('Python dependencies missing. User needs to install requirements.')
         }
       })
 
       typingServerProcess.on('error', (error) => {
-        console.error(`Failed to start typing server with ${pythonCmd}:`, error.message)
+        console.error('Failed to start typing server with bundled Python:', error.message)
       })
 
       typingServerProcess.on('exit', (code) => {
@@ -177,15 +204,65 @@ function startTypingServer() {
         typingServerProcess = null
       })
 
-      // Give it a moment to see if it starts
-      setTimeout(() => {
-        if (typingServerProcess && !typingServerProcess.killed) {
-          serverStarted = true
-        }
-      }, 1000)
+      serverStarted = true // Assume success if process started
 
     } catch (error) {
-      console.error(`Failed to start typing server with ${pythonCmd}:`, error.message)
+      console.error('Failed to start with bundled Python:', error.message)
+    }
+  }
+
+  // If bundled Python didn't work, try system Python as fallback
+  if (!serverStarted) {
+    console.log('Bundled Python not available, trying system Python...')
+    const pythonCommands = ['python', 'python3', 'py']
+
+    for (const pythonCmd of pythonCommands) {
+      if (serverStarted) break
+
+      try {
+        typingServerProcess = spawn(pythonCmd, [typingServerPath], {
+          cwd: path.dirname(typingServerPath),
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsHide: true
+        })
+
+        typingServerProcess.stdout.on('data', (data) => {
+          console.log(`Typing server: ${data}`)
+        })
+
+        typingServerProcess.stderr.on('data', (data) => {
+          const message = data.toString()
+          console.log(`Typing server: ${message}`)
+          if (message.includes('Uvicorn running on') || message.includes('8000')) {
+            serverStarted = true
+            console.log('Typing server started successfully on port 8000 (system Python)')
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.executeJavaScript(`
+                console.log('✅ Typing server started successfully (system Python)');
+              `)
+            }
+          }
+        })
+
+        typingServerProcess.on('error', (error) => {
+          console.error(`Failed with ${pythonCmd}:`, error.message)
+        })
+
+        typingServerProcess.on('exit', (code) => {
+          console.log(`Typing server exited with code ${code}`)
+          typingServerProcess = null
+        })
+
+        // Give it a moment to see if it starts
+        setTimeout(() => {
+          if (typingServerProcess && !typingServerProcess.killed) {
+            serverStarted = true
+          }
+        }, 1000)
+
+      } catch (error) {
+        console.error(`Failed to start with ${pythonCmd}:`, error.message)
+      }
     }
   }
 

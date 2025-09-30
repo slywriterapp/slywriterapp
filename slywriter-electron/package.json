@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -26,10 +26,11 @@
     "electron-winstaller": "^5.4.0"
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "axios": "^1.11.0",
+    "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^8.1.0",
-    "electron-updater": "^6.6.2",
-    "electron-squirrel-startup": "^1.0.1"
+    "electron-updater": "^6.6.2"
   },
   "build": {
     "appId": "com.slywriter.desktop",
@@ -41,6 +42,7 @@
       "main.js",
       "preload.js",
       "overlay.html",
+      "setup-python.js",
       "assets/**/*",
       "node_modules/**/*"
     ],
