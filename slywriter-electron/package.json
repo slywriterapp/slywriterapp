@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.1.5",
+  "version": "2.1.6",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -51,6 +51,10 @@
     ],
     "asar": true,
     "extraResources": [
+      {
+        "from": "../python-embed",
+        "to": "python-embed"
+      },
       {
         "from": "../backend_api.py",
         "to": "backend_api.py"
