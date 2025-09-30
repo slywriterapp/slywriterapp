@@ -616,7 +616,7 @@ def send_welcome_email(email, name, verification_token):
     subject = "Verify Your SlyWriter Account"
     
     # Use the exact same email template as regular registration
-    verification_link = f"https://slywriter-site.webflow.io/verify-email?token={verification_token}"
+    verification_link = f"https://slywriter.ai/verify-email?token={verification_token}"
     
     html_body = f"""
     <!DOCTYPE html>
@@ -1017,7 +1017,7 @@ def register():
         
         # Send verification email with HTML formatting
         # Send verification email to Webflow site for professional branded experience
-        verification_link = f"https://slywriter-site.webflow.io/verify-email?token={user_data['verification_token']}"
+        verification_link = f"https://slywriter.ai/verify-email?token={user_data['verification_token']}"
         
         html_body = f"""
     <!DOCTYPE html>

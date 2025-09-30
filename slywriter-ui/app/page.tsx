@@ -419,12 +419,12 @@ function SlyWriterApp() {
   }, []) // Remove activeTab dependency to prevent re-registration
 
   const navItems = [
-    { id: 'typing', label: 'Auto-Type', icon: KeyboardIcon, color: 'from-purple-500 to-blue-500', description: 'Types for you', badge: 'MAIN' },
-    { id: 'humanizer', label: 'AI Humanizer', icon: SparklesIcon, color: 'from-purple-400 to-pink-400', description: 'Bypass AI detectors', badge: 'HOT' },
-    { id: 'ai-hub', label: 'AI Writer', icon: BrainIcon, color: 'from-pink-400 to-red-400', description: 'Generate essays' },
-    { id: 'learning', label: 'Smart Learn', icon: BookOpenIcon, color: 'from-green-400 to-blue-400', description: 'AI explains topics' },
-    { id: 'statistics', label: 'Analytics', icon: BarChart3Icon, color: 'from-blue-400 to-purple-400', description: 'Track usage' },
-    { id: 'mission', label: 'Mission', icon: AwardIcon, color: 'from-yellow-400 to-orange-400', description: 'Our cause & rewards', badge: 'NEW' },
+    { id: 'typing', label: 'Auto-Type', icon: KeyboardIcon, color: 'from-indigo-500 to-blue-600', description: 'Types for you', badge: 'MAIN' },
+    { id: 'humanizer', label: 'AI Humanizer', icon: SparklesIcon, color: 'from-violet-500 to-indigo-500', description: 'Bypass AI detectors', badge: 'HOT' },
+    { id: 'ai-hub', label: 'AI Writer', icon: BrainIcon, color: 'from-blue-500 to-indigo-500', description: 'Generate essays' },
+    { id: 'learning', label: 'Smart Learn', icon: BookOpenIcon, color: 'from-emerald-600 to-teal-600', description: 'AI explains topics' },
+    { id: 'statistics', label: 'Analytics', icon: BarChart3Icon, color: 'from-slate-600 to-slate-700', description: 'Track usage' },
+    { id: 'mission', label: 'Mission', icon: AwardIcon, color: 'from-amber-600 to-orange-600', description: 'Our cause & rewards', badge: 'NEW' },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'from-indigo-400 to-purple-400', description: 'Customize' },
   ]
 
@@ -460,16 +460,16 @@ function SlyWriterApp() {
       {/* Global hotkey listener for Electron */}
       <GlobalHotkeyListener />
       
-      {/* Purple wave effects around the edges */}
+      {/* Subtle gradient effects around the edges */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Top purple wave */}
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-purple-600/20 blur-[100px] animate-pulse" />
-        {/* Bottom purple wave */}
-        <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-purple-600/20 blur-[100px] animate-pulse animation-delay-2000" />
-        {/* Left purple accent */}
-        <div className="absolute top-1/2 -left-32 -translate-y-1/2 w-64 h-[200%] bg-purple-500/15 blur-[80px] animate-pulse animation-delay-4000" />
-        {/* Right purple accent */}
-        <div className="absolute top-1/2 -right-32 -translate-y-1/2 w-64 h-[200%] bg-purple-500/15 blur-[80px] animate-pulse" />
+        {/* Top subtle gradient */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-indigo-600/10 blur-[100px] animate-pulse" />
+        {/* Bottom subtle gradient */}
+        <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[200%] h-64 bg-indigo-600/10 blur-[100px] animate-pulse animation-delay-2000" />
+        {/* Left subtle accent */}
+        <div className="absolute top-1/2 -left-32 -translate-y-1/2 w-64 h-[200%] bg-blue-600/10 blur-[80px] animate-pulse animation-delay-4000" />
+        {/* Right subtle accent */}
+        <div className="absolute top-1/2 -right-32 -translate-y-1/2 w-64 h-[200%] bg-blue-600/10 blur-[80px] animate-pulse" />
       </div>
 
       <div className="relative flex h-screen">
@@ -494,7 +494,7 @@ function SlyWriterApp() {
                 className="w-12 h-12 object-contain"
               />
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-blue-500 bg-clip-text text-transparent">
                   SlyWriter
                 </h1>
                 <p className="text-xs text-gray-400">AI Types For You • Undetectable</p>
@@ -534,11 +534,11 @@ function SlyWriterApp() {
                     {activeTab === item.id && (
                       <motion.div
                         layoutId="nav-indicator"
-                        className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl"
+                        className="absolute inset-0 bg-gradient-to-r from-indigo-500/15 to-blue-500/15 rounded-xl"
                       />
                     )}
                     <Icon className={`w-5 h-5 relative z-10 flex-shrink-0 ${
-                      activeTab === item.id ? 'text-purple-400' : ''
+                      activeTab === item.id ? 'text-indigo-400' : ''
                     }`} />
                     <div className="flex-1 relative z-10">
                       <div className="flex items-center gap-2">
@@ -546,7 +546,7 @@ function SlyWriterApp() {
                         {item.badge && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                             item.badge === 'HOT' ? 'bg-red-500/20 text-red-400' :
-                            item.badge === 'MAIN' ? 'bg-purple-500/20 text-purple-400' :
+                            item.badge === 'MAIN' ? 'bg-indigo-500/20 text-indigo-400' :
                             'bg-blue-500/20 text-blue-400'
                           }`}>
                             {item.badge}
@@ -622,7 +622,7 @@ function SlyWriterApp() {
             </motion.div>
             
             {/* Upgrade Banner */}
-            <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl p-4">
+            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-900/20 backdrop-blur rounded-full flex items-center justify-center">
                   <CrownIcon className="w-6 h-6 text-white" />

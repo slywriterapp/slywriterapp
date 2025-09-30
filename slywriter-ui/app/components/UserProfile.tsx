@@ -87,8 +87,8 @@ export default function UserProfile({ onShowDashboard }: { onShowDashboard?: () 
               className="w-8 h-8 rounded-full"
             />
           ) : (
-            <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
-              <UserIcon className="w-4 h-4 text-purple-400" />
+            <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center">
+              <UserIcon className="w-4 h-4 text-indigo-400" />
             </div>
           )}
           <div>
