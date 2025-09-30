@@ -778,17 +778,27 @@ function createUpdateWindow() {
 
 function setupAutoUpdater() {
   // Configure auto-updater to use GitHub releases
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'slywriterapp',
+    repo: 'slywriterapp'
+  })
+
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
   // Check for updates on app start (after splash screen)
   setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify()
+    autoUpdater.checkForUpdatesAndNotify().catch(err => {
+      console.log('Update check failed:', err)
+    })
   }, 3500)
 
   // Check for updates every 30 minutes
   setInterval(() => {
-    autoUpdater.checkForUpdates()
+    autoUpdater.checkForUpdates().catch(err => {
+      console.log('Periodic update check failed:', err)
+    })
   }, 30 * 60 * 1000)
 
   // Auto-updater event handlers
