@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -87,7 +87,8 @@
     "publish": {
       "provider": "github",
       "owner": "slywriterapp",
-      "repo": "slywriterapp"
+      "repo": "slywriterapp",
+      "releaseType": "release"
     },
     "win": {
       "icon": "assets/icon.ico",

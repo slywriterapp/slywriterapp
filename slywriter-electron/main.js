@@ -747,86 +747,106 @@ function createTray() {
 }
 
 // Auto-updater setup
-function setupAutoUpdater() {
-  // Configure auto-updater
-  autoUpdater.setFeedURL({
-    provider: 'generic',
-    url: 'https://slywriter-update-server.onrender.com/updates'
+let updateWindow = null
+
+function createUpdateWindow() {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.focus()
+    return
+  }
+
+  updateWindow = new BrowserWindow({
+    width: 600,
+    height: 500,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    center: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
   })
 
-  // Check for updates immediately and then every 30 minutes
-  autoUpdater.checkForUpdates()
+  updateWindow.loadFile('update.html')
+
+  updateWindow.on('closed', () => {
+    updateWindow = null
+  })
+}
+
+function setupAutoUpdater() {
+  // Configure auto-updater to use GitHub releases
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  // Check for updates on app start (after splash screen)
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify()
+  }, 3500)
+
+  // Check for updates every 30 minutes
   setInterval(() => {
     autoUpdater.checkForUpdates()
-  }, 30 * 60 * 1000) // 30 minutes
+  }, 30 * 60 * 1000)
 
   // Auto-updater event handlers
   autoUpdater.on('checking-for-update', () => {
     console.log('Checking for updates...')
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.webContents.send('update-checking')
+    }
   })
 
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info.version)
 
-    // Show dialog to user
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Available',
-      message: `A new version (${info.version}) is available!`,
-      detail: 'Would you like to download it now? The update will be installed when you restart the app.',
-      buttons: ['Download Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then(result => {
-      if (result.response === 0) {
-        autoUpdater.downloadUpdate()
+    // Create update window
+    createUpdateWindow()
 
-        // Show download progress in tray or main window
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('update-downloading', info)
-        }
+    // Send update info to window
+    setTimeout(() => {
+      if (updateWindow && !updateWindow.isDestroyed()) {
+        updateWindow.webContents.send('update-available', info)
       }
-    })
+    }, 500)
+
+    // Start download automatically
+    autoUpdater.downloadUpdate()
   })
 
   autoUpdater.on('update-not-available', () => {
     console.log('No updates available')
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.webContents.send('update-not-available')
+    }
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
     console.log(`Download progress: ${progressObj.percent}%`)
 
-    // Send progress to renderer
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-progress', progressObj)
+    // Send progress to update window
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.webContents.send('download-progress', progressObj)
     }
   })
 
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version)
 
-    // Notify user that update is ready
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Ready',
-      message: 'Update has been downloaded!',
-      detail: 'The application will be updated after restart. Would you like to restart now?',
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then(result => {
-      if (result.response === 0) {
-        autoUpdater.quitAndInstall()
-      }
-    })
+    // Send to update window
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.webContents.send('update-downloaded', info)
+    }
   })
 
   autoUpdater.on('error', (error) => {
     console.error('Update error:', error)
 
-    // Only show error in development
-    if (process.env.NODE_ENV === 'development') {
-      dialog.showErrorBox('Update Error', error.toString())
+    // Send error to update window
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.webContents.send('update-error', error.message)
     }
   })
 }
@@ -1787,6 +1807,31 @@ ipcMain.handle('check-for-updates', async () => {
 
 ipcMain.handle('get-app-version', async () => {
   return app.getVersion()
+})
+
+// Update window IPC handlers
+ipcMain.on('check-for-updates', () => {
+  autoUpdater.checkForUpdates()
+})
+
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall()
+})
+
+ipcMain.on('install-update-later', () => {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.close()
+  }
+})
+
+ipcMain.on('close-update-window', () => {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.close()
+  }
+})
+
+ipcMain.on('get-current-version', (event) => {
+  event.reply('current-version', app.getVersion())
 })
 
 // Open external URLs in the default browser

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SlyWriter - Updating</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* Animated background */
+        .animated-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            z-index: 1;
+        }
+
+        .wave {
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: wave 3s linear infinite;
+        }
+
+        @keyframes wave {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Main content */
+        .content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .update-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .update-icon svg {
+            width: 100%;
+            height: 100%;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .version-info {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 30px;
+        }
+
+        .current-version {
+            opacity: 0.7;
+            font-size: 14px;
+        }
+
+        .new-version {
+            font-weight: 600;
+            color: #4ade80;
+        }
+
+        /* Progress section */
+        .progress-section {
+            margin: 30px 0;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80 0%, #22d3ee 100%);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Status messages */
+        .status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+            min-height: 20px;
+        }
+
+        .status.downloading {
+            color: #60a5fa;
+        }
+
+        .status.installing {
+            color: #4ade80;
+        }
+
+        .status.error {
+            color: #f87171;
+        }
+
+        /* Changelog preview */
+        .changelog-preview {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: left;
+        }
+
+        .changelog-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+        }
+
+        .changelog-items {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        .changelog-items li {
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+
+        /* Buttons */
+        .button-group {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .button.primary {
+            background: linear-gradient(135deg, #4ade80 0%, #22d3ee 100%);
+            color: #1e293b;
+        }
+
+        .button.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(74, 222, 128, 0.3);
+        }
+
+        .button.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+        }
+
+        .button.secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Hide elements initially */
+        .hidden {
+            display: none;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg">
+        <div class="wave"></div>
+    </div>
+
+    <div class="content">
+        <div class="update-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        </div>
+
+        <h1 class="title">Update Available!</h1>
+
+        <div class="version-info">
+            <div class="current-version">Current: <span id="currentVersion">v2.1.1</span></div>
+            <div class="new-version">New: <span id="newVersion">v2.1.1</span></div>
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-label">
+                <span id="progressLabel">Downloading update...</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text">
+                <span id="progressPercent">0%</span>
+                <span id="progressSize">0 MB / 0 MB</span>
+            </div>
+        </div>
+
+        <div class="status downloading" id="status">
+            <span class="spinner"></span>
+            <span id="statusText">Preparing download...</span>
+        </div>
+
+        <div class="changelog-preview" id="changelog">
+            <div class="changelog-title">What's New:</div>
+            <ul class="changelog-items" id="changelogItems">
+                <li>Performance improvements</li>
+                <li>Bug fixes and stability enhancements</li>
+            </ul>
+        </div>
+
+        <div class="button-group">
+            <button class="button secondary hidden" id="laterButton" onclick="installLater()">
+                Install Later
+            </button>
+            <button class="button primary" id="installButton" onclick="installUpdate()" disabled>
+                Install & Restart
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let downloadComplete = false;
+
+        // Listen for update events
+        ipcRenderer.on('update-checking', () => {
+            updateStatus('Checking for updates...', 'downloading');
+        });
+
+        ipcRenderer.on('update-available', (event, info) => {
+            document.getElementById('newVersion').textContent = `v${info.version}`;
+            updateStatus('Update found! Starting download...', 'downloading');
+
+            // Update changelog if available
+            if (info.releaseNotes) {
+                updateChangelog(info.releaseNotes);
+            }
+        });
+
+        ipcRenderer.on('update-not-available', () => {
+            updateStatus('You\'re up to date!', 'installing');
+            setTimeout(() => {
+                ipcRenderer.send('close-update-window');
+            }, 2000);
+        });
+
+        ipcRenderer.on('download-progress', (event, progress) => {
+            const percent = Math.round(progress.percent);
+            const transferred = (progress.transferred / 1048576).toFixed(1);
+            const total = (progress.total / 1048576).toFixed(1);
+
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressSize').textContent = `${transferred} MB / ${total} MB`;
+
+            const speed = (progress.bytesPerSecond / 1048576).toFixed(1);
+            updateStatus(`Downloading at ${speed} MB/s...`, 'downloading');
+        });
+
+        ipcRenderer.on('update-downloaded', () => {
+            downloadComplete = true;
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressPercent').textContent = '100%';
+            document.getElementById('progressLabel').textContent = 'Download complete!';
+            updateStatus('Ready to install', 'installing');
+
+            document.getElementById('installButton').disabled = false;
+            document.getElementById('laterButton').classList.remove('hidden');
+        });
+
+        ipcRenderer.on('update-error', (event, error) => {
+            updateStatus(`Error: ${error}`, 'error');
+            document.getElementById('installButton').textContent = 'Retry';
+            document.getElementById('installButton').disabled = false;
+        });
+
+        function updateStatus(text, className) {
+            const statusEl = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+
+            statusEl.className = `status ${className}`;
+            statusText.textContent = text;
+
+            // Remove spinner if not downloading
+            if (className !== 'downloading') {
+                const spinner = statusEl.querySelector('.spinner');
+                if (spinner) spinner.style.display = 'none';
+            }
+        }
+
+        function updateChangelog(notes) {
+            if (!notes) return;
+
+            const items = notes.split('\n')
+                .filter(line => line.trim().startsWith('-') || line.trim().startsWith('•'))
+                .map(line => line.replace(/^[\-\•]\s*/, ''))
+                .slice(0, 5); // Show max 5 items
+
+            if (items.length > 0) {
+                const changelogEl = document.getElementById('changelogItems');
+                changelogEl.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+            }
+        }
+
+        function installUpdate() {
+            if (downloadComplete) {
+                updateStatus('Installing update and restarting...', 'installing');
+                document.getElementById('installButton').disabled = true;
+                ipcRenderer.send('install-update');
+            } else {
+                ipcRenderer.send('check-for-updates');
+                document.getElementById('installButton').disabled = true;
+            }
+        }
+
+        function installLater() {
+            ipcRenderer.send('install-update-later');
+        }
+
+        // Check for updates on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Get current version from main process
+            ipcRenderer.send('get-current-version');
+            ipcRenderer.send('check-for-updates');
+        });
+
+        ipcRenderer.on('current-version', (event, version) => {
+            document.getElementById('currentVersion').textContent = `v${version}`;
+        });
+    </script>
+</body>
+</html>
