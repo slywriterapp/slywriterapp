@@ -28,7 +28,13 @@ app = FastAPI(title="SlyWriter Backend", version="2.0.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://slywriter.ai",
+        "https://www.slywriter.ai",
+        "https://slywriter-ui.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -411,22 +417,39 @@ async def get_user(user_id: str):
     if user_id in users_db:
         user = users_db[user_id]
 
-        # Plan limits (words per day)
+        # Plan limits (words per WEEK)
         PLAN_LIMITS = {
-            "Free": 10000,
-            "Basic": 10000,
-            "Pro": 50000,
+            "Free": 500,
+            "Pro": 5000,
             "Premium": -1  # -1 indicates unlimited
+        }
+
+        # Humanizer limits (uses per WEEK)
+        HUMANIZER_LIMITS = {
+            "Free": 0,
+            "Pro": 3,
+            "Premium": -1  # unlimited
         }
 
         # Add word limit to response
         plan = user.get("plan", "Free")
-        word_limit = PLAN_LIMITS.get(plan, 10000)
+        word_limit = PLAN_LIMITS.get(plan, 500)
+        humanizer_limit = HUMANIZER_LIMITS.get(plan, 0)
+
+        # Get current usage (default to 0 if not tracked yet)
+        current_usage = user.get("usage", 0)
+        humanizer_usage = user.get("humanizer_usage", 0)
 
         return {
             **user,
             "word_limit": word_limit,
-            "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/day"
+            "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/week",
+            "words_used": current_usage,
+            "words_remaining": "Unlimited" if word_limit == -1 else max(0, word_limit - current_usage),
+            "humanizer_limit": humanizer_limit,
+            "humanizer_limit_display": "Unlimited" if humanizer_limit == -1 else f"{humanizer_limit} uses/week",
+            "humanizer_uses": humanizer_usage,
+            "humanizer_remaining": "Unlimited" if humanizer_limit == -1 else max(0, humanizer_limit - humanizer_usage)
         }
     raise HTTPException(status_code=404, detail="User not found")
 
