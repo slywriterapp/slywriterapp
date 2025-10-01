@@ -118,6 +118,13 @@ class HotkeyRequest(BaseModel):
 users_db = {}
 profiles_db = {}
 
+# Global statistics
+global_stats = {
+    "total_words_typed": 0,
+    "total_users": 0,
+    "total_sessions": 0
+}
+
 # Typing functions
 def calculate_wpm(chars_typed: int, elapsed_time: float) -> int:
     """Calculate words per minute"""
@@ -283,7 +290,10 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
     # Reset engine state
     typing_engine.reset()
     typing_engine.is_typing = True
-    
+
+    # Increment global session counter
+    global_stats["total_sessions"] += 1
+
     # Start typing in background
     background_tasks.add_task(
         type_text_worker,
@@ -294,7 +304,7 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
         request.pause_frequency,
         request.preview_mode
     )
-    
+
     return {"status": "started", "message": "Typing started successfully"}
 
 @app.post("/api/typing/pause")
@@ -459,8 +469,41 @@ async def track_usage(user_id: str, words: int):
     """Track word usage"""
     if user_id in users_db:
         users_db[user_id]["usage"] += words
+        # Update global stats
+        global_stats["total_words_typed"] += words
         return {"status": "tracked", "usage": users_db[user_id]["usage"]}
     raise HTTPException(status_code=404, detail="User not found")
+
+# Global statistics endpoint
+@app.get("/api/stats/global")
+async def get_global_stats():
+    """Get global platform statistics"""
+    return {
+        "total_words_typed": global_stats["total_words_typed"],
+        "total_words_display": f"{global_stats['total_words_typed']:,}",
+        "total_users": len(users_db),
+        "total_sessions": global_stats["total_sessions"],
+        "milestone_text": get_milestone_text(global_stats["total_words_typed"])
+    }
+
+def get_milestone_text(words: int) -> str:
+    """Get a fun milestone description"""
+    if words >= 10_000_000:
+        return "🎉 Over 10 million words automated!"
+    elif words >= 5_000_000:
+        return "🚀 Over 5 million words and counting!"
+    elif words >= 1_000_000:
+        return "💪 Over 1 million words typed!"
+    elif words >= 500_000:
+        return "⭐ Half a million words automated!"
+    elif words >= 100_000:
+        return "🔥 Over 100K words typed!"
+    elif words >= 50_000:
+        return "📝 50K+ words and growing!"
+    elif words >= 10_000:
+        return "✨ 10K+ words automated!"
+    else:
+        return "🎯 Join thousands of users!"
 
 # Hotkey registration (simplified - actual implementation would use system hooks)
 hotkeys_db = {
