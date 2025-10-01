@@ -3,7 +3,7 @@ SlyWriter Backend Server
 FastAPI server that handles all typing automation and backend functionality
 """
 
-from fastapi import FastAPI, WebSocket, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, WebSocket, HTTPException, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -18,10 +18,17 @@ import keyboard
 from datetime import datetime
 import logging
 import os
+import stripe
+import hmac
+import hashlib
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 app = FastAPI(title="SlyWriter Backend", version="2.0.0")
 
@@ -522,6 +529,81 @@ async def register_hotkey(hotkey: HotkeyRequest):
 async def get_hotkeys():
     """Get all registered hotkeys"""
     return {"hotkeys": hotkeys_db}
+
+# Stripe webhook endpoint
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events for subscription management"""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"Invalid payload: {e}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Invalid signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle the event
+    event_type = event["type"]
+
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+
+        # Get customer email and metadata
+        customer_email = session.get("customer_email") or session.get("customer_details", {}).get("email")
+
+        # Determine which plan based on amount
+        amount = session.get("amount_total", 0) / 100  # Convert cents to dollars
+
+        if amount == 8.99:
+            plan = "Pro"
+        elif amount == 15.00:
+            plan = "Premium"
+        else:
+            plan = "Free"
+
+        # Find user by email and update plan
+        for user_id, user_data in users_db.items():
+            if user_data.get("email") == customer_email:
+                users_db[user_id]["plan"] = plan
+                users_db[user_id]["stripe_customer_id"] = session.get("customer")
+                users_db[user_id]["subscription_id"] = session.get("subscription")
+                logger.info(f"Upgraded user {customer_email} to {plan} plan")
+                break
+
+    elif event_type == "customer.subscription.updated":
+        subscription = event["data"]["object"]
+        customer_id = subscription.get("customer")
+
+        # Find user by Stripe customer ID
+        for user_id, user_data in users_db.items():
+            if user_data.get("stripe_customer_id") == customer_id:
+                # Check subscription status
+                if subscription.get("status") == "active":
+                    # Determine plan from price
+                    amount = subscription["items"]["data"][0]["price"]["unit_amount"] / 100
+                    plan = "Pro" if amount == 8.99 else "Premium" if amount == 15.00 else "Free"
+                    users_db[user_id]["plan"] = plan
+                    logger.info(f"Updated user subscription to {plan}")
+                break
+
+    elif event_type == "customer.subscription.deleted":
+        subscription = event["data"]["object"]
+        customer_id = subscription.get("customer")
+
+        # Find user and downgrade to Free
+        for user_id, user_data in users_db.items():
+            if user_data.get("stripe_customer_id") == customer_id:
+                users_db[user_id]["plan"] = "Free"
+                logger.info(f"Downgraded user to Free plan")
+                break
+
+    return {"status": "success"}
 
 if __name__ == "__main__":
     import uvicorn
