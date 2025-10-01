@@ -488,10 +488,10 @@ function SlyWriterApp() {
               transition={{ delay: 0.2 }}
               className="flex items-center gap-3"
             >
-              <img 
-                src="/slywriter_logo.png" 
-                alt="SlyWriter Logo" 
-                className="w-12 h-12 object-contain"
+              <img
+                src="/Sly_logo_darkmode.png"
+                alt="SlyWriter Logo"
+                className="w-[60px] h-[67px] object-contain"
               />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-blue-500 bg-clip-text text-transparent">
