@@ -428,6 +428,18 @@ async def login(auth: UserAuthRequest):
         }
     raise HTTPException(status_code=400, detail="Invalid credentials")
 
+@app.options("/auth/verify-email")
+async def verify_email_options():
+    """Handle CORS preflight for verify-email"""
+    return JSONResponse(
+        content={},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
 @app.post("/auth/verify-email")
 async def verify_email(request: Request):
     """Verify email token - used by website"""
@@ -471,11 +483,19 @@ async def verify_email(request: Request):
                 "ai_gen_usage": 0
             }
 
-        return {
+        response_data = {
             "success": True,
             "user": users_db[user_id],
             "access_token": token  # Return the same token back
         }
+
+        return JSONResponse(
+            content=response_data,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Credentials": "true"
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
