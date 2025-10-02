@@ -417,9 +417,9 @@ async def login(auth: UserAuthRequest):
         user_id = auth.email.replace("@", "_").replace(".", "_")
         users_db[user_id] = {
             "email": auth.email,
-            "plan": "premium",
+            "plan": "Free",
             "usage": 0,
-            "limit": 100000
+            "limit": 500
         }
         return {
             "status": "success",
@@ -427,6 +427,39 @@ async def login(auth: UserAuthRequest):
             "token": f"token_{user_id}"
         }
     raise HTTPException(status_code=400, detail="Invalid credentials")
+
+@app.post("/auth/verify-email")
+async def verify_email(request: Request):
+    """Verify email token - used by website"""
+    try:
+        data = await request.json()
+        token = data.get("token")
+
+        if not token:
+            raise HTTPException(status_code=400, detail="Token required")
+
+        # For now, accept any token and create/return user
+        # In production, you'd verify the JWT token here
+        email = "user@example.com"  # Extract from token in production
+        user_id = email.replace("@", "_").replace(".", "_")
+
+        if user_id not in users_db:
+            users_db[user_id] = {
+                "email": email,
+                "plan": "Free",
+                "usage": 0,
+                "humanizer_usage": 0,
+                "ai_gen_usage": 0
+            }
+
+        return {
+            "success": True,
+            "user": users_db[user_id],
+            "token": f"token_{user_id}"
+        }
+    except Exception as e:
+        logger.error(f"Email verification failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/auth/user/{user_id}")
 async def get_user(user_id: str):
@@ -482,6 +515,7 @@ async def get_user(user_id: str):
             "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/week",
             "words_used": current_usage,
             "words_remaining": "Unlimited" if word_limit == -1 else max(0, word_limit - current_usage),
+            "total_words_available": word_limit,  # Total words available this week (for website display)
             "humanizer_limit": humanizer_limit,
             "humanizer_limit_display": "Unlimited" if humanizer_limit == -1 else f"{humanizer_limit} uses/week",
             "humanizer_uses": humanizer_usage,
