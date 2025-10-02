@@ -1028,12 +1028,20 @@ def get_profile():
         "last_login": user_data.get('last_login')
     })
 
-@app.route("/auth/verify-email", methods=["POST"])
+@app.route("/auth/verify-email", methods=["OPTIONS", "POST"])
 def verify_email():
     """Verify user email address"""
+    # Handle OPTIONS preflight
+    if request.method == "OPTIONS":
+        response = jsonify({"status": "ok"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "POST,OPTIONS")
+        return response, 200
+
     data = request.get_json()
     token = data.get('token')
-    
+
     if not token:
         return jsonify({"success": False, "error": "Missing verification token"}), 400
     
@@ -1056,10 +1064,12 @@ def verify_email():
     user_data['verification_token'] = None
     users[user_email] = user_data
     save_data(USERS_FILE, users)
-    
+
     log_analytics_event(user_data['user_id'], 'email_verified')
-    
-    return jsonify({"success": True, "message": "Email verified successfully"})
+
+    response = jsonify({"success": True, "message": "Email verified successfully"})
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 @app.route("/auth/forgot-password", methods=["POST"])
 def forgot_password():
