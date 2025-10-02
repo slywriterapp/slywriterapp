@@ -19,6 +19,16 @@ from config import *
 import os
 from dotenv import load_dotenv
 
+# Import license manager
+try:
+    from license_manager import get_license_manager
+    LICENSE_MANAGER_AVAILABLE = True
+except ImportError:
+    print("[Warning] license_manager.py not found - license features disabled")
+    LICENSE_MANAGER_AVAILABLE = False
+    def get_license_manager(*args, **kwargs):
+        return None
+
 # Load environment variables for OpenAI
 load_dotenv()
 try:
@@ -913,32 +923,73 @@ async def export_telemetry():
     # TODO: Add authentication for admin access
     return telemetry_storage
 
+# ============== LICENSE VERIFICATION ENDPOINTS ==============
+
+class LicenseVerifyRequest(BaseModel):
+    license_key: str
+    force: bool = False
+
+@app.post("/api/license/verify")
+async def verify_license_endpoint(request: LicenseVerifyRequest):
+    """Verify license with server and check version"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"valid": False, "error": "license_system_unavailable"}
+
+    license_manager = get_license_manager(app_version="2.1.6")
+    result = license_manager.verify_license(request.license_key, force=request.force)
+
+    return result
+
+@app.get("/api/license/status")
+async def get_license_status():
+    """Get current license status"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"valid": False, "error": "license_system_unavailable"}
+
+    license_manager = get_license_manager()
+    if not license_manager or not license_manager.license_data:
+        return {"valid": False, "error": "not_verified"}
+
+    return license_manager.license_data
+
+@app.get("/api/license/features")
+async def get_enabled_features():
+    """Get list of enabled features for current license"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
+
+    license_manager = get_license_manager()
+    if not license_manager or not license_manager.license_data:
+        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
+
+    return license_manager.license_data.get('features_enabled', {})
+
 @app.get("/api/admin/telemetry/stats")
 async def get_telemetry_stats():
     """Get telemetry statistics"""
     if not telemetry_storage:
         return {"message": "No telemetry data available"}
-    
+
     # Calculate statistics
     total_users = len(set(entry["userId"] for entry in telemetry_storage))
     total_sessions = len(set(entry["sessionId"] for entry in telemetry_storage))
     total_actions = sum(len(entry.get("actions", [])) for entry in telemetry_storage)
     total_errors = sum(len(entry.get("errors", [])) for entry in telemetry_storage)
-    
+
     # Most used features
     feature_counts = {}
     for entry in telemetry_storage:
         for feature in entry.get("featureUsage", []):
             name = feature.get("feature", "unknown")
             feature_counts[name] = feature_counts.get(name, 0) + feature.get("usageCount", 0)
-    
+
     # Common errors
     error_types = {}
     for entry in telemetry_storage:
         for error in entry.get("errors", []):
             error_type = error.get("error", "unknown")
             error_types[error_type] = error_types.get(error_type, 0) + 1
-    
+
     return {
         "total_users": total_users,
         "total_sessions": total_sessions,
