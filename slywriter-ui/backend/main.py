@@ -448,14 +448,33 @@ async def get_user(user_id: str):
             "Premium": -1  # unlimited
         }
 
+        # AI Generation limits (uses per WEEK)
+        AI_GEN_LIMITS = {
+            "Free": 3,
+            "Pro": -1,  # unlimited
+            "Premium": -1  # unlimited
+        }
+
         # Add word limit to response
         plan = user.get("plan", "Free")
         word_limit = PLAN_LIMITS.get(plan, 500)
         humanizer_limit = HUMANIZER_LIMITS.get(plan, 0)
+        ai_gen_limit = AI_GEN_LIMITS.get(plan, 3)
 
         # Get current usage (default to 0 if not tracked yet)
         current_usage = user.get("usage", 0)
         humanizer_usage = user.get("humanizer_usage", 0)
+        ai_gen_usage = user.get("ai_gen_usage", 0)
+
+        # Get week start date (for reset tracking)
+        from datetime import datetime, timedelta
+        week_start = user.get("week_start_date")
+        if not week_start:
+            # Initialize week start to last Monday
+            today = datetime.now()
+            days_since_monday = today.weekday()
+            week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
+            users_db[user_id]["week_start_date"] = week_start
 
         return {
             **user,
@@ -466,7 +485,12 @@ async def get_user(user_id: str):
             "humanizer_limit": humanizer_limit,
             "humanizer_limit_display": "Unlimited" if humanizer_limit == -1 else f"{humanizer_limit} uses/week",
             "humanizer_uses": humanizer_usage,
-            "humanizer_remaining": "Unlimited" if humanizer_limit == -1 else max(0, humanizer_limit - humanizer_usage)
+            "humanizer_remaining": "Unlimited" if humanizer_limit == -1 else max(0, humanizer_limit - humanizer_usage),
+            "ai_gen_limit": ai_gen_limit,
+            "ai_gen_limit_display": "Unlimited" if ai_gen_limit == -1 else f"{ai_gen_limit} uses/week",
+            "ai_gen_uses": ai_gen_usage,
+            "ai_gen_remaining": "Unlimited" if ai_gen_limit == -1 else max(0, ai_gen_limit - ai_gen_usage),
+            "week_start_date": week_start
         }
     raise HTTPException(status_code=404, detail="User not found")
 
@@ -475,11 +499,68 @@ async def get_user(user_id: str):
 async def track_usage(user_id: str, words: int):
     """Track word usage"""
     if user_id in users_db:
-        users_db[user_id]["usage"] += words
+        users_db[user_id]["usage"] = users_db[user_id].get("usage", 0) + words
         # Update global stats
         global_stats["total_words_typed"] += words
         return {"status": "tracked", "usage": users_db[user_id]["usage"]}
     raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/api/usage/track-humanizer")
+async def track_humanizer(user_id: str):
+    """Track humanizer usage"""
+    if user_id in users_db:
+        users_db[user_id]["humanizer_usage"] = users_db[user_id].get("humanizer_usage", 0) + 1
+        return {"status": "tracked", "humanizer_usage": users_db[user_id]["humanizer_usage"]}
+    raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/api/usage/track-ai-gen")
+async def track_ai_gen(user_id: str):
+    """Track AI generation usage"""
+    if user_id in users_db:
+        users_db[user_id]["ai_gen_usage"] = users_db[user_id].get("ai_gen_usage", 0) + 1
+        return {"status": "tracked", "ai_gen_usage": users_db[user_id]["ai_gen_usage"]}
+    raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/api/usage/check-reset")
+async def check_reset(user_id: str):
+    """Check if weekly usage should be reset"""
+    from datetime import datetime, timedelta
+
+    if user_id not in users_db:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user = users_db[user_id]
+    week_start = user.get("week_start_date")
+
+    if not week_start:
+        # First time - set to last Monday
+        today = datetime.now()
+        days_since_monday = today.weekday()
+        week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
+        users_db[user_id]["week_start_date"] = week_start
+        return {"reset": False, "week_start": week_start}
+
+    # Check if we've passed Monday since week_start
+    week_start_date = datetime.strptime(week_start, "%Y-%m-%d")
+    today = datetime.now()
+    days_since_week_start = (today - week_start_date).days
+
+    # If it's been 7+ days since week start, reset
+    if days_since_week_start >= 7:
+        # Find next Monday
+        days_since_monday = today.weekday()
+        new_week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
+
+        # Reset all usage counters
+        users_db[user_id]["usage"] = 0
+        users_db[user_id]["humanizer_usage"] = 0
+        users_db[user_id]["ai_gen_usage"] = 0
+        users_db[user_id]["week_start_date"] = new_week_start
+
+        logger.info(f"Reset weekly usage for user {user_id}")
+        return {"reset": True, "week_start": new_week_start}
+
+    return {"reset": False, "week_start": week_start}
 
 # Global statistics endpoint
 @app.get("/api/stats/global")
