@@ -57,6 +57,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global exception handler to ensure CORS headers on all responses
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Ensure all HTTP exceptions include CORS headers"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
+    )
+
 # Initialize database on startup
 @app.on_event("startup")
 async def startup_event():
