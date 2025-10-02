@@ -1468,29 +1468,38 @@ def get_profile():
 ])
 def verify_email():
     """Verify user email address - supports both GET (from email link) and POST (from API)"""
+    logger.info(f"verify_email called: method={request.method}, origin={request.headers.get('origin')}")
+
     # Handle GET request from email link
     if request.method == 'GET':
         token = request.args.get('token')
+        logger.info(f"GET request, token from args: {token[:20] if token else 'None'}...")
     else:
         # Handle POST request from API
         data = request.get_json()
+        logger.info(f"POST request, received data: {data}")
         token = data.get('token') if data else None
-    
+        logger.info(f"Extracted token: {token[:20] if token else 'None'}...")
+
     if not token:
+        logger.error("No token provided")
         return jsonify({"success": False, "error": "Missing verification token"}), 400
     
     # Find user with this token
     users = load_data(USERS_FILE)
     user_email = None
     user_data = None
-    
+
+    logger.info(f"Searching for token in {len(users)} users")
     for email, data in users.items():
         if data.get('verification_token') == token:
             user_email = email
             user_data = data
+            logger.info(f"Token matched for user: {email}")
             break
-    
+
     if not user_data:
+        logger.error(f"Token not found in users database")
         return jsonify({"success": False, "error": "Invalid verification token"}), 400
     
     # Mark as verified
@@ -1498,9 +1507,10 @@ def verify_email():
     user_data['verification_token'] = None
     users[user_email] = user_data
     save_data(USERS_FILE, users)
-    
+
     log_analytics_event(user_data['user_id'], 'email_verified')
-    
+
+    logger.info(f"Email verified successfully for {user_email}")
     return jsonify({"success": True, "message": "Email verified successfully"})
 
 @app.route("/auth/forgot-password", methods=["POST"])
