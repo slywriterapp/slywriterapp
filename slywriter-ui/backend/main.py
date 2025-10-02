@@ -15,12 +15,22 @@ import json
 import threading
 import pyautogui
 import keyboard
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import os
 import stripe
 import hmac
 import hashlib
+import jwt
+from sqlalchemy.orm import Session
+
+# Import database models and functions
+from database import (
+    init_db, get_db, User, TypingSession, Analytics,
+    get_user_by_email, create_user, check_weekly_reset,
+    get_user_limits, track_word_usage, track_ai_generation,
+    track_humanizer_usage, create_typing_session
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +56,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on application startup"""
+    logger.info("Initializing database...")
+    init_db()
+    logger.info("Database initialized successfully")
 
 # Global state management
 class TypingEngine:
@@ -121,16 +139,8 @@ class HotkeyRequest(BaseModel):
     action: str
     hotkey: str
 
-# User management
-users_db = {}
+# Profile management (kept in-memory for now, can be moved to DB later)
 profiles_db = {}
-
-# Global statistics
-global_stats = {
-    "total_words_typed": 0,
-    "total_users": 0,
-    "total_sessions": 0
-}
 
 # Typing functions
 def calculate_wpm(chars_typed: int, elapsed_time: float) -> int:
@@ -410,23 +420,43 @@ async def delete_profile(name: str):
 
 # User authentication
 @app.post("/api/auth/login")
-async def login(auth: UserAuthRequest):
+async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
     """User login"""
-    # Simplified auth for now
-    if auth.email:
-        user_id = auth.email.replace("@", "_").replace(".", "_")
-        users_db[user_id] = {
-            "email": auth.email,
-            "plan": "Free",
-            "usage": 0,
-            "limit": 500
-        }
-        return {
-            "status": "success",
-            "user": users_db[user_id],
-            "token": f"token_{user_id}"
-        }
-    raise HTTPException(status_code=400, detail="Invalid credentials")
+    if not auth.email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    # Get or create user
+    user = get_user_by_email(db, auth.email)
+    if not user:
+        user = create_user(db, auth.email, plan="Free")
+        logger.info(f"Created new user via login: {auth.email}")
+    else:
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+
+    # Check for weekly reset
+    check_weekly_reset(db, user)
+
+    # Get user limits
+    limits = get_user_limits(user)
+
+    # Build user response
+    user_data = {
+        "id": user.id,
+        "email": user.email,
+        "plan": user.plan,
+        "usage": user.words_used_this_week,
+        "humanizer_usage": user.humanizer_used_this_week,
+        "ai_gen_usage": user.ai_gen_used_this_week,
+        **limits
+    }
+
+    return {
+        "status": "success",
+        "user": user_data,
+        "token": f"token_{user.id}"
+    }
 
 @app.post("/api/stripe/create-checkout")
 async def create_checkout_session(request: Request):
@@ -480,7 +510,7 @@ async def verify_email_options():
     )
 
 @app.post("/auth/verify-email")
-async def verify_email(request: Request):
+async def verify_email(request: Request, db: Session = Depends(get_db)):
     """Verify email token - used by website"""
     try:
         data = await request.json()
@@ -490,10 +520,6 @@ async def verify_email(request: Request):
             raise HTTPException(status_code=400, detail="Token required")
 
         # Verify JWT token
-        import jwt
-        from datetime import datetime, timedelta
-
-        # You should set this as an environment variable in production
         JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 
         try:
@@ -510,22 +536,37 @@ async def verify_email(request: Request):
             logger.error(f"Invalid token: {e}")
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        # Create or get user
-        user_id = email.replace("@", "_").replace(".", "_")
+        # Get or create user in database
+        user = get_user_by_email(db, email)
+        if not user:
+            user = create_user(db, email, plan="Free")
+            logger.info(f"Created new user: {email}")
+        else:
+            # Update last login
+            user.last_login = datetime.utcnow()
+            db.commit()
 
-        if user_id not in users_db:
-            users_db[user_id] = {
-                "email": email,
-                "plan": "Free",
-                "usage": 0,
-                "humanizer_usage": 0,
-                "ai_gen_usage": 0
-            }
+        # Check for weekly reset
+        check_weekly_reset(db, user)
+
+        # Get user limits
+        limits = get_user_limits(user)
+
+        # Build user response
+        user_data = {
+            "id": user.id,
+            "email": user.email,
+            "plan": user.plan,
+            "usage": user.words_used_this_week,
+            "humanizer_usage": user.humanizer_used_this_week,
+            "ai_gen_usage": user.ai_gen_used_this_week,
+            **limits
+        }
 
         response_data = {
             "success": True,
-            "user": users_db[user_id],
-            "access_token": token  # Return the same token back
+            "user": user_data,
+            "access_token": token
         }
 
         return JSONResponse(
@@ -542,150 +583,140 @@ async def verify_email(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/auth/user/{user_id}")
-async def get_user(user_id: str):
+async def get_user_endpoint(user_id: str, db: Session = Depends(get_db)):
     """Get user information with plan limits"""
-    if user_id in users_db:
-        user = users_db[user_id]
+    # user_id can be email or numeric ID
+    # Try to find by email first (legacy format: email with @ and . replaced)
+    email = user_id.replace("_", "@", 1).replace("_", ".", 1) if "_" in user_id else None
 
-        # Plan limits (words per WEEK)
-        PLAN_LIMITS = {
-            "Free": 500,
-            "Pro": 5000,
-            "Premium": -1  # -1 indicates unlimited
-        }
+    user = None
+    if email:
+        user = get_user_by_email(db, email)
 
-        # Humanizer limits (uses per WEEK)
-        HUMANIZER_LIMITS = {
-            "Free": 0,
-            "Pro": 3,
-            "Premium": -1  # unlimited
-        }
+    # If not found, try by numeric ID
+    if not user and user_id.isdigit():
+        user = db.query(User).filter(User.id == int(user_id)).first()
 
-        # AI Generation limits (uses per WEEK)
-        AI_GEN_LIMITS = {
-            "Free": 3,
-            "Pro": -1,  # unlimited
-            "Premium": -1  # unlimited
-        }
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Add word limit to response
-        plan = user.get("plan", "Free")
-        word_limit = PLAN_LIMITS.get(plan, 500)
-        humanizer_limit = HUMANIZER_LIMITS.get(plan, 0)
-        ai_gen_limit = AI_GEN_LIMITS.get(plan, 3)
+    # Check for weekly reset
+    check_weekly_reset(db, user)
 
-        # Get current usage (default to 0 if not tracked yet)
-        current_usage = user.get("usage", 0)
-        humanizer_usage = user.get("humanizer_usage", 0)
-        ai_gen_usage = user.get("ai_gen_usage", 0)
+    # Get user limits
+    limits = get_user_limits(user)
 
-        # Get week start date (for reset tracking)
-        from datetime import datetime, timedelta
-        week_start = user.get("week_start_date")
-        if not week_start:
-            # Initialize week start to last Monday
-            today = datetime.now()
-            days_since_monday = today.weekday()
-            week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
-            users_db[user_id]["week_start_date"] = week_start
-
-        return {
-            **user,
-            "word_limit": word_limit,
-            "word_limit_display": "Unlimited" if word_limit == -1 else f"{word_limit:,} words/week",
-            "words_used": current_usage,
-            "words_remaining": "Unlimited" if word_limit == -1 else max(0, word_limit - current_usage),
-            "total_words_available": word_limit,  # Total words available this week (for website display)
-            "humanizer_limit": humanizer_limit,
-            "humanizer_limit_display": "Unlimited" if humanizer_limit == -1 else f"{humanizer_limit} uses/week",
-            "humanizer_uses": humanizer_usage,
-            "humanizer_remaining": "Unlimited" if humanizer_limit == -1 else max(0, humanizer_limit - humanizer_usage),
-            "ai_gen_limit": ai_gen_limit,
-            "ai_gen_limit_display": "Unlimited" if ai_gen_limit == -1 else f"{ai_gen_limit} uses/week",
-            "ai_gen_uses": ai_gen_usage,
-            "ai_gen_remaining": "Unlimited" if ai_gen_limit == -1 else max(0, ai_gen_limit - ai_gen_usage),
-            "week_start_date": week_start
-        }
-    raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": user.id,
+        "email": user.email,
+        "plan": user.plan,
+        "usage": user.words_used_this_week,
+        "humanizer_usage": user.humanizer_used_this_week,
+        "ai_gen_usage": user.ai_gen_used_this_week,
+        **limits
+    }
 
 # Usage tracking
 @app.post("/api/usage/track")
-async def track_usage(user_id: str, words: int):
+async def track_usage_endpoint(user_id: str, words: int, db: Session = Depends(get_db)):
     """Track word usage"""
-    if user_id in users_db:
-        users_db[user_id]["usage"] = users_db[user_id].get("usage", 0) + words
-        # Update global stats
-        global_stats["total_words_typed"] += words
-        return {"status": "tracked", "usage": users_db[user_id]["usage"]}
-    raise HTTPException(status_code=404, detail="User not found")
+    # Find user by email or ID
+    email = user_id.replace("_", "@", 1).replace("_", ".", 1) if "_" in user_id else None
+    user = None
+    if email:
+        user = get_user_by_email(db, email)
+    if not user and user_id.isdigit():
+        user = db.query(User).filter(User.id == int(user_id)).first()
 
-@app.post("/api/usage/track-humanizer")
-async def track_humanizer(user_id: str):
-    """Track humanizer usage"""
-    if user_id in users_db:
-        users_db[user_id]["humanizer_usage"] = users_db[user_id].get("humanizer_usage", 0) + 1
-        return {"status": "tracked", "humanizer_usage": users_db[user_id]["humanizer_usage"]}
-    raise HTTPException(status_code=404, detail="User not found")
-
-@app.post("/api/usage/track-ai-gen")
-async def track_ai_gen(user_id: str):
-    """Track AI generation usage"""
-    if user_id in users_db:
-        users_db[user_id]["ai_gen_usage"] = users_db[user_id].get("ai_gen_usage", 0) + 1
-        return {"status": "tracked", "ai_gen_usage": users_db[user_id]["ai_gen_usage"]}
-    raise HTTPException(status_code=404, detail="User not found")
-
-@app.post("/api/usage/check-reset")
-async def check_reset(user_id: str):
-    """Check if weekly usage should be reset"""
-    from datetime import datetime, timedelta
-
-    if user_id not in users_db:
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user = users_db[user_id]
-    week_start = user.get("week_start_date")
+    # Track word usage using database helper
+    user = track_word_usage(db, user, words)
 
-    if not week_start:
-        # First time - set to last Monday
-        today = datetime.now()
-        days_since_monday = today.weekday()
-        week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
-        users_db[user_id]["week_start_date"] = week_start
-        return {"reset": False, "week_start": week_start}
+    return {"status": "tracked", "usage": user.words_used_this_week}
 
-    # Check if we've passed Monday since week_start
-    week_start_date = datetime.strptime(week_start, "%Y-%m-%d")
-    today = datetime.now()
-    days_since_week_start = (today - week_start_date).days
+@app.post("/api/usage/track-humanizer")
+async def track_humanizer_endpoint(user_id: str, db: Session = Depends(get_db)):
+    """Track humanizer usage"""
+    # Find user by email or ID
+    email = user_id.replace("_", "@", 1).replace("_", ".", 1) if "_" in user_id else None
+    user = None
+    if email:
+        user = get_user_by_email(db, email)
+    if not user and user_id.isdigit():
+        user = db.query(User).filter(User.id == int(user_id)).first()
 
-    # If it's been 7+ days since week start, reset
-    if days_since_week_start >= 7:
-        # Find next Monday
-        days_since_monday = today.weekday()
-        new_week_start = (today - timedelta(days=days_since_monday)).strftime("%Y-%m-%d")
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Reset all usage counters
-        users_db[user_id]["usage"] = 0
-        users_db[user_id]["humanizer_usage"] = 0
-        users_db[user_id]["ai_gen_usage"] = 0
-        users_db[user_id]["week_start_date"] = new_week_start
+    # Track humanizer usage using database helper
+    user = track_humanizer_usage(db, user)
 
-        logger.info(f"Reset weekly usage for user {user_id}")
-        return {"reset": True, "week_start": new_week_start}
+    return {"status": "tracked", "humanizer_usage": user.humanizer_used_this_week}
 
-    return {"reset": False, "week_start": week_start}
+@app.post("/api/usage/track-ai-gen")
+async def track_ai_gen_endpoint(user_id: str, db: Session = Depends(get_db)):
+    """Track AI generation usage"""
+    # Find user by email or ID
+    email = user_id.replace("_", "@", 1).replace("_", ".", 1) if "_" in user_id else None
+    user = None
+    if email:
+        user = get_user_by_email(db, email)
+    if not user and user_id.isdigit():
+        user = db.query(User).filter(User.id == int(user_id)).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Track AI generation usage using database helper
+    user = track_ai_generation(db, user)
+
+    return {"status": "tracked", "ai_gen_usage": user.ai_gen_used_this_week}
+
+@app.post("/api/usage/check-reset")
+async def check_reset_endpoint(user_id: str, db: Session = Depends(get_db)):
+    """Check if weekly usage should be reset"""
+    # Find user by email or ID
+    email = user_id.replace("_", "@", 1).replace("_", ".", 1) if "_" in user_id else None
+    user = None
+    if email:
+        user = get_user_by_email(db, email)
+    if not user and user_id.isdigit():
+        user = db.query(User).filter(User.id == int(user_id)).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check weekly reset using database helper
+    was_reset = check_weekly_reset(db, user)
+
+    return {
+        "reset": was_reset,
+        "week_start": user.week_start_date.strftime("%Y-%m-%d") if user.week_start_date else None
+    }
 
 # Global statistics endpoint
 @app.get("/api/stats/global")
-async def get_global_stats():
+async def get_global_stats(db: Session = Depends(get_db)):
     """Get global platform statistics"""
+    # Calculate total words from all users
+    total_words = db.query(User).with_entities(
+        db.func.sum(User.total_words_typed)
+    ).scalar() or 0
+
+    # Count total users
+    total_users = db.query(User).count()
+
+    # Count total sessions
+    total_sessions = db.query(TypingSession).count()
+
     return {
-        "total_words_typed": global_stats["total_words_typed"],
-        "total_words_display": f"{global_stats['total_words_typed']:,}",
-        "total_users": len(users_db),
-        "total_sessions": global_stats["total_sessions"],
-        "milestone_text": get_milestone_text(global_stats["total_words_typed"])
+        "total_words_typed": total_words,
+        "total_words_display": f"{total_words:,}",
+        "total_users": total_users,
+        "total_sessions": total_sessions,
+        "milestone_text": get_milestone_text(total_words)
     }
 
 def get_milestone_text(words: int) -> str:
@@ -727,7 +758,7 @@ async def get_hotkeys():
 
 # Stripe webhook endpoint
 @app.post("/api/stripe/webhook")
-async def stripe_webhook(request: Request):
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Stripe webhook events for subscription management"""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
@@ -763,40 +794,61 @@ async def stripe_webhook(request: Request):
             plan = "Free"
 
         # Find user by email and update plan
-        for user_id, user_data in users_db.items():
-            if user_data.get("email") == customer_email:
-                users_db[user_id]["plan"] = plan
-                users_db[user_id]["stripe_customer_id"] = session.get("customer")
-                users_db[user_id]["subscription_id"] = session.get("subscription")
-                logger.info(f"Upgraded user {customer_email} to {plan} plan")
-                break
+        user = get_user_by_email(db, customer_email)
+        if user:
+            user.plan = plan
+            user.stripe_customer_id = session.get("customer")
+            user.stripe_subscription_id = session.get("subscription")
+
+            # Get subscription details
+            subscription_id = session.get("subscription")
+            if subscription_id:
+                try:
+                    subscription = stripe.Subscription.retrieve(subscription_id)
+                    user.subscription_status = subscription.status
+                    user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
+                    user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+                except Exception as e:
+                    logger.error(f"Error retrieving subscription: {e}")
+
+            db.commit()
+            logger.info(f"Upgraded user {customer_email} to {plan} plan")
+        else:
+            logger.warning(f"User not found for email: {customer_email}")
 
     elif event_type == "customer.subscription.updated":
         subscription = event["data"]["object"]
         customer_id = subscription.get("customer")
 
         # Find user by Stripe customer ID
-        for user_id, user_data in users_db.items():
-            if user_data.get("stripe_customer_id") == customer_id:
-                # Check subscription status
-                if subscription.get("status") == "active":
-                    # Determine plan from price
-                    amount = subscription["items"]["data"][0]["price"]["unit_amount"] / 100
-                    plan = "Pro" if amount == 8.99 else "Premium" if amount == 15.00 else "Free"
-                    users_db[user_id]["plan"] = plan
-                    logger.info(f"Updated user subscription to {plan}")
-                break
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if user:
+            # Update subscription status
+            user.subscription_status = subscription.get("status")
+            user.subscription_current_period_start = datetime.fromtimestamp(subscription.get("current_period_start"))
+            user.subscription_current_period_end = datetime.fromtimestamp(subscription.get("current_period_end"))
+
+            # Check subscription status
+            if subscription.get("status") == "active":
+                # Determine plan from price
+                amount = subscription["items"]["data"][0]["price"]["unit_amount"] / 100
+                plan = "Pro" if amount == 8.99 else "Premium" if amount == 15.00 else "Free"
+                user.plan = plan
+                logger.info(f"Updated user subscription to {plan}")
+
+            db.commit()
 
     elif event_type == "customer.subscription.deleted":
         subscription = event["data"]["object"]
         customer_id = subscription.get("customer")
 
         # Find user and downgrade to Free
-        for user_id, user_data in users_db.items():
-            if user_data.get("stripe_customer_id") == customer_id:
-                users_db[user_id]["plan"] = "Free"
-                logger.info(f"Downgraded user to Free plan")
-                break
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        if user:
+            user.plan = "Free"
+            user.subscription_status = "canceled"
+            db.commit()
+            logger.info(f"Downgraded user {user.email} to Free plan")
 
     return {"status": "success"}
 

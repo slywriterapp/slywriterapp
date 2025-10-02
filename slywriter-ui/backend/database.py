@@ -19,23 +19,41 @@ Base = declarative_base()
 # Database Models
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    google_id = Column(String, unique=True, nullable=True)
+    email = Column(String, unique=True, index=True)  # Indexed for fast email lookup
+    google_id = Column(String, unique=True, nullable=True, index=True)
     username = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
     last_login = Column(DateTime, default=datetime.utcnow)
     
-    # Plan and usage
-    plan = Column(String, default="free")  # free, pro, premium, enterprise
-    daily_limit = Column(Integer, default=4000)
-    words_used_today = Column(Integer, default=0)
+    # Plan and usage - WEEKLY tracking
+    plan = Column(String, default="Free")  # Free, Pro, Premium
+
+    # Weekly word tracking
+    words_used_this_week = Column(Integer, default=0)
+    week_start_date = Column(DateTime, default=datetime.utcnow)
+
+    # AI generation tracking (weekly)
+    ai_gen_used_this_week = Column(Integer, default=0)
+
+    # Humanizer tracking (weekly)
+    humanizer_used_this_week = Column(Integer, default=0)
+
+    # Total lifetime stats
     total_words_typed = Column(Integer, default=0)
-    usage_reset_date = Column(DateTime, default=datetime.utcnow)
+    total_ai_generations = Column(Integer, default=0)
+    total_humanizer_uses = Column(Integer, default=0)
     
+    # Stripe subscription data
+    stripe_customer_id = Column(String, unique=True, nullable=True, index=True)  # Indexed for webhook lookups
+    stripe_subscription_id = Column(String, unique=True, nullable=True, index=True)
+    subscription_status = Column(String, nullable=True, index=True)  # active, canceled, past_due, etc.
+    subscription_current_period_start = Column(DateTime, nullable=True)
+    subscription_current_period_end = Column(DateTime, nullable=True)
+
     # Referral system
-    referral_code = Column(String, unique=True)
+    referral_code = Column(String, unique=True, nullable=True)
     referred_by = Column(String, nullable=True)
     referral_bonus = Column(Integer, default=0)
     referral_count = Column(Integer, default=0)
@@ -52,10 +70,10 @@ class User(Base):
 
 class TypingSession(Base):
     __tablename__ = "typing_sessions"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    started_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)  # Indexed for user session queries
+    started_at = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for time-based queries
     ended_at = Column(DateTime, nullable=True)
     
     # Session data
@@ -73,6 +91,8 @@ class TypingSession(Base):
     
     # Features used
     ai_filler_used = Column(Boolean, default=False)
+    ai_generated = Column(Boolean, default=False)  # Was text AI-generated?
+    humanized = Column(Boolean, default=False)  # Was text humanized?
     preview_mode = Column(Boolean, default=False)
     premium_features_used = Column(JSON, default=[])
     
@@ -81,10 +101,10 @@ class TypingSession(Base):
 
 class Analytics(Base):
     __tablename__ = "analytics"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)  # Indexed for user analytics queries
+    date = Column(DateTime, default=datetime.utcnow, index=True)  # Indexed for date-based queries
     
     # Daily statistics
     daily_words = Column(Integer, default=0)
@@ -245,3 +265,121 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Helper functions for user operations
+def get_user_by_email(db: Session, email: str):
+    """Get user by email"""
+    return db.query(User).filter(User.email == email).first()
+
+def create_user(db: Session, email: str, plan: str = "Free"):
+    """Create new user"""
+    from datetime import datetime, timedelta
+    import secrets
+
+    # Generate unique referral code
+    referral_code = secrets.token_urlsafe(8)
+
+    # Set week start to last Monday
+    today = datetime.now()
+    days_since_monday = today.weekday()
+    week_start = today - timedelta(days=days_since_monday)
+
+    user = User(
+        email=email,
+        plan=plan,
+        referral_code=referral_code,
+        week_start_date=week_start,
+        created_at=datetime.utcnow(),
+        last_login=datetime.utcnow()
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def check_weekly_reset(db: Session, user: User):
+    """Check if user's weekly limits should reset"""
+    from datetime import datetime, timedelta
+
+    if not user.week_start_date:
+        return False
+
+    days_since_week_start = (datetime.utcnow() - user.week_start_date).days
+
+    if days_since_week_start >= 7:
+        # Reset weekly counters
+        today = datetime.utcnow()
+        days_since_monday = today.weekday()
+        new_week_start = today - timedelta(days=days_since_monday)
+
+        user.week_start_date = new_week_start
+        user.words_used_this_week = 0
+        user.ai_gen_used_this_week = 0
+        user.humanizer_used_this_week = 0
+
+        db.commit()
+        return True
+
+    return False
+
+def get_user_limits(user: User):
+    """Calculate user's limits based on their plan"""
+    PLAN_LIMITS = {
+        "Free": {"words": 500, "ai_gen": 3, "humanizer": 0},
+        "Pro": {"words": 5000, "ai_gen": -1, "humanizer": 3},
+        "Premium": {"words": -1, "ai_gen": -1, "humanizer": -1}
+    }
+
+    limits = PLAN_LIMITS.get(user.plan, PLAN_LIMITS["Free"])
+
+    return {
+        "word_limit": limits["words"],
+        "word_limit_display": "Unlimited" if limits["words"] == -1 else f"{limits['words']:,} words/week",
+        "words_used": user.words_used_this_week,
+        "words_remaining": "Unlimited" if limits["words"] == -1 else max(0, limits["words"] - user.words_used_this_week),
+        "total_words_available": limits["words"],
+
+        "ai_gen_limit": limits["ai_gen"],
+        "ai_gen_limit_display": "Unlimited" if limits["ai_gen"] == -1 else f"{limits['ai_gen']} uses/week",
+        "ai_gen_uses": user.ai_gen_used_this_week,
+        "ai_gen_remaining": "Unlimited" if limits["ai_gen"] == -1 else max(0, limits["ai_gen"] - user.ai_gen_used_this_week),
+
+        "humanizer_limit": limits["humanizer"],
+        "humanizer_limit_display": "Unlimited" if limits["humanizer"] == -1 else f"{limits['humanizer']} uses/week",
+        "humanizer_uses": user.humanizer_used_this_week,
+        "humanizer_remaining": "Unlimited" if limits["humanizer"] == -1 else max(0, limits["humanizer"] - user.humanizer_used_this_week),
+
+        "week_start_date": user.week_start_date.isoformat() if user.week_start_date else None
+    }
+
+def track_word_usage(db: Session, user: User, words: int):
+    """Track word usage for a user"""
+    user.words_used_this_week += words
+    user.total_words_typed += words
+    db.commit()
+    return user
+
+def track_ai_generation(db: Session, user: User):
+    """Track AI generation usage"""
+    user.ai_gen_used_this_week += 1
+    user.total_ai_generations += 1
+    db.commit()
+    return user
+
+def track_humanizer_usage(db: Session, user: User):
+    """Track humanizer usage"""
+    user.humanizer_used_this_week += 1
+    user.total_humanizer_uses += 1
+    db.commit()
+    return user
+
+def create_typing_session(db: Session, user_id: int, session_data: dict):
+    """Create a typing session record"""
+    session = TypingSession(
+        user_id=user_id,
+        **session_data
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
