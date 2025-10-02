@@ -517,13 +517,22 @@ async def create_checkout_session(request: Request):
 @app.options("/auth/verify-email")
 async def verify_email_options(request: Request):
     """Handle CORS preflight for verify-email"""
-    logger.info(f"OPTIONS /auth/verify-email from origin: {request.headers.get('origin', 'No origin')}")
+    origin = request.headers.get('origin', '*')
+    logger.info(f"OPTIONS /auth/verify-email from origin: {origin}")
     return JSONResponse(
         content={},
+        status_code=200,
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": origin if origin in [
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "https://slywriter.ai",
+                "https://www.slywriter.ai",
+                "https://slywriter-ui.onrender.com"
+            ] else "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+            "Access-Control-Max-Age": "3600",
         }
     )
 
