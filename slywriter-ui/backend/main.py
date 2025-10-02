@@ -443,7 +443,7 @@ async def verify_email(request: Request):
         from datetime import datetime, timedelta
 
         # You should set this as an environment variable in production
-        JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 
         try:
             # Decode and verify the token
