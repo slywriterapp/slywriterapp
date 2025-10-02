@@ -7,6 +7,9 @@ import { FirstTimeHelper } from './FeatureTooltips'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { useHotkeys } from '../hooks/useHotkeys'
+import { useAuth } from '../context/AuthContext'
+import UpgradeModal from './UpgradeModal'
+import UsageMeter from './UsageMeter'
 
 // Use direct Render URL with proper error handling - for beta testing with 20 users
 const API_URL = 'https://slywriterapp.onrender.com'
@@ -53,6 +56,7 @@ interface AIGenerationSettings {
 
 export default function AIHubTab() {
   const hotkeys = useHotkeys()
+  const { user, usageLimits, canUseAIGen, trackAIGenUsage } = useAuth()
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -62,6 +66,7 @@ export default function AIHubTab() {
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewText, setReviewText] = useState('')
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const hasLoadedSettings = useRef(false)
   
   // Debug review modal state
@@ -318,52 +323,25 @@ export default function AIHubTab() {
   const generateAI = async () => {
     console.log('[AIHub] generateAI function called!')
     console.log('[AIHub] Input value:', input)
-    
+
     if (!input.trim()) {
       console.log('[AIHub] No input text, showing error')
       toast.error('Please enter some text')
       return
     }
-    
-    // Check if user has words remaining
-    try {
-      const token = localStorage.getItem('auth_token')
-      if (token) {
-        const dashboardResponse = await axios.get(`${API_URL}/api/user-dashboard`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        
-        if (dashboardResponse.data.success) {
-          const wordsRemaining = dashboardResponse.data.dashboard.plan.words_remaining
-          
-          if (wordsRemaining <= 0) {
-            toast.error('You have no words remaining!')
-            toast(
-              <div>
-                <p className="font-semibold mb-2">💡 Need more words?</p>
-                <p className="text-sm mb-3">Share your referral code to earn 500 bonus words per friend!</p>
-                <button 
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('openDashboard', { detail: { tab: 'referrals' } }))
-                  }}
-                  className="px-4 py-2 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
-                >
-                  Get Your Referral Link
-                </button>
-              </div>,
-              { duration: 10000, icon: '🎁' }
-            )
-            return
-          }
-          
-          if (wordsRemaining < 500) {
-            toast(`⚠️ Only ${wordsRemaining} words remaining!`, { duration: 3000 })
-          }
-        }
+
+    // Check AI generation limits
+    if (!canUseAIGen) {
+      const plan = user?.plan || 'Free'
+      if (plan === 'Free' || plan === 'free') {
+        toast.error(`You've used all ${usageLimits?.ai_gen_limit} AI generations this week!`)
+        setShowUpgradeModal(true)
+        return
+      } else {
+        // Pro or Premium should have unlimited, but just in case
+        toast.error('AI generation limit reached. Please try again later.')
+        return
       }
-    } catch (error) {
-      console.error('[AIHub] Failed to check word balance:', error)
-      // Continue anyway - server will reject if no words
     }
     
     console.log('[AIHub] Starting generation with settings:', settings)
@@ -484,58 +462,30 @@ export default function AIHubTab() {
       }
       
       setOutput(generatedText)
-      
-      // Track word usage for billing
+
+      // Track AI generation usage
       try {
-        const token = localStorage.getItem('auth_token')
-        if (token) {
-          const wordCount = generatedText.split(/\s+/).filter((word: string) => word.length > 0).length
-          console.log('[AIHub] Tracking word usage:', wordCount)
-          
-          const trackResponse = await axios.post(`${API_URL}/api/track-ai-generation`, {
-            words: wordCount
-          }, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          
-          if (trackResponse.data.success) {
-            console.log('[AIHub] Word tracking successful:', trackResponse.data)
-            
-            // Check if user is running low on words
-            if (trackResponse.data.words_remaining < 100) {
-              toast(`⚠️ Only ${trackResponse.data.words_remaining} words remaining!`, {
-                duration: 5000
-              })
-              
-              // Show referral prompt if out of words
-              if (trackResponse.data.words_remaining <= 0) {
-                setTimeout(() => {
-                  toast(
-                    <div>
-                      <p className="font-semibold mb-2">💡 Need more words?</p>
-                      <p className="text-sm">Share your referral code to earn 500 bonus words per friend!</p>
-                      <button 
-                        onClick={() => {
-                          // Trigger dashboard opening with referrals tab
-                          window.dispatchEvent(new CustomEvent('openDashboard', { detail: { tab: 'referrals' } }))
-                        }}
-                        className="mt-2 px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
-                      >
-                        Get Referral Link
-                      </button>
-                    </div>,
-                    { duration: 8000, icon: '🎁' }
-                  )
-                }, 1000)
-              }
+        await trackAIGenUsage()
+        console.log('[AIHub] AI generation usage tracked')
+
+        // Check if user is running low on generations (Free users only)
+        if (usageLimits && usageLimits.ai_gen_limit !== -1) {
+          const remaining = typeof usageLimits.ai_gen_remaining === 'number' ? usageLimits.ai_gen_remaining : 999
+          if (remaining <= 1) {
+            toast(`⚠️ Last AI generation this week! Resets Monday.`, {
+              duration: 5000
+            })
+
+            // Show upgrade prompt for Free users
+            if (remaining === 0) {
+              setTimeout(() => {
+                setShowUpgradeModal(true)
+              }, 1000)
             }
           }
         }
       } catch (trackError) {
-        console.error('[AIHub] Failed to track word usage:', trackError)
+        console.error('[AIHub] Failed to track AI generation usage:', trackError)
         // Don't block the flow if tracking fails
       }
       
@@ -1244,6 +1194,20 @@ export default function AIHubTab() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature="AI Text Generation"
+        currentPlan={user?.plan || 'Free'}
+        requiredPlan="Pro"
+        usageInfo={usageLimits ? {
+          used: usageLimits.ai_gen_uses,
+          limit: typeof usageLimits.ai_gen_limit === 'number' ? usageLimits.ai_gen_limit : 0,
+          type: 'AI generations'
+        } : undefined}
+      />
     </div>
   )
 }
