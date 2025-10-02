@@ -21,7 +21,11 @@ from telemetry_postgres import telemetry_db
 
 
 app = Flask(__name__)
-CORS(app, origins='*')  # Enable CORS for all origins per your config
+CORS(app,
+     resources={r"/*": {"origins": "*"}},
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization", "Accept"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
