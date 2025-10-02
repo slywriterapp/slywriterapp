@@ -3,6 +3,8 @@ import time
 import random
 import requests
 import keyboard
+import json
+import os
 
 # ------------------ Configurable Parameters -------------------
 EDIT_POINT_CHARS = " .,!?;"      # "Edit-friendly" points (space, punct, etc)
@@ -25,6 +27,18 @@ TYPING_BURST_VARIABILITY = 0.08  # up to ±8% speed variation stretch
 
 FILLER_SERVER_URL = "https://slywriterapp.onrender.com/generate_filler"
 
+def get_license_key():
+    """Get license key from local config"""
+    try:
+        config_path = os.path.join(os.path.dirname(__file__), 'license_config.json')
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                return config.get('license_key')
+    except Exception as e:
+        print(f"[License] Could not load license key: {e}")
+    return None
+
 # ------------- Utility: AI Filler generator with debug ---------------
 def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, preceding_context="", stop_flag=None):
     """
@@ -34,7 +48,12 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
     # Check for stop before starting
     if stop_flag and stop_flag.is_set():
         return ""
-    
+
+    # Get license key
+    license_key = get_license_key()
+    if not license_key:
+        print("[AI Filler] WARNING: No license key found, AI filler may not work")
+
     # Create smarter prompt with preceding context
     context_part = f"Given what was just typed: \"{preceding_context[-100:]}\"" if preceding_context else "While working on"
     prompt = (
@@ -47,14 +66,19 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
         if status_callback:
             status_callback("🔄 Requesting AI filler from server…")
         print("[AI Filler] Sending prompt to server...")
-        
+
         # Check for stop during server request
         if stop_flag and stop_flag.is_set():
             return ""
-            
+
+        # Include license key in request
+        payload = {"prompt": prompt}
+        if license_key:
+            payload["license_key"] = license_key
+
         response = requests.post(
             FILLER_SERVER_URL,
-            json={"prompt": prompt},
+            json=payload,
             timeout=8
         )
         

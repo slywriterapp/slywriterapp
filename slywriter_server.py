@@ -1935,15 +1935,50 @@ def debug_referrals():
 # ---------------- AI FILLER GENERATION ----------------
 
 @app.route('/generate_filler', methods=['POST'])
+@cross_origin(origins=["*"])
 def generate_filler():
+    """
+    Generate AI filler text - REQUIRES LICENSE
+    Used by premium_typing.py for realistic fake edits
+    """
     import openai
+
+    data = request.get_json()
+    prompt = data.get('prompt', '')
+    license_key = data.get('license_key')  # NEW: Require license
+
+    # License verification (optional for backward compatibility, but log it)
+    if not license_key:
+        logger.warning("[FILLER] No license key provided - allowing for backward compatibility")
+        # TODO: Make this required in future version
+    else:
+        # Verify license and check if AI features are enabled
+        try:
+            payload = jwt.decode(license_key, JWT_SECRET, algorithms=["HS256"])
+            user_email = payload.get("email")
+        except:
+            user_email = license_key
+
+        if user_email:
+            users = load_data(USERS_FILE)
+            if user_email not in users:
+                return jsonify({"error": "Invalid license"}), 403
+
+            user_data = users[user_email]
+            user_id = user_data.get('user_id')
+            plans = load_data(PLAN_FILE)
+            plan = plans.get(user_id, 'free').lower()
+
+            # Check if premium features are available
+            if plan == 'free':
+                return jsonify({"error": "AI filler requires Pro or Premium plan"}), 403
+
+            logger.info(f"[FILLER] Request from {user_email} ({plan})")
+
     try:
         client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     except KeyError:
         return jsonify({"error": "OpenAI key not set"}), 500
-
-    data = request.get_json()
-    prompt = data.get('prompt', '')
 
     try:
         # Use same model fallback as main text generation
