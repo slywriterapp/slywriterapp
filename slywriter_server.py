@@ -1458,7 +1458,14 @@ def get_profile():
     })
 
 @app.route("/auth/verify-email", methods=["GET", "POST", "OPTIONS"])
-@cross_origin(origins=["https://slywriter-site.webflow.io", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002"])
+@cross_origin(origins=[
+    "https://slywriter.ai",
+    "https://www.slywriter.ai",
+    "https://slywriter-site.webflow.io",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002"
+])
 def verify_email():
     """Verify user email address - supports both GET (from email link) and POST (from API)"""
     # Handle GET request from email link
