@@ -1513,6 +1513,43 @@ def verify_email():
     logger.info(f"Email verified successfully for {user_email}")
     return jsonify({"success": True, "message": "Email verified successfully"})
 
+@app.route("/auth/test-create-verification-token", methods=["POST"])
+@cross_origin(origins=["*"])
+def test_create_verification_token():
+    """TEST ENDPOINT - Create a verification token for testing"""
+    data = request.get_json()
+    email = data.get('email', 'test@example.com')
+
+    # Generate token
+    token = secrets.token_urlsafe(32)
+
+    # Load or create test user
+    users = load_data(USERS_FILE)
+    if email not in users:
+        users[email] = {
+            'user_id': str(uuid.uuid4()),
+            'email': email,
+            'email_verified': False,
+            'verification_token': token,
+            'created_at': datetime.datetime.utcnow().isoformat()
+        }
+    else:
+        users[email]['verification_token'] = token
+        users[email]['email_verified'] = False
+
+    save_data(USERS_FILE, users)
+
+    verification_link = f"https://www.slywriter.ai/verify-email?token={token}"
+
+    logger.info(f"Created test verification token for {email}: {token[:20]}...")
+    return jsonify({
+        "success": True,
+        "email": email,
+        "token": token,
+        "verification_link": verification_link,
+        "message": "Test token created. Click the verification_link to test."
+    })
+
 @app.route("/auth/forgot-password", methods=["POST"])
 def forgot_password():
     """Request password reset"""
