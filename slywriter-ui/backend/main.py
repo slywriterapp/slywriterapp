@@ -428,6 +428,45 @@ async def login(auth: UserAuthRequest):
         }
     raise HTTPException(status_code=400, detail="Invalid credentials")
 
+@app.post("/api/stripe/create-checkout")
+async def create_checkout_session(request: Request):
+    """Create Stripe checkout session with pre-filled email"""
+    try:
+        data = await request.json()
+        email = data.get("email")
+        plan = data.get("plan")  # "Pro" or "Premium"
+
+        if not email or not plan:
+            raise HTTPException(status_code=400, detail="Email and plan required")
+
+        # Get the price ID based on plan
+        STRIPE_PRICES = {
+            "Pro": os.getenv("STRIPE_PRO_PRICE_ID"),
+            "Premium": os.getenv("STRIPE_PREMIUM_PRICE_ID")
+        }
+
+        price_id = STRIPE_PRICES.get(plan)
+        if not price_id:
+            raise HTTPException(status_code=400, detail="Invalid plan")
+
+        # Create Stripe checkout session
+        checkout_session = stripe.checkout.Session.create(
+            customer_email=email,  # Pre-fill email
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url='https://www.slywriter.ai/upgrade-success',
+            cancel_url='https://www.slywriter.ai/pricing',
+        )
+
+        return {"checkout_url": checkout_session.url}
+
+    except Exception as e:
+        logger.error(f"Checkout creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.options("/auth/verify-email")
 async def verify_email_options():
     """Handle CORS preflight for verify-email"""
