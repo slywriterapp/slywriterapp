@@ -4,49 +4,26 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import toast from 'react-hot-toast'
-import { 
+import { useAuth } from '../context/AuthContext'
+import UpgradeModal from './UpgradeModal'
+import UsageMeter from './UsageMeter'
+import {
   SparklesIcon, CopyIcon, RefreshCwIcon, TrashIcon,
   Lightbulb, Shield, Zap, AlertCircle, CheckCircle2
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  ? 'http://localhost:5000'
+  : 'https://slywriterapp.onrender.com'
 
 export default function HumanizerTab() {
+  const { user, usageLimits, canUseHumanizer, trackHumanizerUsage } = useAuth()
   const [inputText, setInputText] = useState('')
   const [outputText, setOutputText] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [autoHumanize, setAutoHumanize] = useState(false)
-  const [userPlan, setUserPlan] = useState<string>('free')
-  const [hasAccess, setHasAccess] = useState(false)
-  
-  // Check user's plan and access
-  useEffect(() => {
-    const checkAccess = async () => {
-      try {
-        const token = localStorage.getItem('auth_token')
-        if (!token) {
-          setHasAccess(false)
-          return
-        }
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
-        const response = await axios.get(`${API_URL}/api/user-dashboard`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-
-        if (response.data.success) {
-          const plan = response.data.dashboard.plan.name
-          setUserPlan(plan)
-          setHasAccess(plan !== 'free')
-        }
-      } catch (error) {
-        console.error('Failed to check access:', error)
-        setHasAccess(false)
-      }
-    }
-    
-    checkAccess()
-  }, [])
-  
   // Load and sync auto-humanize state with AI Writer tab
   useEffect(() => {
     const saved = localStorage.getItem('slywriter-auto-humanize')
@@ -54,12 +31,12 @@ export default function HumanizerTab() {
       setAutoHumanize(saved === 'true')
     }
   }, [])
-  
+
   // Save auto-humanize state
   useEffect(() => {
     localStorage.setItem('slywriter-auto-humanize', autoHumanize.toString())
   }, [autoHumanize])
-  
+
   // Listen for changes from other tabs (like AI Writer)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -67,17 +44,31 @@ export default function HumanizerTab() {
         setAutoHumanize(e.newValue === 'true')
       }
     }
-    
+
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
-  
+
   const processText = async () => {
     if (!inputText.trim()) {
       toast.error('Please enter some text')
       return
     }
-    
+
+    // Check if user can use humanizer
+    if (!canUseHumanizer) {
+      const plan = user?.plan || 'Free'
+      if (plan === 'Free') {
+        setShowUpgradeModal(true)
+        return
+      } else {
+        // Pro user out of uses
+        toast.error(`You've used all ${usageLimits?.humanizer_limit} humanizer uses this week. Resets Monday!`)
+        setShowUpgradeModal(true)
+        return
+      }
+    }
+
     setIsProcessing(true)
     try {
       const response = await axios.post(`${API_URL}/api/ai/humanize`, {
@@ -88,8 +79,12 @@ export default function HumanizerTab() {
           style: 'Clear'
         }
       })
-      
+
       setOutputText(response.data.text)
+
+      // Track usage
+      await trackHumanizerUsage()
+
       toast.success('✨ Text humanized!')
     } catch (error) {
       console.error('Processing failed:', error)
@@ -98,122 +93,26 @@ export default function HumanizerTab() {
       setIsProcessing(false)
     }
   }
-  
+
   const copyToClipboard = () => {
     if (outputText) {
       navigator.clipboard.writeText(outputText)
       toast.success('Copied to clipboard!')
     }
   }
-  
+
   const clearAll = () => {
     setInputText('')
     setOutputText('')
   }
-  
-  // Show upgrade message for free users
-  if (!hasAccess) {
-    return (
-      <div className="space-y-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-8 backdrop-blur-sm border border-purple-500/20"
-        >
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-purple-500/20 rounded-xl">
-              <Shield className="w-8 h-8 text-purple-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Premium Feature: AI Text Humanizer
-              </h2>
-              <p className="text-gray-400 mt-1">Upgrade to unlock advanced humanization technology</p>
-            </div>
-          </div>
-          
-          <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700 mb-6">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
-              <div>
-                <h3 className="text-white font-semibold mb-2">This feature requires a paid plan</h3>
-                <p className="text-gray-400 text-sm">
-                  The Humanizer uses advanced AI technology to transform text into natural, human-like writing. 
-                  Due to high API costs, this feature is available exclusively for our paid plans.
-                </p>
-              </div>
-            </div>
-            
-            <div className="space-y-3 mt-6">
-              <h4 className="text-white font-medium">What you get with the Humanizer:</h4>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-gray-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  Transform AI-generated content to bypass detection
-                </li>
-                <li className="flex items-center gap-2 text-gray-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  Maintain original meaning while improving naturalness
-                </li>
-                <li className="flex items-center gap-2 text-gray-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  Advanced linguistic patterns and variations
-                </li>
-                <li className="flex items-center gap-2 text-gray-300 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  Perfect for academic and professional writing
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-green-900/30 to-emerald-900/30 rounded-xl p-4 border border-green-500/30"
-            >
-              <h4 className="text-green-400 font-semibold mb-2">Basic Plan</h4>
-              <p className="text-2xl font-bold text-white mb-1">$9.99<span className="text-sm text-gray-400">/mo</span></p>
-              <p className="text-gray-400 text-xs">10,000 words + Humanizer</p>
-            </motion.div>
-            
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-blue-900/30 to-cyan-900/30 rounded-xl p-4 border border-blue-500/30"
-            >
-              <h4 className="text-blue-400 font-semibold mb-2">Pro Plan</h4>
-              <p className="text-2xl font-bold text-white mb-1">$19.99<span className="text-sm text-gray-400">/mo</span></p>
-              <p className="text-gray-400 text-xs">20,000 words + All features</p>
-            </motion.div>
-            
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30"
-            >
-              <h4 className="text-purple-400 font-semibold mb-2">Premium Plan</h4>
-              <p className="text-2xl font-bold text-white mb-1">$39.99<span className="text-sm text-gray-400">/mo</span></p>
-              <p className="text-gray-400 text-xs">50,000 words + Priority</p>
-            </motion.div>
-          </div>
-          
-          <div className="mt-6 flex justify-center">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
-            >
-              Upgrade Now to Unlock Humanizer
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
-    )
-  }
-  
+
+  const plan = user?.plan || 'Free'
+  const requiredPlan = plan === 'Free' ? 'Pro' : 'Premium'
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-2xl p-8 backdrop-blur-sm border border-purple-500/20"
@@ -222,14 +121,26 @@ export default function HumanizerTab() {
           <div className="p-3 bg-purple-500/20 rounded-xl">
             <SparklesIcon className="w-8 h-8 text-purple-400" />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               AI Text Humanizer
             </h2>
             <p className="text-gray-400 mt-1">Transform AI content into natural, human-like writing</p>
           </div>
         </div>
-        
+
+        {/* Usage Meter */}
+        {usageLimits && (
+          <UsageMeter
+            label="Humanizer Uses"
+            used={usageLimits.humanizer_uses}
+            limit={usageLimits.humanizer_limit === -1 ? 'Unlimited' : usageLimits.humanizer_limit}
+            icon={<SparklesIcon className="w-4 h-4 text-purple-400" />}
+            showUpgrade={!canUseHumanizer}
+            onUpgradeClick={() => setShowUpgradeModal(true)}
+          />
+        )}
+
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-4 mt-6">
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
@@ -251,7 +162,7 @@ export default function HumanizerTab() {
       </motion.div>
 
       {/* Auto-Humanize Toggle */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.1 }}
@@ -277,11 +188,12 @@ export default function HumanizerTab() {
               checked={autoHumanize}
               onChange={(e) => setAutoHumanize(e.target.checked)}
               className="sr-only peer"
+              disabled={!canUseHumanizer}
             />
-            <div className="w-14 h-7 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-pink-500"></div>
+            <div className={`w-14 h-7 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-pink-500 ${!canUseHumanizer ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
           </label>
         </div>
-        
+
         {autoHumanize && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -294,10 +206,23 @@ export default function HumanizerTab() {
             </p>
           </motion.div>
         )}
+
+        {!canUseHumanizer && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20"
+          >
+            <p className="text-xs text-red-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {plan === 'Free' ? 'Upgrade to Pro to use the humanizer' : 'Out of humanizer uses this week'}
+            </p>
+          </motion.div>
+        )}
       </motion.div>
-      
+
       {/* Manual Humanizer */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -310,7 +235,7 @@ export default function HumanizerTab() {
             Instant conversion
           </div>
         </div>
-        
+
         {/* Input */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -324,7 +249,7 @@ export default function HumanizerTab() {
             className="w-full h-40 bg-gray-800/70 rounded-lg p-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
           />
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex gap-2 mb-4">
           <motion.button
@@ -356,7 +281,7 @@ export default function HumanizerTab() {
             <TrashIcon className="w-4 h-4" />
           </motion.button>
         </div>
-        
+
         {/* Output */}
         <AnimatePresence>
           {outputText && (
@@ -382,7 +307,7 @@ export default function HumanizerTab() {
           )}
         </AnimatePresence>
       </motion.div>
-      
+
       {/* Tips Section */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -421,6 +346,20 @@ export default function HumanizerTab() {
           </div>
         </div>
       </motion.div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature="AI Humanizer"
+        currentPlan={plan}
+        requiredPlan={requiredPlan}
+        usageInfo={usageLimits ? {
+          used: usageLimits.humanizer_uses,
+          limit: typeof usageLimits.humanizer_limit === 'number' ? usageLimits.humanizer_limit : 0,
+          type: 'humanizer uses'
+        } : undefined}
+      />
     </div>
   )
 }
