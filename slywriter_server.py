@@ -3481,8 +3481,475 @@ def admin_update_user_plan(user_id):
     save_data(PLAN_FILE, plans)
     
     log_analytics_event(user_id, 'plan_updated_by_admin', {'new_plan': new_plan})
-    
+
     return jsonify({"success": True, "user_id": user_id, "plan": new_plan})
+
+# ============== LICENSE VERIFICATION + VERSION CONTROL SYSTEM ==============
+
+# Current app version (update this with each release)
+CURRENT_APP_VERSION = "2.1.6"
+MINIMUM_SUPPORTED_VERSION = "2.0.0"  # Versions below this MUST update
+
+# File to store device registrations
+DEVICES_FILE = "user_devices.json"
+
+def load_devices():
+    """Load device registrations"""
+    if not os.path.exists(DEVICES_FILE):
+        return {}
+    try:
+        with open(DEVICES_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_devices(devices):
+    """Save device registrations"""
+    with open(DEVICES_FILE, 'w') as f:
+        json.dump(devices, f, indent=2)
+
+def get_plan_device_limit(plan):
+    """Get max devices allowed for plan"""
+    limits = {
+        "free": 1,
+        "pro": 2,
+        "premium": 3
+    }
+    return limits.get(plan.lower(), 1)
+
+def version_compare(v1, v2):
+    """Compare two version strings (e.g., '2.1.6' vs '2.0.0')"""
+    def normalize(v):
+        return [int(x) for x in re.sub(r'(\.0+)*$', '', v).split(".")]
+    return normalize(v1) < normalize(v2)
+
+@app.route("/api/license/verify", methods=["POST", "OPTIONS"])
+@cross_origin(origins=["*"])
+def verify_license():
+    """
+    Comprehensive license verification with version checking
+    Called on app startup and periodically during use
+    """
+    logger.info("=" * 60)
+    logger.info("LICENSE VERIFICATION REQUEST")
+
+    data = request.get_json()
+    license_key = data.get('license_key')  # This is the user's email or JWT token
+    machine_id = data.get('machine_id')
+    app_version = data.get('app_version', '0.0.0')
+
+    logger.info(f"License Key: {license_key[:20] if license_key else 'None'}...")
+    logger.info(f"Machine ID: {machine_id}")
+    logger.info(f"App Version: {app_version}")
+
+    # Version check - CRITICAL
+    needs_update = version_compare(app_version, MINIMUM_SUPPORTED_VERSION)
+    update_available = version_compare(app_version, CURRENT_APP_VERSION)
+
+    logger.info(f"Needs Update: {needs_update}")
+    logger.info(f"Update Available: {update_available}")
+
+    if needs_update:
+        logger.warning(f"Version {app_version} is below minimum {MINIMUM_SUPPORTED_VERSION}")
+        return jsonify({
+            "valid": False,
+            "error": "update_required",
+            "message": f"Your app version ({app_version}) is outdated. Please update to continue.",
+            "current_version": CURRENT_APP_VERSION,
+            "minimum_version": MINIMUM_SUPPORTED_VERSION,
+            "update_url": "https://github.com/slywriterapp/slywriterapp/releases/latest"
+        }), 426  # 426 Upgrade Required
+
+    # License key validation
+    if not license_key:
+        logger.error("No license key provided")
+        return jsonify({
+            "valid": False,
+            "error": "missing_license",
+            "message": "Please log in to verify your subscription"
+        }), 400
+
+    # Try to verify as JWT token first (from website login)
+    user_email = None
+    try:
+        payload = jwt.decode(license_key, JWT_SECRET, algorithms=["HS256"])
+        user_email = payload.get("email")
+        logger.info(f"JWT verified, email: {user_email}")
+    except:
+        # If not JWT, treat as email directly
+        user_email = license_key
+        logger.info(f"Using license_key as email: {user_email}")
+
+    if not user_email:
+        logger.error("Could not extract email from license key")
+        return jsonify({
+            "valid": False,
+            "error": "invalid_license",
+            "message": "Invalid license key"
+        }), 400
+
+    # Load user data
+    users = load_data(USERS_FILE)
+    plans = load_data(PLAN_FILE)
+
+    if user_email not in users:
+        logger.error(f"User not found: {user_email}")
+        return jsonify({
+            "valid": False,
+            "error": "user_not_found",
+            "message": "Please sign up at https://www.slywriter.ai"
+        }), 404
+
+    user_data = users[user_email]
+    user_id = user_data.get('user_id')
+    plan = plans.get(user_id, 'free').lower()
+
+    logger.info(f"User found: {user_email}, Plan: {plan}")
+
+    # Device binding check
+    if machine_id:
+        devices = load_devices()
+        user_devices_key = f"{user_email}:devices"
+        user_devices = devices.get(user_devices_key, [])
+
+        device_limit = get_plan_device_limit(plan)
+        logger.info(f"Device limit for {plan}: {device_limit}")
+        logger.info(f"Current devices: {len(user_devices)}")
+
+        # Check if this machine is already registered
+        machine_registered = any(d['machine_id'] == machine_id for d in user_devices)
+
+        if not machine_registered:
+            if len(user_devices) >= device_limit:
+                logger.warning(f"Device limit reached: {len(user_devices)}/{device_limit}")
+                return jsonify({
+                    "valid": False,
+                    "error": "device_limit_reached",
+                    "message": f"Maximum {device_limit} device(s) allowed for {plan} plan. Please deactivate another device or upgrade.",
+                    "current_devices": len(user_devices),
+                    "max_devices": device_limit,
+                    "devices": [
+                        {"id": d['machine_id'][:8], "name": d.get('name', 'Unknown'), "last_seen": d.get('last_seen')}
+                        for d in user_devices
+                    ]
+                }), 403
+
+            # Register new device
+            new_device = {
+                "machine_id": machine_id,
+                "name": data.get('device_name', f"Device {len(user_devices) + 1}"),
+                "first_seen": datetime.datetime.utcnow().isoformat(),
+                "last_seen": datetime.datetime.utcnow().isoformat(),
+                "app_version": app_version
+            }
+            user_devices.append(new_device)
+            devices[user_devices_key] = user_devices
+            save_devices(devices)
+            logger.info(f"Registered new device: {machine_id[:8]}")
+        else:
+            # Update last seen for existing device
+            for device in user_devices:
+                if device['machine_id'] == machine_id:
+                    device['last_seen'] = datetime.datetime.utcnow().isoformat()
+                    device['app_version'] = app_version
+            devices[user_devices_key] = user_devices
+            save_devices(devices)
+            logger.info(f"Updated existing device: {machine_id[:8]}")
+
+    # Get usage limits
+    usage = load_data(USAGE_FILE)
+    words_used = usage.get(user_id, 0)
+
+    plan_limits = {
+        "free": {"words": 500, "ai_gen": 3, "humanizer": 0},
+        "pro": {"words": 5000, "ai_gen": -1, "humanizer": 3},
+        "premium": {"words": -1, "ai_gen": -1, "humanizer": -1}
+    }
+    limits = plan_limits.get(plan, plan_limits["free"])
+
+    # Build response
+    response_data = {
+        "valid": True,
+        "user": {
+            "email": user_email,
+            "user_id": user_id,
+            "plan": plan
+        },
+        "limits": {
+            "words_per_week": limits["words"],
+            "words_used": words_used,
+            "words_remaining": "unlimited" if limits["words"] == -1 else max(0, limits["words"] - words_used),
+            "ai_gen_per_week": limits["ai_gen"],
+            "humanizer_per_week": limits["humanizer"]
+        },
+        "features_enabled": {
+            "ai_generation": limits["ai_gen"] != 0,
+            "humanizer": limits["humanizer"] != 0,
+            "premium_typing": plan in ["pro", "premium"],
+            "unlimited_words": limits["words"] == -1
+        },
+        "version_info": {
+            "current_app_version": app_version,
+            "latest_version": CURRENT_APP_VERSION,
+            "update_available": update_available,
+            "update_required": False,
+            "update_url": "https://github.com/slywriterapp/slywriterapp/releases/latest"
+        },
+        "device_info": {
+            "machine_id": machine_id[:8] if machine_id else None,
+            "devices_used": len(load_devices().get(f"{user_email}:devices", [])),
+            "devices_allowed": get_plan_device_limit(plan)
+        }
+    }
+
+    logger.info("License verification SUCCESS")
+    logger.info("=" * 60)
+
+    log_analytics_event(user_id, 'license_verified', {
+        'app_version': app_version,
+        'machine_id': machine_id[:8] if machine_id else None,
+        'plan': plan
+    })
+
+    return jsonify(response_data)
+
+@app.route("/api/license/deactivate-device", methods=["POST"])
+@cross_origin(origins=["*"])
+def deactivate_device():
+    """Deactivate a device to free up a slot"""
+    data = request.get_json()
+    license_key = data.get('license_key')
+    machine_id_to_remove = data.get('machine_id')
+
+    # Extract email from license
+    try:
+        payload = jwt.decode(license_key, JWT_SECRET, algorithms=["HS256"])
+        user_email = payload.get("email")
+    except:
+        user_email = license_key
+
+    if not user_email or not machine_id_to_remove:
+        return jsonify({"success": False, "error": "Missing parameters"}), 400
+
+    devices = load_devices()
+    user_devices_key = f"{user_email}:devices"
+    user_devices = devices.get(user_devices_key, [])
+
+    # Remove the device
+    user_devices = [d for d in user_devices if d['machine_id'] != machine_id_to_remove]
+    devices[user_devices_key] = user_devices
+    save_devices(devices)
+
+    logger.info(f"Deactivated device {machine_id_to_remove[:8]} for {user_email}")
+
+    return jsonify({
+        "success": True,
+        "message": "Device deactivated successfully",
+        "devices_remaining": len(user_devices)
+    })
+
+# ============== AI FEATURES - MOVED TO SERVER ==============
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+if not OPENAI_API_KEY:
+    logger.warning("OPENAI_API_KEY not set - AI features will be disabled")
+
+@app.route("/api/ai/generate", methods=["POST"])
+@cross_origin(origins=["*"])
+def ai_generate():
+    """
+    AI text generation - MOVED FROM DESKTOP APP
+    Requires valid license and checks usage limits
+    """
+    data = request.get_json()
+    license_key = data.get('license_key')
+    prompt = data.get('prompt')
+    word_count = data.get('word_count', 500)
+    tone = data.get('tone', 'professional')
+
+    logger.info(f"AI Generate request: {prompt[:50] if prompt else 'None'}...")
+
+    # Extract user email
+    try:
+        payload = jwt.decode(license_key, JWT_SECRET, algorithms=["HS256"])
+        user_email = payload.get("email")
+    except:
+        user_email = license_key
+
+    if not user_email or not prompt:
+        return jsonify({"success": False, "error": "Missing parameters"}), 400
+
+    # Verify user and check limits
+    users = load_data(USERS_FILE)
+    if user_email not in users:
+        return jsonify({"success": False, "error": "User not found"}), 404
+
+    user_data = users[user_email]
+    user_id = user_data.get('user_id')
+    plans = load_data(PLAN_FILE)
+    plan = plans.get(user_id, 'free').lower()
+
+    # Check AI generation limit
+    plan_limits = {
+        "free": 3,
+        "pro": -1,  # unlimited
+        "premium": -1
+    }
+    limit = plan_limits.get(plan, 0)
+
+    if limit == 0:
+        return jsonify({
+            "success": False,
+            "error": "feature_not_available",
+            "message": "AI generation is not available on your plan. Please upgrade."
+        }), 403
+
+    # TODO: Track weekly usage (for now, allow if limit != 0)
+
+    # Make OpenAI request
+    if not OPENAI_API_KEY:
+        return jsonify({
+            "success": False,
+            "error": "service_unavailable",
+            "message": "AI service is temporarily unavailable"
+        }), 503
+
+    try:
+        import openai
+        openai.api_key = OPENAI_API_KEY
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"You are a helpful writing assistant. Write in a {tone} tone."},
+                {"role": "user", "content": f"Write approximately {word_count} words about: {prompt}"}
+            ],
+            max_tokens=word_count * 2,
+            temperature=0.7
+        )
+
+        generated_text = response.choices[0].message.content.strip()
+
+        # Track usage
+        log_analytics_event(user_id, 'ai_generation_used', {
+            'prompt_length': len(prompt),
+            'generated_length': len(generated_text),
+            'word_count': word_count,
+            'plan': plan
+        })
+
+        logger.info(f"AI generation successful for {user_email}")
+
+        return jsonify({
+            "success": True,
+            "text": generated_text,
+            "words_generated": len(generated_text.split()),
+            "plan": plan
+        })
+
+    except Exception as e:
+        logger.error(f"AI generation failed: {e}")
+        return jsonify({
+            "success": False,
+            "error": "generation_failed",
+            "message": str(e)
+        }), 500
+
+@app.route("/api/ai/humanize", methods=["POST"])
+@cross_origin(origins=["*"])
+def ai_humanize():
+    """
+    AI text humanizer - MOVED FROM DESKTOP APP
+    Makes AI-generated text sound more natural
+    """
+    data = request.get_json()
+    license_key = data.get('license_key')
+    text = data.get('text')
+
+    logger.info(f"AI Humanize request: {text[:50] if text else 'None'}...")
+
+    # Extract user email
+    try:
+        payload = jwt.decode(license_key, JWT_SECRET, algorithms=["HS256"])
+        user_email = payload.get("email")
+    except:
+        user_email = license_key
+
+    if not user_email or not text:
+        return jsonify({"success": False, "error": "Missing parameters"}), 400
+
+    # Verify user and check limits
+    users = load_data(USERS_FILE)
+    if user_email not in users:
+        return jsonify({"success": False, "error": "User not found"}), 404
+
+    user_data = users[user_email]
+    user_id = user_data.get('user_id')
+    plans = load_data(PLAN_FILE)
+    plan = plans.get(user_id, 'free').lower()
+
+    # Check humanizer limit
+    plan_limits = {
+        "free": 0,
+        "pro": 3,
+        "premium": -1
+    }
+    limit = plan_limits.get(plan, 0)
+
+    if limit == 0:
+        return jsonify({
+            "success": False,
+            "error": "feature_not_available",
+            "message": "AI humanizer is not available on your plan. Please upgrade to Pro."
+        }), 403
+
+    # Make OpenAI request
+    if not OPENAI_API_KEY:
+        return jsonify({
+            "success": False,
+            "error": "service_unavailable",
+            "message": "AI service is temporarily unavailable"
+        }), 503
+
+    try:
+        import openai
+        openai.api_key = OPENAI_API_KEY
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert at making AI-generated text sound more natural and human-like. Rewrite the text to be more conversational, varied in sentence structure, and natural."},
+                {"role": "user", "content": f"Humanize this text:\n\n{text}"}
+            ],
+            temperature=0.8
+        )
+
+        humanized_text = response.choices[0].message.content.strip()
+
+        # Track usage
+        log_analytics_event(user_id, 'humanizer_used', {
+            'original_length': len(text),
+            'humanized_length': len(humanized_text),
+            'plan': plan
+        })
+
+        logger.info(f"Humanization successful for {user_email}")
+
+        return jsonify({
+            "success": True,
+            "humanized_text": humanized_text,
+            "plan": plan
+        })
+
+    except Exception as e:
+        logger.error(f"Humanization failed: {e}")
+        return jsonify({
+            "success": False,
+            "error": "humanization_failed",
+            "message": str(e)
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
