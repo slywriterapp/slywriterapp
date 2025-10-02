@@ -12,6 +12,7 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 google-auth==2.23.4
+PyJWT==2.8.0
 
 # Payment Processing
 stripe==7.10.0

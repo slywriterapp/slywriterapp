@@ -438,9 +438,28 @@ async def verify_email(request: Request):
         if not token:
             raise HTTPException(status_code=400, detail="Token required")
 
-        # For now, accept any token and create/return user
-        # In production, you'd verify the JWT token here
-        email = "user@example.com"  # Extract from token in production
+        # Verify JWT token
+        import jwt
+        from datetime import datetime, timedelta
+
+        # You should set this as an environment variable in production
+        JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+
+        try:
+            # Decode and verify the token
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("email")
+
+            if not email:
+                raise HTTPException(status_code=400, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Create or get user
         user_id = email.replace("@", "_").replace(".", "_")
 
         if user_id not in users_db:
@@ -455,8 +474,10 @@ async def verify_email(request: Request):
         return {
             "success": True,
             "user": users_db[user_id],
-            "token": f"token_{user_id}"
+            "access_token": token  # Return the same token back
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Email verification failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
