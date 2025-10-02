@@ -61,6 +61,8 @@ app.add_middleware(
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Ensure all HTTP exceptions include CORS headers"""
+    logger.error(f"HTTPException on {request.method} {request.url.path}: {exc.status_code} - {exc.detail}")
+    logger.info(f"Request origin: {request.headers.get('origin', 'No origin header')}")
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
@@ -513,8 +515,9 @@ async def create_checkout_session(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.options("/auth/verify-email")
-async def verify_email_options():
+async def verify_email_options(request: Request):
     """Handle CORS preflight for verify-email"""
+    logger.info(f"OPTIONS /auth/verify-email from origin: {request.headers.get('origin', 'No origin')}")
     return JSONResponse(
         content={},
         headers={
@@ -527,9 +530,11 @@ async def verify_email_options():
 @app.post("/auth/verify-email")
 async def verify_email(request: Request, db: Session = Depends(get_db)):
     """Verify email token - used by website"""
+    logger.info(f"POST /auth/verify-email from origin: {request.headers.get('origin', 'No origin')}")
     try:
         data = await request.json()
         token = data.get("token")
+        logger.info(f"Token received: {token[:20]}..." if token else "No token in request")
 
         if not token:
             raise HTTPException(status_code=400, detail="Token required")
@@ -541,11 +546,13 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
             # Decode and verify the token
             payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
             email = payload.get("email")
+            logger.info(f"Token decoded successfully for email: {email}")
 
             if not email:
                 raise HTTPException(status_code=400, detail="Invalid token: no email")
 
         except jwt.ExpiredSignatureError:
+            logger.error("Token expired")
             raise HTTPException(status_code=401, detail="Token expired")
         except jwt.InvalidTokenError as e:
             logger.error(f"Invalid token: {e}")
@@ -560,12 +567,16 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
             # Update last login
             user.last_login = datetime.utcnow()
             db.commit()
+            logger.info(f"User logged in: {email}, plan: {user.plan}")
 
         # Check for weekly reset
-        check_weekly_reset(db, user)
+        reset_occurred = check_weekly_reset(db, user)
+        if reset_occurred:
+            logger.info(f"Weekly reset applied for user: {email}")
 
         # Get user limits
         limits = get_user_limits(user)
+        logger.info(f"User limits calculated: {limits}")
 
         # Build user response
         user_data = {
@@ -584,6 +595,7 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
             "access_token": token
         }
 
+        logger.info(f"Successfully verified email for {email}, returning user data")
         return JSONResponse(
             content=response_data,
             headers={
