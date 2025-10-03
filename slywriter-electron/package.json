@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -321,8 +321,11 @@
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
+      "installerIcon": "./assets/icon.ico",
+      "uninstallerIcon": "./assets/icon.ico",
       "installerHeader": "./assets/installerHeader.bmp",
       "installerSidebar": "./assets/installerSidebar.bmp",
+      "installerHeaderIcon": "./assets/icon.ico",
       "license": "../license.txt",
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
@@ -334,6 +337,8 @@
       "installerLanguages": ["en_US"],
       "menuCategory": true,
       "packElevateHelper": true,
+      "warningsAsErrors": false,
+      "unicode": true,
       "preCompressedFileExtensions": [".mp4", ".webm", ".png", ".jpg"],
       "warningsAsErrors": false
     }
