@@ -808,6 +808,140 @@ function createUpdateWindow() {
   })
 }
 
+// ============== LICENSE VERIFICATION SYSTEM ==============
+
+async function verifyLicense() {
+  console.log('[License] Verifying license...')
+
+  try {
+    // Get stored license key from user config
+    const userConfigPath = path.join(app.getPath('userData'), 'user_config.json')
+    let licenseKey = null
+
+    if (fs.existsSync(userConfigPath)) {
+      try {
+        const userConfig = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'))
+        licenseKey = userConfig.email || userConfig.license_key
+      } catch (e) {
+        console.log('[License] Could not read user config:', e.message)
+      }
+    }
+
+    if (!licenseKey) {
+      console.log('[License] No license key found - prompting for login')
+      return {
+        valid: false,
+        error: 'no_license',
+        message: 'Please log in to use SlyWriter'
+      }
+    }
+
+    // Call local backend which will verify with server
+    const response = await axios.post('http://localhost:8000/api/license/verify', {
+      license_key: licenseKey,
+      force: true
+    }).catch(err => {
+      // If local backend not running yet, wait and retry
+      console.log('[License] Backend not ready, waiting...')
+      return new Promise((resolve) => {
+        setTimeout(async () => {
+          resolve(await axios.post('http://localhost:8000/api/license/verify', {
+            license_key: licenseKey,
+            force: true
+          }).catch(e => ({ data: { valid: false, error: 'backend_unavailable' } })))
+        }, 2000)
+      })
+    })
+
+    const licenseData = response.data
+
+    console.log('[License] Verification result:', licenseData.valid ? 'SUCCESS' : 'FAILED')
+
+    if (!licenseData.valid) {
+      console.log('[License] Error:', licenseData.error, '-', licenseData.message)
+    }
+
+    return licenseData
+
+  } catch (error) {
+    console.error('[License] Verification failed:', error.message)
+    return {
+      valid: false,
+      error: 'verification_failed',
+      message: 'Could not verify license. Please check your internet connection.'
+    }
+  }
+}
+
+async function handleLicenseError(licenseData) {
+  console.log('[License] Handling license error:', licenseData.error)
+
+  // Handle different error types
+  if (licenseData.error === 'update_required') {
+    // CRITICAL: Force user to update
+    const response = await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Update Required',
+      message: licenseData.message || 'Your app version is outdated',
+      detail: `Please download the latest version to continue using SlyWriter.\n\nCurrent: ${app.getVersion()}\nRequired: ${licenseData.minimum_version || 'latest'}`,
+      buttons: ['Download Update', 'Quit'],
+      defaultId: 0,
+      cancelId: 1
+    })
+
+    if (response.response === 0) {
+      // Open download URL
+      shell.openExternal(licenseData.update_url || 'https://github.com/slywriterapp/slywriterapp/releases/latest')
+    }
+
+    // Quit app - update is required
+    app.quit()
+    return false
+  }
+
+  if (licenseData.error === 'device_limit_reached') {
+    // Show device limit dialog
+    const deviceList = (licenseData.devices || [])
+      .map(d => `• ${d.name} (last seen: ${new Date(d.last_seen).toLocaleDateString()})`)
+      .join('\n')
+
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Device Limit Reached',
+      message: licenseData.message || 'Maximum devices reached',
+      detail: `Your plan allows ${licenseData.max_devices} device(s). Currently registered:\n\n${deviceList}\n\nPlease deactivate a device from your account settings or upgrade your plan.`,
+      buttons: ['OK']
+    })
+
+    // TODO: Add device management UI
+    app.quit()
+    return false
+  }
+
+  if (licenseData.error === 'no_license' || licenseData.error === 'user_not_found') {
+    // Prompt for login
+    const response = await dialog.showMessageBox({
+      type: 'info',
+      title: 'Login Required',
+      message: 'Please log in to use SlyWriter',
+      detail: 'Visit https://www.slywriter.ai to create an account or log in.',
+      buttons: ['Open Website', 'Quit'],
+      defaultId: 0
+    })
+
+    if (response.response === 0) {
+      shell.openExternal('https://www.slywriter.ai')
+    }
+
+    app.quit()
+    return false
+  }
+
+  // Generic error - allow with warning
+  console.warn('[License] Generic error, allowing with warning:', licenseData.error)
+  return true
+}
+
 function setupAutoUpdater() {
   // Configure auto-updater to use GitHub releases
   autoUpdater.setFeedURL({
@@ -820,10 +954,17 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true
 
   // Check for updates on app start (after splash screen)
-  setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch(err => {
-      console.log('Update check failed:', err)
-    })
+  // INTEGRATED WITH LICENSE CHECK
+  setTimeout(async () => {
+    // Re-verify license before checking updates
+    const licenseData = await verifyLicense()
+
+    if (licenseData.valid) {
+      // Only check for updates if license is valid
+      autoUpdater.checkForUpdatesAndNotify().catch(err => {
+        console.log('Update check failed:', err)
+      })
+    }
   }, 3500)
 
   // Check for updates every 30 minutes
@@ -894,12 +1035,38 @@ function setupAutoUpdater() {
 }
 
 // App event handlers
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
 
   // Start the typing server
   startTypingServer()
+
+  // ============== LICENSE VERIFICATION ON STARTUP ==============
+  // Wait for typing server to start (2 seconds)
+  await new Promise(resolve => setTimeout(resolve, 2000))
+
+  // Verify license BEFORE showing UI
+  console.log('[App] Verifying license before starting...')
+  const licenseData = await verifyLicense()
+
+  if (!licenseData.valid) {
+    // Handle license error - may quit app
+    const canContinue = await handleLicenseError(licenseData)
+
+    if (!canContinue) {
+      console.log('[App] License verification failed, exiting...')
+      return // Don't continue app startup
+    }
+  } else {
+    console.log('[App] License verified successfully')
+    console.log('[App] Plan:', licenseData.user?.plan)
+    console.log('[App] Features:', licenseData.features_enabled)
+
+    // Store license data globally for access by other parts of app
+    global.licenseData = licenseData
+  }
+  // ============================================================
 
   // Show splash screen first
   createSplashScreen()
@@ -910,7 +1077,32 @@ app.whenReady().then(() => {
 
   // Initialize auto-updater
   setupAutoUpdater()
-  
+
+  // ============== PERIODIC LICENSE RE-VERIFICATION ==============
+  // Re-verify license every 30 minutes while app is running
+  setInterval(async () => {
+    console.log('[App] Periodic license re-verification...')
+    const licenseData = await verifyLicense()
+
+    if (!licenseData.valid) {
+      console.warn('[App] License is no longer valid!')
+
+      // Show warning dialog but don't quit immediately (grace period)
+      await dialog.showMessageBox({
+        type: 'warning',
+        title: 'License Verification Failed',
+        message: 'Your license could not be verified',
+        detail: 'Please check your internet connection. The app will continue working for the next 24 hours.',
+        buttons: ['OK']
+      })
+    } else {
+      // Update global license data
+      global.licenseData = licenseData
+      console.log('[App] License re-verified successfully')
+    }
+  }, 30 * 60 * 1000) // Every 30 minutes
+  // ============================================================
+
   // Store hotkey handlers for reuse globally
   global.startTypingHandler = null
   global.aiGenerationHandler = null
