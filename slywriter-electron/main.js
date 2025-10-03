@@ -407,17 +407,26 @@ function createWindow() {
     show: false
   })
 
-  // Load the Next.js app - always start with login page
+  // Load the Next.js app - check if user is already logged in
+  const userConfigPath = path.join(app.getPath('userData'), 'user_config.json')
+  const hasUserConfig = fs.existsSync(userConfigPath)
+
   if (isDev) {
     // Simple: Just wait a bit and load port 3000
     console.log('Loading Next.js from localhost:3000...')
     setTimeout(() => {
-      // Always load login page first to ensure authentication
-      mainWindow.loadURL('http://localhost:3000/login')
+      // If user has config, go to app; otherwise show login
+      const startUrl = hasUserConfig ? 'http://localhost:3000' : 'http://localhost:3000/login'
+      console.log(`Loading ${hasUserConfig ? 'app' : 'login page'}`)
+      mainWindow.loadURL(startUrl)
     }, 2000)
   } else {
     // In production, load from deployed UI
-    mainWindow.loadURL('https://slywriter-ui.onrender.com/login')
+    const startUrl = hasUserConfig
+      ? 'https://slywriter-ui.onrender.com'
+      : 'https://slywriter-ui.onrender.com/login'
+    console.log(`Loading ${hasUserConfig ? 'app' : 'login page'}`)
+    mainWindow.loadURL(startUrl)
   }
 
   // Show window when ready
@@ -941,21 +950,38 @@ async function handleLicenseError(licenseData) {
   }
 
   if (licenseData.error === 'no_license' || licenseData.error === 'user_not_found') {
-    // Prompt for login
-    const response = await dialog.showMessageBox({
-      type: 'info',
-      title: 'Login Required',
-      message: 'Please log in to use SlyWriter',
-      detail: 'Visit https://www.slywriter.ai to create an account or log in.',
-      buttons: ['Open Website', 'Quit'],
-      defaultId: 0
-    })
+    // Show login page inside the app instead of quitting
+    console.log('[License] No license found - showing login page')
 
-    if (response.response === 0) {
-      shell.openExternal('https://www.slywriter.ai')
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Load the login page
+      const loginUrl = isDev ? 'http://localhost:3000/login' : 'https://slywriter-ui.onrender.com/login'
+      mainWindow.loadURL(loginUrl)
+      mainWindow.show()
+
+      // Show a friendly notification
+      const response = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Welcome to SlyWriter',
+        message: 'Please log in or create an account',
+        detail: 'You can log in using the window that just opened, or visit slywriter.ai in your browser.',
+        buttons: ['Continue in App', 'Open in Browser', 'Quit'],
+        defaultId: 0,
+        cancelId: 2
+      })
+
+      if (response.response === 1) {
+        // Open in browser
+        shell.openExternal('https://www.slywriter.ai')
+      } else if (response.response === 2) {
+        // User chose to quit
+        app.quit()
+        return false
+      }
+      // If "Continue in App" (0), let them use the login page in the window
     }
 
-    app.quit()
+    // Don't quit - let them log in
     return false
   }
 
