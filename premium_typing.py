@@ -30,7 +30,10 @@ FILLER_SERVER_URL = "https://slywriterapp.onrender.com/generate_filler"
 def get_license_key():
     """Get license key from local config"""
     try:
-        config_path = os.path.join(os.path.dirname(__file__), 'license_config.json')
+        # Check environment variable for config directory (set by Electron)
+        config_dir = os.environ.get('SLYWRITER_CONFIG_DIR', os.path.dirname(__file__))
+        config_path = os.path.join(config_dir, 'license_config.json')
+
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
                 config = json.load(f)

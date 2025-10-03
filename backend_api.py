@@ -94,6 +94,9 @@ class AppState:
             'wpm': 0,
             'status': 'ready'
         }
+        # Config directory for license and user data
+        # Will be set by Electron when it starts the backend
+        self.config_dir = os.environ.get('SLYWRITER_CONFIG_DIR', os.path.dirname(__file__))
 
 state = AppState()
 
@@ -935,7 +938,7 @@ async def verify_license_endpoint(request: LicenseVerifyRequest):
     if not LICENSE_MANAGER_AVAILABLE:
         return {"valid": False, "error": "license_system_unavailable"}
 
-    license_manager = get_license_manager(app_version="2.1.6")
+    license_manager = get_license_manager(config_dir=state.config_dir)
     result = license_manager.verify_license(request.license_key, force=request.force)
 
     return result
@@ -946,7 +949,7 @@ async def get_license_status():
     if not LICENSE_MANAGER_AVAILABLE:
         return {"valid": False, "error": "license_system_unavailable"}
 
-    license_manager = get_license_manager()
+    license_manager = get_license_manager(config_dir=state.config_dir)
     if not license_manager or not license_manager.license_data:
         return {"valid": False, "error": "not_verified"}
 
@@ -958,7 +961,7 @@ async def get_enabled_features():
     if not LICENSE_MANAGER_AVAILABLE:
         return {"ai_generation": False, "humanizer": False, "premium_typing": False}
 
-    license_manager = get_license_manager()
+    license_manager = get_license_manager(config_dir=state.config_dir)
     if not license_manager or not license_manager.license_data:
         return {"ai_generation": False, "humanizer": False, "premium_typing": False}
 

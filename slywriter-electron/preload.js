@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('electron', {
       }
     },
     invoke: (channel, ...args) => {
-      const validChannels = ['hide-overlay', 'show-overlay', 'toggle-overlay', 'set-clipboard', 'get-clipboard', 'focus-window', 'check-auth', 'save-auth', 'clear-auth', 'navigate-to-app']
+      const validChannels = ['hide-overlay', 'show-overlay', 'toggle-overlay', 'set-clipboard', 'get-clipboard', 'focus-window', 'check-auth', 'save-auth', 'clear-auth', 'navigate-to-app', 'save-user-config', 'get-user-config']
       if (validChannels.includes(channel)) {
         return ipcRenderer.invoke(channel, ...args)
       }

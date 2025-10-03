@@ -278,6 +278,14 @@
       {
         "from": "../client_secret.json",
         "to": "client_secret.json"
+      },
+      {
+        "from": "../license_manager.py",
+        "to": "license_manager.py"
+      },
+      {
+        "from": "version.js",
+        "to": "version.js"
       }
     ],
     "publish": {

@@ -5,6 +5,7 @@ const { spawn, exec } = require('child_process')
 const http = require('http')
 const https = require('https')
 const { autoUpdater } = require('electron-updater')
+const { APP_VERSION } = require('./version')
 
 // Handle Squirrel events (for installer/updater)
 if (require('electron-squirrel-startup')) {
@@ -197,7 +198,11 @@ async function startTypingServer() {
       typingServerProcess = spawn(pythonPath, [typingServerPath], {
         cwd: path.dirname(typingServerPath),
         stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true
+        windowsHide: true,
+        env: {
+          ...process.env,
+          SLYWRITER_CONFIG_DIR: app.getPath('userData')
+        }
       })
 
       typingServerProcess.stdout.on('data', (data) => {
@@ -248,7 +253,11 @@ async function startTypingServer() {
         typingServerProcess = spawn(pythonCmd, [typingServerPath], {
           cwd: path.dirname(typingServerPath),
           stdio: ['ignore', 'pipe', 'pipe'],
-          windowsHide: true
+          windowsHide: true,
+          env: {
+            ...process.env,
+            SLYWRITER_CONFIG_DIR: app.getPath('userData')
+          }
         })
 
         typingServerProcess.stdout.on('data', (data) => {
@@ -2032,6 +2041,51 @@ app.on('will-quit', () => {
 ipcMain.handle('get-clipboard', async () => {
   const { clipboard } = require('electron')
   return clipboard.readText()
+})
+
+// Save user config (called from website after login)
+ipcMain.handle('save-user-config', async (event, userConfig) => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'user_config.json')
+    console.log('[Config] Saving user config to:', userConfigPath)
+
+    // Ensure directory exists
+    const configDir = path.dirname(userConfigPath)
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true })
+    }
+
+    // Save config
+    fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2))
+    console.log('[Config] User config saved successfully')
+
+    // Verify license with the new config
+    const licenseData = await verifyLicense()
+
+    return {
+      success: true,
+      licenseValid: licenseData.valid,
+      plan: licenseData.user?.plan
+    }
+  } catch (error) {
+    console.error('[Config] Failed to save user config:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Get user config
+ipcMain.handle('get-user-config', async () => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'user_config.json')
+    if (fs.existsSync(userConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(userConfigPath, 'utf8'))
+      return { success: true, config }
+    }
+    return { success: false, error: 'No config found' }
+  } catch (error) {
+    console.error('[Config] Failed to get user config:', error)
+    return { success: false, error: error.message }
+  }
 })
 
 // Auto-updater IPC handlers

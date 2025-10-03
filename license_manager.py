@@ -12,12 +12,43 @@ import os
 from datetime import datetime, timedelta
 
 class LicenseManager:
-    def __init__(self, server_url="https://slywriterapp.onrender.com", app_version="2.1.6"):
+    def __init__(self, server_url="https://slywriterapp.onrender.com", app_version=None, config_dir=None):
         self.server_url = server_url
+        # Get version from package.json or use fallback
+        if app_version is None:
+            app_version = self._get_version_from_package()
         self.app_version = app_version
-        self.config_file = "license_config.json"
+
+        # Use provided config directory or fallback to script directory
+        if config_dir:
+            os.makedirs(config_dir, exist_ok=True)
+            self.config_file = os.path.join(config_dir, "license_config.json")
+        else:
+            self.config_file = os.path.join(os.path.dirname(__file__), "license_config.json")
+
         self.license_data = None
         self.last_verification = None
+
+    def _get_version_from_package(self):
+        """Read version from slywriter-electron/package.json"""
+        try:
+            # Try multiple possible paths
+            possible_paths = [
+                os.path.join(os.path.dirname(__file__), 'slywriter-electron', 'package.json'),
+                os.path.join(os.path.dirname(__file__), '..', 'package.json'),
+                'package.json'
+            ]
+
+            for pkg_path in possible_paths:
+                if os.path.exists(pkg_path):
+                    with open(pkg_path, 'r') as f:
+                        package_json = json.load(f)
+                        return package_json.get('version', '2.1.7')
+        except Exception as e:
+            print(f"[Version] Could not read from package.json: {e}")
+
+        # Fallback version
+        return '2.1.7'
 
     def generate_machine_id(self):
         """Generate unique machine ID based on hardware"""
@@ -194,9 +225,9 @@ class LicenseManager:
 # Global license manager instance
 license_manager = None
 
-def get_license_manager(server_url="https://slywriterapp.onrender.com", app_version="2.1.6"):
+def get_license_manager(server_url="https://slywriterapp.onrender.com", app_version=None, config_dir=None):
     """Get or create global license manager instance"""
     global license_manager
     if license_manager is None:
-        license_manager = LicenseManager(server_url, app_version)
+        license_manager = LicenseManager(server_url, app_version, config_dir)
     return license_manager
