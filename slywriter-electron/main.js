@@ -329,7 +329,18 @@ async function startTypingServer() {
 function stopTypingServer() {
   if (typingServerProcess) {
     console.log('Stopping typing server...')
-    typingServerProcess.kill()
+    try {
+      if (process.platform === 'win32') {
+        // Force kill the process tree on Windows
+        exec(`taskkill /pid ${typingServerProcess.pid} /T /F`, (err) => {
+          if (err) console.log('Error killing typing server:', err)
+        })
+      } else {
+        typingServerProcess.kill('SIGKILL')
+      }
+    } catch (e) {
+      console.log('Error during typing server cleanup:', e)
+    }
     typingServerProcess = null
   }
 }
@@ -2010,16 +2021,18 @@ app.on('before-quit', () => {
   }
 })
 
-app.on('will-quit', () => {
+app.on('will-quit', (event) => {
+  // Prevent quit until cleanup is done
+  event.preventDefault()
+
+  console.log('Cleaning up all processes...')
+
   // Unregister all shortcuts
   globalShortcut.unregisterAll()
 
   // Stop the typing server
   stopTypingServer()
 
-  // Kill all spawned processes
-  console.log('Cleaning up all processes...')
-  
   // Kill Next.js server if running
   if (nextServer) {
     try {
@@ -2035,8 +2048,22 @@ app.on('will-quit', () => {
       // Ignore errors during shutdown
     }
   }
-  
-  // Simple cleanup - user will manage Node.js manually
+
+  // Force kill any remaining SlyWriter-related processes on Windows
+  if (process.platform === 'win32') {
+    // Kill any remaining python processes that might be running SlyWriter scripts
+    exec('taskkill /F /FI "IMAGENAME eq python.exe" /FI "WINDOWTITLE eq *SlyWriter*" 2>nul', () => {
+      // Give processes a moment to terminate, then exit
+      setTimeout(() => {
+        app.exit(0)
+      }, 500)
+    })
+  } else {
+    // On non-Windows, just exit normally
+    setTimeout(() => {
+      app.exit(0)
+    }, 500)
+  }
 })
 
 // IPC handlers for communication with renderer
