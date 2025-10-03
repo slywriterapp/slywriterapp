@@ -1,0 +1,18 @@
+## 🚀 Release Notes
+
+Update this file with your release notes before running release.bat
+
+### Features
+-
+
+### Bug Fixes
+-
+
+### Improvements
+-
+
+---
+
+**Installation**: Download SlyWriter-Setup-*.exe below and run it.
+
+**Auto-Update**: If you have SlyWriter installed, it will automatically detect this update.
