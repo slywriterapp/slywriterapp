@@ -5,7 +5,9 @@ const { spawn, exec } = require('child_process')
 const http = require('http')
 const https = require('https')
 const { autoUpdater } = require('electron-updater')
-const { APP_VERSION } = require('./version')
+
+// Read version from package.json or use app.getVersion()
+const APP_VERSION = app.getVersion()
 
 // Handle Squirrel events (for installer/updater)
 if (require('electron-squirrel-startup')) {
