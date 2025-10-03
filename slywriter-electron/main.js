@@ -952,11 +952,11 @@ async function handleLicenseError(licenseData) {
 }
 
 function setupAutoUpdater() {
-  // Configure auto-updater to use GitHub releases
+  // Configure auto-updater to use GitHub releases (public releases repo)
   autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'slywriterapp',
-    repo: 'slywriterapp'
+    repo: 'slywriter-releases'
   })
 
   autoUpdater.autoDownload = false

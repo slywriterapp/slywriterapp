@@ -291,7 +291,7 @@
     "publish": {
       "provider": "github",
       "owner": "slywriterapp",
-      "repo": "slywriterapp",
+      "repo": "slywriter-releases",
       "releaseType": "release"
     },
     "win": {
