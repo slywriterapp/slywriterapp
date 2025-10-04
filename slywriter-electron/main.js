@@ -982,32 +982,23 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true
 
   // Check for updates on app start (after splash screen)
-  // INTEGRATED WITH LICENSE CHECK
+  // NOTE: Updates should work regardless of license status
   setTimeout(async () => {
     console.log('[AUTO-UPDATE] ========================================')
     console.log('[AUTO-UPDATE] Initial update check starting...')
     console.log('[AUTO-UPDATE] Timestamp:', new Date().toISOString())
+    console.log('[AUTO-UPDATE] Initiating update check...')
 
-    // Re-verify license before checking updates
-    const licenseData = await verifyLicense()
-    console.log('[AUTO-UPDATE] License valid:', licenseData.valid)
-
-    if (licenseData.valid) {
-      // Only check for updates if license is valid
-      console.log('[AUTO-UPDATE] Initiating update check...')
-      try {
-        const result = await autoUpdater.checkForUpdatesAndNotify()
-        console.log('[AUTO-UPDATE] Check result:', result)
-      } catch (err) {
-        console.error('[AUTO-UPDATE] Update check failed:', err)
-        console.error('[AUTO-UPDATE] Error details:', {
-          message: err.message,
-          code: err.code,
-          stack: err.stack
-        })
-      }
-    } else {
-      console.log('[AUTO-UPDATE] Skipping update check - license invalid')
+    try {
+      const result = await autoUpdater.checkForUpdatesAndNotify()
+      console.log('[AUTO-UPDATE] Check result:', result)
+    } catch (err) {
+      console.error('[AUTO-UPDATE] Update check failed:', err)
+      console.error('[AUTO-UPDATE] Error details:', {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      })
     }
     console.log('[AUTO-UPDATE] ========================================')
   }, 3500)
