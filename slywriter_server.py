@@ -22,6 +22,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
 import pathlib
+import stripe
 
 app = Flask(__name__)
 
@@ -48,6 +49,14 @@ GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI', 'https://slywriterap
 # For local testing, override redirect URI
 if os.environ.get('ENV') == 'development':
     GOOGLE_REDIRECT_URI = 'http://localhost:5000/auth/google/callback'
+
+# Stripe Configuration
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_PRO_PRICE_ID = os.environ.get('STRIPE_PRO_PRICE_ID')
+STRIPE_PREMIUM_PRICE_ID = os.environ.get('STRIPE_PREMIUM_PRICE_ID')
+STRIPE_PRO_PAYMENT_LINK = os.environ.get('STRIPE_PRO_PAYMENT_LINK')
+STRIPE_PREMIUM_PAYMENT_LINK = os.environ.get('STRIPE_PREMIUM_PAYMENT_LINK')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET')
 
 # Session configuration for OAuth flow
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -155,16 +164,98 @@ class TelemetryDatabase:
                 )
             """)
             
+            # ========== USER & SUBSCRIPTION TABLES ==========
+
+            # Users table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id VARCHAR(255) PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    name VARCHAR(255),
+                    password_hash VARCHAR(255),
+                    email_verified BOOLEAN DEFAULT FALSE,
+                    verification_token VARCHAR(255),
+                    referral_code VARCHAR(50) UNIQUE,
+                    referred_by VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    status VARCHAR(50) DEFAULT 'active'
+                )
+            """)
+
+            # Subscriptions table - handles paid subscriptions via Stripe
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                    plan VARCHAR(50) NOT NULL,
+                    stripe_subscription_id VARCHAR(255) UNIQUE,
+                    stripe_customer_id VARCHAR(255),
+                    current_period_start TIMESTAMP NOT NULL,
+                    current_period_end TIMESTAMP NOT NULL,
+                    status VARCHAR(50) DEFAULT 'active',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id)
+                )
+            """)
+
+            # Referral rewards table - tracks Pro days earned from referrals
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS referral_pro_rewards (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                    days_granted INTEGER NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    source VARCHAR(100) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id)
+                )
+            """)
+
+            # Referrals table - tracks all referral stats
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS referrals (
+                    user_id VARCHAR(255) PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                    successful_referrals INTEGER DEFAULT 0,
+                    pending_referrals INTEGER DEFAULT 0,
+                    tier_bonus_words INTEGER DEFAULT 0,
+                    signup_bonus_words INTEGER DEFAULT 0,
+                    awarded_tiers INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Word usage table - monthly tracking
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS word_usage (
+                    user_id VARCHAR(255) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                    month VARCHAR(7) NOT NULL,
+                    words_used INTEGER DEFAULT 0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (user_id, month)
+                )
+            """)
+
             # Create indexes for better performance
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_id ON subscriptions(stripe_subscription_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_period_end ON subscriptions(current_period_end)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_referral_pro_user_id ON referral_pro_rewards(user_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_referral_pro_expires ON referral_pro_rewards(expires_at)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_referrals_user_id ON referrals(user_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_word_usage_user_month ON word_usage(user_id, month)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_events_user_id ON telemetry_events(user_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_events_session_id ON telemetry_events(session_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_events_timestamp ON telemetry_events(timestamp)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_sessions_user_id ON telemetry_sessions(user_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_errors_user_id ON telemetry_errors(user_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_features_user_id ON telemetry_features(user_id)")
-            
+
             conn.commit()
-            logger.info("Telemetry database tables initialized successfully")
+            logger.info("All database tables initialized successfully (users, subscriptions, referrals, telemetry)")
             
         except Exception as e:
             logger.error(f"Error initializing database: {e}")
@@ -482,6 +573,398 @@ class TelemetryDatabase:
 
 # Initialize telemetry database
 telemetry_db = TelemetryDatabase()
+
+# ============== USER DATABASE CLASS ==============
+class UserDatabase:
+    """Handles all PostgreSQL operations for users, subscriptions, referrals"""
+
+    def __init__(self):
+        self.database_url = os.environ.get('DATABASE_URL')
+        if not self.database_url:
+            logger.warning("DATABASE_URL not set - using JSON file fallback")
+            self.enabled = False
+        else:
+            self.enabled = True
+
+    def get_connection(self):
+        """Get a database connection"""
+        if not self.enabled:
+            return None
+        return psycopg.connect(self.database_url)
+
+    def get_current_month(self):
+        """Get current month in YYYY-MM format"""
+        return datetime.datetime.utcnow().strftime('%Y-%m')
+
+    # ========== USER OPERATIONS ==========
+
+    def create_user(self, user_id, email, name, password_hash, referral_code=None, referred_by=None):
+        """Create a new user in the database"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO users (user_id, email, name, password_hash, referral_code, referred_by, verification_token)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (user_id, email, name, password_hash, referral_code, referred_by, secrets.token_urlsafe(32)))
+
+            # Initialize referral record
+            cur.execute("""
+                INSERT INTO referrals (user_id)
+                VALUES (%s)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id,))
+
+            # Initialize word usage for current month
+            cur.execute("""
+                INSERT INTO word_usage (user_id, month, words_used)
+                VALUES (%s, %s, 0)
+                ON CONFLICT (user_id, month) DO NOTHING
+            """, (user_id, self.get_current_month()))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_user_by_email(self, email):
+        """Get user by email"""
+        if not self.enabled:
+            return None
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+            return cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error getting user: {e}")
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_user_by_id(self, user_id):
+        """Get user by ID"""
+        if not self.enabled:
+            return None
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            cur.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+            return cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error getting user: {e}")
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    # ========== SUBSCRIPTION OPERATIONS ==========
+
+    def get_user_plan(self, user_id):
+        """
+        Get user's current active plan
+        Returns plan name or 'free' if no active subscription
+        """
+        if not self.enabled:
+            return 'free'
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            # Check for active paid subscription
+            cur.execute("""
+                SELECT plan, current_period_end
+                FROM subscriptions
+                WHERE user_id = %s AND status = 'active'
+                ORDER BY current_period_end DESC
+                LIMIT 1
+            """, (user_id,))
+
+            sub = cur.fetchone()
+            if sub:
+                # Check if subscription is still valid
+                if datetime.datetime.fromisoformat(str(sub['current_period_end'])) > datetime.datetime.utcnow():
+                    return sub['plan']
+                else:
+                    # Expired, mark as canceled
+                    cur.execute("""
+                        UPDATE subscriptions
+                        SET status = 'canceled'
+                        WHERE user_id = %s
+                    """, (user_id,))
+                    conn.commit()
+
+            # Check for referral Pro rewards
+            cur.execute("""
+                SELECT expires_at
+                FROM referral_pro_rewards
+                WHERE user_id = %s AND expires_at > NOW()
+                ORDER BY expires_at DESC
+                LIMIT 1
+            """, (user_id,))
+
+            referral_pro = cur.fetchone()
+            if referral_pro:
+                return 'pro'
+
+            return 'free'
+
+        except Exception as e:
+            logger.error(f"Error getting user plan: {e}")
+            return 'free'
+        finally:
+            cur.close()
+            conn.close()
+
+    def create_subscription(self, user_id, plan, stripe_subscription_id, stripe_customer_id, current_period_start, current_period_end):
+        """Create or update a subscription"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO subscriptions (user_id, plan, stripe_subscription_id, stripe_customer_id, current_period_start, current_period_end, status)
+                VALUES (%s, %s, %s, %s, %s, %s, 'active')
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    plan = EXCLUDED.plan,
+                    stripe_subscription_id = EXCLUDED.stripe_subscription_id,
+                    stripe_customer_id = EXCLUDED.stripe_customer_id,
+                    current_period_start = EXCLUDED.current_period_start,
+                    current_period_end = EXCLUDED.current_period_end,
+                    status = 'active',
+                    updated_at = CURRENT_TIMESTAMP
+            """, (user_id, plan, stripe_subscription_id, stripe_customer_id, current_period_start, current_period_end))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error creating subscription: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def cancel_subscription(self, stripe_subscription_id):
+        """Cancel a subscription"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE subscriptions
+                SET status = 'canceled', updated_at = CURRENT_TIMESTAMP
+                WHERE stripe_subscription_id = %s
+            """, (stripe_subscription_id,))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error canceling subscription: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    # ========== REFERRAL OPERATIONS ==========
+
+    def grant_pro_days(self, user_id, days, source="referral_reward"):
+        """Grant Pro access for specified days (from referrals)"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            # Check if user has a paid subscription - don't override
+            cur.execute("""
+                SELECT plan FROM subscriptions
+                WHERE user_id = %s AND status = 'active'
+                AND current_period_end > NOW()
+            """, (user_id,))
+
+            if cur.fetchone():
+                logger.info(f"User {user_id} has paid subscription, not applying Pro reward")
+                return False
+
+            # Check existing referral Pro
+            cur.execute("""
+                SELECT expires_at FROM referral_pro_rewards
+                WHERE user_id = %s
+            """, (user_id,))
+
+            existing = cur.fetchone()
+            expires_at = datetime.datetime.utcnow() + datetime.timedelta(days=days)
+
+            if existing:
+                # Extend from current expiry or now, whichever is later
+                current_expiry = datetime.datetime.fromisoformat(str(existing['expires_at']))
+                if current_expiry > datetime.datetime.utcnow():
+                    expires_at = current_expiry + datetime.timedelta(days=days)
+
+            cur.execute("""
+                INSERT INTO referral_pro_rewards (user_id, days_granted, expires_at, source)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    days_granted = referral_pro_rewards.days_granted + EXCLUDED.days_granted,
+                    expires_at = EXCLUDED.expires_at,
+                    created_at = CURRENT_TIMESTAMP
+            """, (user_id, days, expires_at, source))
+
+            conn.commit()
+            return True
+
+        except Exception as e:
+            logger.error(f"Error granting Pro days: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_referral_stats(self, user_id):
+        """Get referral statistics for a user"""
+        if not self.enabled:
+            return {}
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            cur.execute("SELECT * FROM referrals WHERE user_id = %s", (user_id,))
+            stats = cur.fetchone()
+            return dict(stats) if stats else {}
+        except Exception as e:
+            logger.error(f"Error getting referral stats: {e}")
+            return {}
+        finally:
+            cur.close()
+            conn.close()
+
+    def update_referral_stats(self, user_id, successful_referrals=None, tier_bonus_words=None, signup_bonus_words=None, awarded_tiers=None):
+        """Update referral statistics"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            updates = []
+            params = []
+
+            if successful_referrals is not None:
+                updates.append("successful_referrals = %s")
+                params.append(successful_referrals)
+            if tier_bonus_words is not None:
+                updates.append("tier_bonus_words = %s")
+                params.append(tier_bonus_words)
+            if signup_bonus_words is not None:
+                updates.append("signup_bonus_words = %s")
+                params.append(signup_bonus_words)
+            if awarded_tiers is not None:
+                updates.append("awarded_tiers = %s")
+                params.append(awarded_tiers)
+
+            if updates:
+                params.append(user_id)
+                query = f"""
+                    UPDATE referrals
+                    SET {', '.join(updates)}, last_updated = CURRENT_TIMESTAMP
+                    WHERE user_id = %s
+                """
+                cur.execute(query, params)
+                conn.commit()
+
+            return True
+        except Exception as e:
+            logger.error(f"Error updating referral stats: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    # ========== WORD USAGE OPERATIONS ==========
+
+    def get_word_usage(self, user_id):
+        """Get word usage for current month"""
+        if not self.enabled:
+            return 0
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                SELECT words_used FROM word_usage
+                WHERE user_id = %s AND month = %s
+            """, (user_id, self.get_current_month()))
+
+            result = cur.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"Error getting word usage: {e}")
+            return 0
+        finally:
+            cur.close()
+            conn.close()
+
+    def add_word_usage(self, user_id, words):
+        """Add to word usage for current month"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO word_usage (user_id, month, words_used)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id, month)
+                DO UPDATE SET
+                    words_used = word_usage.words_used + EXCLUDED.words_used,
+                    last_updated = CURRENT_TIMESTAMP
+            """, (user_id, self.get_current_month(), words))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding word usage: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+# Initialize user database
+user_db = UserDatabase()
 
 # ============== EXISTING HELPER FUNCTIONS ==============
 def load_data(filepath):
