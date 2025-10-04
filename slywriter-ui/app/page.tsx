@@ -258,14 +258,36 @@ function SlyWriterApp() {
         }, 500) // Give time for tab to mount
       }
       
+      // Auto-update event handlers
+      const handleUpdateChecking = () => {
+        console.log('🔄 [AUTO-UPDATE] Checking for updates...')
+        toast.loading('Checking for updates...', { id: 'update-check', duration: 3000 })
+      }
+
+      const handleUpdateAvailable = (data: { version: string; currentVersion: string }) => {
+        console.log(`✅ [AUTO-UPDATE] Update available: v${data.version} (current: v${data.currentVersion})`)
+        toast.success(`Update v${data.version} available! Downloading...`, { id: 'update-check', duration: 5000 })
+      }
+
+      const handleUpdateNotAvailable = (data: { version: string }) => {
+        console.log(`ℹ️ [AUTO-UPDATE] You're on the latest version (${data.version})`)
+        toast.success(`You're up to date! (v${data.version})`, { id: 'update-check', duration: 3000 })
+      }
+
       window.electron.ipcRenderer.on('overlay-visibility-changed', handleOverlayVisibilityChange)
       window.electron.ipcRenderer.on('show-ai-review', handleAiReview)
+      window.electron.ipcRenderer.on('update-checking', handleUpdateChecking)
+      window.electron.ipcRenderer.on('update-available', handleUpdateAvailable)
+      window.electron.ipcRenderer.on('update-not-available', handleUpdateNotAvailable)
       console.log('🎧 [PAGE.TSX] IPC listeners registered for show-ai-review')
-      
+
       return () => {
         if (window.electron?.ipcRenderer) {
           window.electron.ipcRenderer.removeListener('overlay-visibility-changed', handleOverlayVisibilityChange)
           window.electron.ipcRenderer.removeListener('show-ai-review', handleAiReview)
+          window.electron.ipcRenderer.removeListener('update-checking', handleUpdateChecking)
+          window.electron.ipcRenderer.removeListener('update-available', handleUpdateAvailable)
+          window.electron.ipcRenderer.removeListener('update-not-available', handleUpdateNotAvailable)
         }
       }
     }
