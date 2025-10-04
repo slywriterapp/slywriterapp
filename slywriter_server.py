@@ -2242,6 +2242,10 @@ def get_profile():
     user_plan = user_db.get_user_plan(user_id)
     words_used = user_db.get_word_usage(user_id)
 
+    # Convert datetime objects to ISO format strings for JSON serialization
+    created_at = user_data.get('created_at')
+    last_login = user_data.get('last_login')
+
     return jsonify({
         "user_id": user_id,
         "email": email,
@@ -2251,8 +2255,8 @@ def get_profile():
         "words_used": words_used,
         "referral_code": user_data.get('referral_code', user_id[:8]),  # Use first 8 chars of user_id as fallback
         "referred_by": user_data.get('referred_by'),  # Include whether user has used a referral code
-        "created_at": user_data.get('created_at'),
-        "last_login": user_data.get('last_login')
+        "created_at": created_at.isoformat() if created_at else None,
+        "last_login": last_login.isoformat() if last_login else None
     })
 
 @app.route("/auth/verify-email", methods=["GET", "POST", "OPTIONS"])
@@ -4064,17 +4068,16 @@ def get_global_stats():
 def get_user_dashboard():
     """Get comprehensive user dashboard data"""
     user_id = request.current_user['user_id']
-    
-    # Get user data
-    users = load_data(USERS_FILE)
-    user_data = users.get(request.current_user['email'])
-    
-    # Get plan and usage
-    plans = load_data(PLAN_FILE)
-    user_plan = get_user_plan(user_id)
-    
-    usage = load_data(USAGE_FILE)
-    words_used = usage.get(user_id, 0)
+
+    # Get user data from PostgreSQL
+    user_data = user_db.get_user_by_id(user_id)
+
+    if not user_data:
+        return jsonify({"error": "User not found"}), 404
+
+    # Get plan and usage from PostgreSQL
+    user_plan = user_db.get_user_plan(user_id)
+    words_used = user_db.get_word_usage(user_id)
     
     # Base word limits per plan
     word_limits = {
@@ -4086,10 +4089,9 @@ def get_user_dashboard():
 
     base_limit = word_limits.get(user_plan, 2000)
 
-    # Get referral data
-    referral_code = user_data.get('referral_code', '')
-    referrals = load_data(REFERRALS_FILE)
-    user_referrals = referrals.get(user_id, {})
+    # Get referral data from PostgreSQL
+    referral_code = user_data.get('referral_code', user_id[:8])
+    user_referrals = user_db.get_referral_stats(user_id)
 
     # Calculate bonus words from referrals
     # Base reward: 500 words per successful referral (both referrer and referee get this)
@@ -4120,6 +4122,9 @@ def get_user_dashboard():
         'advanced_analytics': user_plan in ['pro', 'premium']
     }
     
+    # Convert datetime to ISO format for JSON serialization
+    created_at = user_data.get('created_at')
+
     return jsonify({
         "success": True,
         "dashboard": {
@@ -4127,7 +4132,7 @@ def get_user_dashboard():
                 "name": user_data.get('name'),
                 "email": request.current_user['email'],
                 "user_id": user_id,
-                "joined": user_data.get('created_at'),
+                "joined": created_at.isoformat() if created_at else None,
                 "verified": user_data.get('email_verified', False)
             },
             "plan": {
