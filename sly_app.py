@@ -14,6 +14,7 @@ from tab_hotkeys import HotkeysTab
 from tab_stats import StatsTab
 from tab_overlay import OverlayTab
 from tab_learn import LearnTab
+from tab_dashboard import DashboardTab
 from auth import get_saved_user
 from utils import Tooltip
 import keyboard
@@ -243,14 +244,15 @@ class TypingApp(tb.Window):
         apply_modern_notebook_style(self.notebook, is_dark)
         
         self.tabs = {}
-        for name in ['Account', 'Typing', 'Hotkeys', 'Diagnostics', 'Humanizer', 'Overlay', 'Learn']:
+        for name in ['Dashboard', 'Account', 'Typing', 'Hotkeys', 'Diagnostics', 'Humanizer', 'Overlay', 'Learn']:
             f = tb.Frame(self.notebook)
             # Add tab with icon
-            icon = TAB_ICONS.get(name, "")
+            icon = TAB_ICONS.get(name, "📊" if name == "Dashboard" else "")
             display_name = f"{icon} {name}" if icon else name
             self.notebook.add(f, text=display_name)
             self.tabs[name] = f
 
+        self.dashboard_tab = DashboardTab(self.tabs['Dashboard'], self); self.dashboard_tab.pack(fill='both', expand=True)
         self.account_tab   = AccountTab(self.tabs['Account'], self); self.account_tab.pack(fill='both', expand=True)
         self.typing_tab    = TypingTab(self.tabs['Typing'], self);    self.typing_tab.pack(fill='both', expand=True)
         self.hotkeys_tab   = HotkeysTab(self.tabs['Hotkeys'], self);   self.hotkeys_tab.pack(fill='both', expand=True)
@@ -263,9 +265,9 @@ class TypingApp(tb.Window):
 
         engine.set_account_tab_reference(self.account_tab)
 
-        # Lock down all but Account until login
+        # Lock down all but Account and Dashboard until login
         for name, frame in self.tabs.items():
-            if name != 'Account':
+            if name not in ['Account', 'Dashboard']:
                 self.notebook.tab(frame, state='disabled')
 
         register_hotkeys(self)
@@ -301,28 +303,37 @@ class TypingApp(tb.Window):
     def on_login(self, user_info):
         self.user = user_info
         for name, frame in self.tabs.items():
-            if name != 'Account':
+            if name not in ['Account']:
                 self.notebook.tab(frame, state='normal')
-        self.notebook.select(self.tabs['Typing'])
+        # Show Dashboard after login
+        self.notebook.select(self.tabs['Dashboard'])
         # Whenever you login, always refresh premium in TypingTab
         self.typing_tab.update_from_config()
+        # Update dashboard with user data
+        if hasattr(self, 'dashboard_tab'):
+            self.dashboard_tab.update_dashboard_data()
 
     def on_logout(self):
         self.user = None
-        # Only disable tabs that require authentication, keep Account tab enabled
+        # Only disable tabs that require authentication, keep Account and Dashboard enabled
         tabs_to_disable = ['Typing', 'Diagnostics', 'Hotkeys', 'Humanizer']
         if hasattr(self, 'overlay_tab'):
             tabs_to_disable.append('Overlay')
-        
+        if hasattr(self, 'learn_tab'):
+            tabs_to_disable.append('Learn')
+
         for name, frame in self.tabs.items():
             if name in tabs_to_disable:
                 self.notebook.tab(frame, state='disabled')
             else:
-                # Keep Account tab enabled so user can sign back in
+                # Keep Account and Dashboard tabs enabled
                 self.notebook.tab(frame, state='normal')
-        
-        self.notebook.select(self.tabs['Account'])
+
+        self.notebook.select(self.tabs['Dashboard'])
         self.typing_tab.update_from_config()  # Lock out premium on logout
+        # Update dashboard to show logged out state
+        if hasattr(self, 'dashboard_tab'):
+            self.dashboard_tab.show_logged_out_state()
 
     # ─── Hotkeys & Settings ─────────────────
     def set_start_hotkey(self, hk):

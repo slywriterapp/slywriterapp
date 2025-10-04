@@ -118,14 +118,27 @@ class TypingTab(tk.Frame):
     def _add_premium_setting(self, parent_frame):
         row = parent_frame.grid_size()[1]
 
-        # Premium crown label
-        tk.Label(
-            parent_frame, text="👑 Premium",
-            fg="#d4af37", font=('Segoe UI', 10, 'bold'),
-            anchor='w', justify='left'
-        ).grid(row=row, column=0, sticky='w', pady=(14, 0), padx=(0, 6))
-
+        # Premium crown label (clickable if not premium)
         plan, is_premium = self._get_premium_status()
+
+        if is_premium:
+            # Just a label for premium users
+            tk.Label(
+                parent_frame, text="👑 Premium",
+                fg="#d4af37", font=('Segoe UI', 10, 'bold'),
+                anchor='w', justify='left'
+            ).grid(row=row, column=0, sticky='w', pady=(14, 0), padx=(0, 6))
+        else:
+            # Clickable label for non-premium users
+            import webbrowser
+            premium_label = tk.Label(
+                parent_frame, text="👑 Upgrade",
+                fg="#8b5cf6", font=('Segoe UI', 10, 'bold', 'underline'),
+                anchor='w', justify='left',
+                cursor="hand2"
+            )
+            premium_label.grid(row=row, column=0, sticky='w', pady=(14, 0), padx=(0, 6))
+            premium_label.bind("<Button-1>", lambda e: webbrowser.open("https://www.slywriter.ai/pricing"))
 
         # Get theme colors for proper visibility
         dark = self._get_safe_app().cfg['settings'].get('dark_mode', False)

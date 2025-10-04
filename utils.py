@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import keyboard
+import webbrowser
 
 class Tooltip:
     """
@@ -260,14 +261,113 @@ def get_user_plan(app):
     except Exception:
         return 'free'
 
-def require_premium(app, feature_name="this feature"):
+def show_upgrade_dialog(parent, feature_name="this feature", required_plan="Pro"):
     """
-    Check premium status and show upgrade message if not premium.
+    Show a custom upgrade dialog with a link to pricing page.
+    Returns True if user wants to upgrade, False otherwise.
+    """
+    dialog = tk.Toplevel(parent)
+    dialog.title(f"{required_plan} Plan Required")
+    dialog.geometry("400x220")
+    dialog.resizable(False, False)
+
+    # Center the dialog
+    dialog.update_idletasks()
+    x = (dialog.winfo_screenwidth() // 2) - (400 // 2)
+    y = (dialog.winfo_screenheight() // 2) - (220 // 2)
+    dialog.geometry(f"400x220+{x}+{y}")
+
+    # Make it modal
+    dialog.transient(parent)
+    dialog.grab_set()
+
+    # Icon and title
+    title_frame = tk.Frame(dialog, bg="#f5f5f5", height=60)
+    title_frame.pack(fill='x')
+    title_frame.pack_propagate(False)
+
+    icon_label = tk.Label(title_frame, text="🔒", font=('Segoe UI', 24), bg="#f5f5f5")
+    icon_label.pack(pady=10)
+
+    # Message
+    message_frame = tk.Frame(dialog, bg="white")
+    message_frame.pack(fill='both', expand=True, padx=20, pady=15)
+
+    title_label = tk.Label(
+        message_frame,
+        text=f"{required_plan} Plan Required",
+        font=('Segoe UI', 12, 'bold'),
+        bg="white"
+    )
+    title_label.pack(pady=(0, 10))
+
+    message_label = tk.Label(
+        message_frame,
+        text=f"{feature_name} requires a {required_plan} plan or higher.",
+        font=('Segoe UI', 10),
+        bg="white",
+        wraplength=350
+    )
+    message_label.pack()
+
+    # Buttons
+    button_frame = tk.Frame(dialog, bg="white")
+    button_frame.pack(fill='x', padx=20, pady=(0, 15))
+
+    def open_pricing():
+        webbrowser.open("https://www.slywriter.ai/pricing")
+        dialog.destroy()
+
+    upgrade_btn = tk.Button(
+        button_frame,
+        text="⬆️ View Plans",
+        command=open_pricing,
+        bg="#8b5cf6",
+        fg="white",
+        font=('Segoe UI', 10, 'bold'),
+        relief='flat',
+        padx=20,
+        pady=8,
+        cursor="hand2"
+    )
+    upgrade_btn.pack(side='left', padx=(0, 10))
+
+    cancel_btn = tk.Button(
+        button_frame,
+        text="Cancel",
+        command=dialog.destroy,
+        bg="#e0e0e0",
+        fg="#333",
+        font=('Segoe UI', 10),
+        relief='flat',
+        padx=20,
+        pady=8,
+        cursor="hand2"
+    )
+    cancel_btn.pack(side='left')
+
+    dialog.wait_window()
+
+def require_premium(app, feature_name="this feature", required_plan="Pro"):
+    """
+    Check premium status and show upgrade dialog if not premium.
+    Returns True if premium, False if not (with dialog shown).
+    """
+    if is_premium_user(app):
+        return True
+
+    # Show custom upgrade dialog
+    show_upgrade_dialog(app, feature_name, required_plan)
+    return False
+
+def require_premium_old(app, feature_name="this feature"):
+    """
+    OLD VERSION - Check premium status and show upgrade message if not premium.
     Returns True if premium, False if not (with message shown).
     """
     if is_premium_user(app):
         return True
-    
+
     messagebox.showinfo(
         "Premium Required",
         f"Upgrade to SlyWriter Premium to unlock {feature_name}!"

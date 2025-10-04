@@ -178,9 +178,22 @@ class TelemetryDatabase:
                     referral_code VARCHAR(50) UNIQUE,
                     referred_by VARCHAR(255),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    status VARCHAR(50) DEFAULT 'active'
+                    last_login TIMESTAMP,
+                    status VARCHAR(50) DEFAULT 'active',
+                    google_id VARCHAR(255),
+                    picture TEXT,
+                    auth_provider VARCHAR(50) DEFAULT 'email'
                 )
             """)
+
+            # Add columns for Google OAuth support if they don't exist (migration)
+            try:
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP")
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)")
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS picture TEXT")
+                cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'email'")
+            except Exception as e:
+                logger.warning(f"Column already exists or migration failed: {e}")
 
             # Subscriptions table - handles paid subscriptions via Stripe
             cur.execute("""
@@ -234,6 +247,27 @@ class TelemetryDatabase:
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (user_id, month)
                 )
+            """)
+
+            # Global stats table - for website counters
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS global_stats (
+                    stat_name VARCHAR(100) PRIMARY KEY,
+                    stat_value BIGINT DEFAULT 0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Initialize global stats if they don't exist
+            cur.execute("""
+                INSERT INTO global_stats (stat_name, stat_value)
+                VALUES ('total_words_typed', 0)
+                ON CONFLICT (stat_name) DO NOTHING
+            """)
+            cur.execute("""
+                INSERT INTO global_stats (stat_name, stat_value)
+                VALUES ('total_users', 0)
+                ON CONFLICT (stat_name) DO NOTHING
             """)
 
             # Create indexes for better performance
@@ -672,6 +706,123 @@ class UserDatabase:
             cur.close()
             conn.close()
 
+    def update_last_login(self, user_id):
+        """Update user's last login timestamp"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE users
+                SET last_login = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+            """, (user_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating last login: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_user_by_referral_code(self, referral_code):
+        """Get user_id by referral code"""
+        if not self.enabled:
+            return None
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("SELECT user_id FROM users WHERE referral_code = %s", (referral_code,))
+            result = cur.fetchone()
+            return result[0] if result else None
+        except Exception as e:
+            logger.error(f"Error getting user by referral code: {e}")
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    def update_google_user_login(self, email, google_id, picture, email_verified):
+        """Update Google user info on login"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            # Build update parts dynamically
+            updates = ["last_login = CURRENT_TIMESTAMP"]
+            params = []
+
+            if google_id:
+                updates.append("google_id = %s")
+                params.append(google_id)
+            if picture:
+                updates.append("picture = %s")
+                params.append(picture)
+            if email_verified:
+                updates.append("email_verified = %s")
+                params.append(email_verified)
+
+            params.append(email)
+            query = f"UPDATE users SET {', '.join(updates)} WHERE email = %s"
+            cur.execute(query, params)
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating Google user: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def create_google_user(self, user_id, email, name, google_id, picture, email_verified, referral_code):
+        """Create a new Google OAuth user"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO users (user_id, email, name, password_hash, referral_code, verification_token, email_verified, google_id, picture, auth_provider)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'google')
+            """, (user_id, email, name, None, referral_code, secrets.token_urlsafe(32), email_verified, google_id, picture))
+
+            # Initialize referral record
+            cur.execute("""
+                INSERT INTO referrals (user_id)
+                VALUES (%s)
+                ON CONFLICT (user_id) DO NOTHING
+            """, (user_id,))
+
+            # Initialize word usage for current month
+            cur.execute("""
+                INSERT INTO word_usage (user_id, month, words_used)
+                VALUES (%s, %s, 0)
+                ON CONFLICT (user_id, month) DO NOTHING
+            """, (user_id, self.get_current_month()))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error creating Google user: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
     # ========== SUBSCRIPTION OPERATIONS ==========
 
     def get_user_plan(self, user_id):
@@ -910,6 +1061,34 @@ class UserDatabase:
             cur.close()
             conn.close()
 
+    def increment_successful_referrals(self, user_id):
+        """Increment successful referral count and return new count"""
+        if not self.enabled:
+            return 0
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE referrals
+                SET successful_referrals = successful_referrals + 1,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+                RETURNING successful_referrals
+            """, (user_id,))
+
+            result = cur.fetchone()
+            conn.commit()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"Error incrementing referrals: {e}")
+            conn.rollback()
+            return 0
+        finally:
+            cur.close()
+            conn.close()
+
     # ========== WORD USAGE OPERATIONS ==========
 
     def get_word_usage(self, user_id):
@@ -959,6 +1138,93 @@ class UserDatabase:
             logger.error(f"Error adding word usage: {e}")
             conn.rollback()
             return False
+        finally:
+            cur.close()
+            conn.close()
+
+    # ========== GLOBAL STATS OPERATIONS ==========
+
+    def increment_global_stat(self, stat_name, increment_by=1):
+        """Increment a global stat (for website counters)"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                INSERT INTO global_stats (stat_name, stat_value)
+                VALUES (%s, %s)
+                ON CONFLICT (stat_name)
+                DO UPDATE SET
+                    stat_value = global_stats.stat_value + EXCLUDED.stat_value,
+                    last_updated = CURRENT_TIMESTAMP
+            """, (stat_name, increment_by))
+
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing global stat {stat_name}: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_global_stat(self, stat_name):
+        """Get a global stat value"""
+        if not self.enabled:
+            return 0
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("SELECT stat_value FROM global_stats WHERE stat_name = %s", (stat_name,))
+            result = cur.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"Error getting global stat {stat_name}: {e}")
+            return 0
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_all_global_stats(self):
+        """Get all global stats for website display"""
+        if not self.enabled:
+            return {}
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            cur.execute("SELECT stat_name, stat_value, last_updated FROM global_stats")
+            stats = cur.fetchall()
+            return {stat['stat_name']: stat['stat_value'] for stat in stats}
+        except Exception as e:
+            logger.error(f"Error getting all global stats: {e}")
+            return {}
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_total_users_count(self):
+        """Get total number of users"""
+        if not self.enabled:
+            return 0
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("SELECT COUNT(*) FROM users WHERE status = 'active'")
+            result = cur.fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"Error getting total users: {e}")
+            return 0
         finally:
             cur.close()
             conn.close()
@@ -1445,125 +1711,109 @@ def register():
             return jsonify({"success": False, "error": password_message}), 400
         
         logger.info("Validation passed, checking if user exists")
-        
-        # Check if user already exists
-        users = load_data(USERS_FILE)
-        if email in users:
+
+        # Check if user already exists (PostgreSQL)
+        existing_user = user_db.get_user_by_email(email)
+        if existing_user:
             return jsonify({"success": False, "error": "Email already exists. Please login instead."}), 400
-        
-        # Create user
+
+        # Generate user ID and referral code
         user_id = str(uuid.uuid4())
+        user_referral_code = secrets.token_urlsafe(8)  # Generate unique referral code
         hashed_password = hash_password(password)
-        
-        user_data = {
-            'user_id': user_id,
-            'email': email,
-            'name': name,
-            'password_hash': hashed_password,
-            'created_at': datetime.datetime.utcnow().isoformat(),
-            'email_verified': False,
-            'verification_token': secrets.token_urlsafe(32),
-            'last_login': None,
-            'status': 'active'
-        }
-        
-        users[email] = user_data
-        save_data(USERS_FILE, users)
-        
-        # Set default plan
-        plans = load_data(PLAN_FILE)
-        plans[user_id] = "free"
-        save_data(PLAN_FILE, plans)
-        
-        # Initialize usage
-        usage = load_data(USAGE_FILE)
-        usage[user_id] = 0
-        save_data(USAGE_FILE, usage)
-        
-        # Apply referral if provided
+
+        # Determine referrer if referral code provided
+        referrer_id = None
         if referral_code:
+            referrer_id = user_db.get_user_by_referral_code(referral_code)
+            if not referrer_id or referrer_id == user_id:
+                referrer_id = None  # Invalid or self-referral
+
+        # Create user in PostgreSQL (this also initializes referrals and word_usage)
+        success = user_db.create_user(
+            user_id=user_id,
+            email=email,
+            name=name,
+            password_hash=hashed_password,
+            referral_code=user_referral_code,
+            referred_by=referrer_id
+        )
+
+        if not success:
+            return jsonify({"success": False, "error": "Failed to create account"}), 500
+        
+        # Apply referral rewards if valid referrer
+        if referrer_id:
             try:
-                ref_data = load_data(REFERRAL_FILE)
-                code_map = ref_data.get("code_map", {})
-                referrer_id = code_map.get(referral_code)
+                # Award REFEREE (new user) 500 words signup bonus
+                user_db.update_referral_stats(user_id, signup_bonus_words=500)
 
-                if referrer_id and referrer_id != user_id:
-                    # Save referral relationship
-                    ref_by_uid = ref_data.get("by_uid", {})
-                    ref_by_uid[user_id] = referrer_id
-                    ref_data["by_uid"] = ref_by_uid
-                    save_data(REFERRAL_FILE, ref_data)
+                # Increment REFERRER's successful referral count
+                successful_count = user_db.increment_successful_referrals(referrer_id)
 
-                    # Load referrals data to track rewards
-                    referrals = load_data(REFERRALS_FILE)
+                # Check for tier bonus milestones (only for referrer)
+                tier_rewards = [
+                    {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
+                    {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
+                    {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
+                    {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
+                    {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
+                    {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
+                    {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
+                    {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
+                    {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
+                    {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
+                ]
 
-                    # Award REFEREE (new user) 500 words signup bonus
-                    if user_id not in referrals:
-                        referrals[user_id] = {}
-                    referrals[user_id]['signup_bonus_words'] = 500
-                    referrals[user_id]['referred_by'] = referrer_id
+                # Get current referral stats to check awarded tiers
+                referrer_stats = user_db.get_referral_stats(referrer_id)
+                awarded_tiers = referrer_stats.get('awarded_tiers', [])
 
-                    # Award REFERRER 500 words base bonus + increment successful referrals
-                    if referrer_id not in referrals:
-                        referrals[referrer_id] = {'successful_referrals': 0}
+                # Calculate total tier bonus words and Pro days
+                tier_bonus_words = 0
+                total_pro_days_awarded = 0
 
-                    referrals[referrer_id]['successful_referrals'] = referrals[referrer_id].get('successful_referrals', 0) + 1
-                    successful_count = referrals[referrer_id]['successful_referrals']
+                # Go through all tiers and accumulate rewards for each tier reached
+                for reward in tier_rewards:
+                    if successful_count >= reward['referrals']:
+                        # Update to highest tier's word bonus
+                        if reward['words'] > 0:
+                            tier_bonus_words = reward['words']
+                        # Add Pro days for this tier if not already awarded
+                        if reward['pro_days'] > 0:
+                            if reward['tier'] not in awarded_tiers:
+                                total_pro_days_awarded += reward['pro_days']
+                                awarded_tiers.append(reward['tier'])
 
-                    # Check for tier bonus milestones (only for referrer)
-                    tier_rewards = [
-                        {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
-                        {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
-                        {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
-                        {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
-                        {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
-                        {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
-                        {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
-                        {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
-                        {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
-                        {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
-                    ]
+                # Update referrer stats with new tier bonuses
+                user_db.update_referral_stats(
+                    referrer_id,
+                    tier_bonus_words=tier_bonus_words,
+                    awarded_tiers=awarded_tiers
+                )
 
-                    # Calculate total tier bonus words and Pro days
-                    tier_bonus_words = 0
-                    total_pro_days_awarded = 0
+                # Grant Pro access if they earned new Pro days
+                if total_pro_days_awarded > 0:
+                    pro_granted = user_db.grant_pro_days(referrer_id, total_pro_days_awarded)
+                    if pro_granted:
+                        logger.info(f"[Referral] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
+                    else:
+                        logger.info(f"[Referral] User {referrer_id} already has paid plan, skipping Pro reward")
 
-                    # Go through all tiers and accumulate rewards for each tier reached
-                    for reward in tier_rewards:
-                        if successful_count >= reward['referrals']:
-                            # Update to highest tier's word bonus
-                            if reward['words'] > 0:
-                                tier_bonus_words = reward['words']
-                            # Add Pro days for this tier if not already awarded
-                            if reward['pro_days'] > 0:
-                                # Check if this tier was already awarded
-                                awarded_tiers = referrals[referrer_id].get('awarded_tiers', [])
-                                if reward['tier'] not in awarded_tiers:
-                                    total_pro_days_awarded += reward['pro_days']
-                                    awarded_tiers.append(reward['tier'])
-                                    referrals[referrer_id]['awarded_tiers'] = awarded_tiers
-
-                    referrals[referrer_id]['tier_bonus_words'] = tier_bonus_words
-
-                    # Grant Pro access if they earned new Pro days
-                    if total_pro_days_awarded > 0:
-                        success = grant_pro_access(referrer_id, total_pro_days_awarded)
-                        if success:
-                            print(f"[Referral] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
-                        else:
-                            print(f"[Referral] User {referrer_id} already has paid plan, skipping Pro reward")
-
-                    save_data(REFERRALS_FILE, referrals)
-
-                    print(f"[Referral] {email} (referee) awarded 500 words signup bonus")
-                    print(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus_words} words")
+                logger.info(f"[Referral] {email} (referee) awarded 500 words signup bonus")
+                logger.info(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus_words} words")
 
             except Exception as e:
-                print(f"Referral application failed: {e}")
+                logger.error(f"Referral application failed: {e}")
         
+        # Get user data to retrieve verification token
+        user_data = user_db.get_user_by_email(email)
+        if not user_data:
+            return jsonify({"success": False, "error": "Failed to retrieve user data"}), 500
+
         # Generate token
         token = generate_jwt_token(user_id, email)
-        
+
         # Send verification email with HTML formatting
         # Send verification email to Webflow site for professional branded experience
         verification_link = f"https://slywriter.ai/verify-email?token={user_data['verification_token']}"
@@ -1648,39 +1898,34 @@ def login():
     data = request.get_json()
     email = data.get('email', '').lower().strip()
     password = data.get('password', '')
-    
+
     if not email or not password:
         return jsonify({"success": False, "error": "Missing email or password"}), 400
-    
-    # Find user
-    users = load_data(USERS_FILE)
-    user_data = users.get(email)
-    
+
+    # Find user (PostgreSQL)
+    user_data = user_db.get_user_by_email(email)
+
     if not user_data or not verify_password(password, user_data['password_hash']):
         return jsonify({"success": False, "error": "Invalid email or password"}), 401
-    
+
     if user_data.get('status') != 'active':
         return jsonify({"success": False, "error": "Account is deactivated"}), 401
-    
-    # Update last login
-    user_data['last_login'] = datetime.datetime.utcnow().isoformat()
-    users[email] = user_data
-    save_data(USERS_FILE, users)
-    
+
+    # Update last login (PostgreSQL)
+    user_db.update_last_login(user_data['user_id'])
+
     # Generate token
     token = generate_jwt_token(user_data['user_id'], email)
-    
-    # Get user plan
-    plans = load_data(PLAN_FILE)
-    user_plan = get_user_plan(user_data['user_id'])
-    
-    # Get usage
-    usage = load_data(USAGE_FILE)
-    words_used = usage.get(user_data['user_id'], 0)
-    
+
+    # Get user plan (PostgreSQL)
+    user_plan = user_db.get_user_plan(user_data['user_id'])
+
+    # Get usage (PostgreSQL)
+    words_used = user_db.get_word_usage(user_data['user_id'])
+
     # Log login
     log_analytics_event(user_data['user_id'], 'user_login')
-    
+
     return jsonify({
         "success": True,
         "user_id": user_data['user_id'],
@@ -1696,36 +1941,34 @@ def login():
 def verify_token():
     """Verify JWT token and return user data"""
     auth_header = request.headers.get('Authorization')
-    
+
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({"success": False, "error": "No token provided"}), 401
-    
+
     token = auth_header.replace('Bearer ', '')
-    
+
     # Verify the token
     payload = verify_jwt_token(token)
-    
+
     if not payload:
         return jsonify({"success": False, "error": "Invalid or expired token"}), 401
-    
-    # Get user data
-    users = load_data(USERS_FILE)
-    user_data = users.get(payload.get('email'))
-    
+
+    # Get user data (PostgreSQL)
+    user_data = user_db.get_user_by_email(payload.get('email'))
+
     if not user_data:
         return jsonify({"success": False, "error": "User not found"}), 404
-    
+
     if user_data.get('status') != 'active':
         return jsonify({"success": False, "error": "Account is deactivated"}), 401
-    
-    # Get user plan and usage
-    plans = load_data(PLAN_FILE)
-    user_plan = get_user_plan(user_data['user_id'])
-    
-    usage = load_data(USAGE_FILE)
-    words_used = usage.get(user_data['user_id'], 0)
 
-    # Get word limits including referral bonuses
+    # Get user plan (PostgreSQL)
+    user_plan = user_db.get_user_plan(user_data['user_id'])
+
+    # Get usage (PostgreSQL)
+    words_used = user_db.get_word_usage(user_data['user_id'])
+
+    # Get word limits including referral bonuses (uses PostgreSQL)
     base_limit, referral_bonus, total_limit = get_user_word_limit(user_data['user_id'], user_plan)
 
     return jsonify({
@@ -1798,73 +2041,51 @@ def google_login():
         picture = idinfo.get('picture', '')
         email_verified = idinfo.get('email_verified', False)
         
-        # Check if user exists
-        users = load_data(USERS_FILE)
-        user_data = users.get(email)
-        
+        # Check if user exists (PostgreSQL)
+        user_data = user_db.get_user_by_email(email)
+
         if user_data:
             # Existing user - update Google info
             logger.info(f"Existing Google user logging in: {email}")
-            user_data['google_id'] = google_user_id
-            user_data['picture'] = picture
-            user_data['last_login'] = datetime.datetime.utcnow().isoformat()
-            if email_verified and not user_data.get('email_verified'):
-                user_data['email_verified'] = True
-            users[email] = user_data
-            save_data(USERS_FILE, users)
-            
+            user_db.update_google_user_login(email, google_user_id, picture, email_verified)
+
             user_id = user_data['user_id']
             is_new_user = False
         else:
             logger.info(f"NEW Google user signing up: {email}")
             # New user - create account
             user_id = str(uuid.uuid4())
-            
+
             # Generate referral code
             referral_code = f"{name.split()[0].upper() if name else 'USER'}{secrets.token_hex(3).upper()}"
-            
-            # Generate verification token (even though Google users are pre-verified, we use it for the welcome email)
-            verification_token = secrets.token_urlsafe(32)
-            
-            user_data = {
-                'user_id': user_id,
-                'email': email,
-                'name': name,
-                'google_id': google_user_id,
-                'picture': picture,
-                'password_hash': None,  # No password for Google users
-                'created_at': datetime.datetime.utcnow().isoformat(),
-                'last_login': datetime.datetime.utcnow().isoformat(),
-                'email_verified': email_verified,
-                'verification_token': verification_token,
-                'status': 'active',
-                'referral_code': referral_code,
-                'auth_provider': 'google'
-            }
-            
-            users[email] = user_data
-            save_data(USERS_FILE, users)
-            
-            # Initialize user plan (free by default)
-            plans = load_data(PLAN_FILE)
-            plans[user_id] = 'free'
-            save_data(PLAN_FILE, plans)
-            
-            # Initialize usage
-            usage = load_data(USAGE_FILE)
-            usage[user_id] = 0
-            save_data(USAGE_FILE, usage)
-            
+
+            # Create Google user in PostgreSQL (also initializes referrals and word_usage)
+            success = user_db.create_google_user(
+                user_id=user_id,
+                email=email,
+                name=name,
+                google_id=google_user_id,
+                picture=picture,
+                email_verified=email_verified,
+                referral_code=referral_code
+            )
+
+            if not success:
+                return jsonify({"success": False, "error": "Failed to create account"}), 500
+
             is_new_user = True
-            
+
             # Send welcome email for new Google Sign-In users
             try:
+                # Get verification token from created user
+                user_data = user_db.get_user_by_email(email)
+                verification_token = user_data['verification_token']
                 send_welcome_email(email, name, verification_token)
                 logger.info(f"Welcome email sent to new Google user: {email}")
             except Exception as e:
                 logger.error(f"Failed to send welcome email to {email}: {str(e)}")
                 # Don't fail the registration if email fails
-            
+
             # Log registration
             log_analytics_event(user_id, 'user_registered', {
                 'email': email,
@@ -1873,14 +2094,12 @@ def google_login():
         
         # Generate JWT token
         token = generate_jwt_token(user_id, email)
-        
-        # Get user plan
-        plans = load_data(PLAN_FILE)
-        user_plan = get_user_plan(user_id)
-        
-        # Get usage
-        usage = load_data(USAGE_FILE)
-        words_used = usage.get(user_id, 0)
+
+        # Get user plan (PostgreSQL)
+        user_plan = user_db.get_user_plan(user_id)
+
+        # Get usage (PostgreSQL)
+        words_used = user_db.get_word_usage(user_id)
         
         # Log login
         log_analytics_event(user_id, 'user_login', {'provider': 'google'})
@@ -2506,14 +2725,13 @@ def generate_filler():
             user_email = license_key
 
         if user_email:
-            users = load_data(USERS_FILE)
-            if user_email not in users:
+            # Get user from PostgreSQL
+            user_data = user_db.get_user_by_email(user_email)
+            if not user_data:
                 return jsonify({"error": "Invalid license"}), 403
 
-            user_data = users[user_email]
             user_id = user_data.get('user_id')
-            plans = load_data(PLAN_FILE)
-            plan = get_user_plan(user_id).lower()
+            plan = user_db.get_user_plan(user_id).lower()
 
             # Check if premium features are available
             if plan == 'free':
@@ -3338,6 +3556,186 @@ def delete_project(project_id):
     
     return jsonify({"success": True, "message": "Project deleted successfully"})
 
+# ---------------- STRIPE WEBHOOK ----------------
+
+@app.route("/stripe/webhook", methods=["POST"])
+def stripe_webhook():
+    """
+    Handle Stripe webhook events
+    CRITICAL: This manages subscription lifecycle
+    """
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"Invalid payload: {e}")
+        return jsonify({"error": "Invalid payload"}), 400
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Invalid signature: {e}")
+        return jsonify({"error": "Invalid signature"}), 400
+
+    logger.info(f"Stripe webhook received: {event['type']}")
+
+    # Handle subscription created
+    if event['type'] == 'customer.subscription.created':
+        subscription = event['data']['object']
+        handle_subscription_created(subscription)
+
+    # Handle subscription updated (renewal, plan change)
+    elif event['type'] == 'customer.subscription.updated':
+        subscription = event['data']['object']
+        handle_subscription_updated(subscription)
+
+    # Handle subscription deleted (cancellation, payment failure)
+    elif event['type'] == 'customer.subscription.deleted':
+        subscription = event['data']['object']
+        handle_subscription_deleted(subscription)
+
+    # Handle successful payment
+    elif event['type'] == 'invoice.payment_succeeded':
+        invoice = event['data']['object']
+        handle_payment_succeeded(invoice)
+
+    # Handle payment failure
+    elif event['type'] == 'invoice.payment_failed':
+        invoice = event['data']['object']
+        handle_payment_failed(invoice)
+
+    return jsonify({"status": "success"}), 200
+
+def handle_subscription_created(subscription):
+    """Handle new subscription creation"""
+    try:
+        stripe_subscription_id = subscription['id']
+        stripe_customer_id = subscription['customer']
+        status = subscription['status']
+
+        # Get user_id from customer metadata
+        customer = stripe.Customer.retrieve(stripe_customer_id)
+        user_id = customer.metadata.get('user_id')
+
+        if not user_id:
+            logger.error(f"No user_id in customer metadata for {stripe_customer_id}")
+            return
+
+        # Determine plan from price_id
+        price_id = subscription['items']['data'][0]['price']['id']
+        if price_id == STRIPE_PRO_PRICE_ID:
+            plan = 'pro'
+        elif price_id == STRIPE_PREMIUM_PRICE_ID:
+            plan = 'premium'
+        else:
+            logger.error(f"Unknown price_id: {price_id}")
+            return
+
+        # Get period dates
+        current_period_start = datetime.datetime.fromtimestamp(subscription['current_period_start'])
+        current_period_end = datetime.datetime.fromtimestamp(subscription['current_period_end'])
+
+        # Create subscription in database
+        success = user_db.create_subscription(
+            user_id=user_id,
+            plan=plan,
+            stripe_subscription_id=stripe_subscription_id,
+            stripe_customer_id=stripe_customer_id,
+            current_period_start=current_period_start,
+            current_period_end=current_period_end
+        )
+
+        if success:
+            logger.info(f"Created subscription for user {user_id}: {plan} until {current_period_end}")
+        else:
+            logger.error(f"Failed to create subscription in database for user {user_id}")
+
+    except Exception as e:
+        logger.error(f"Error handling subscription created: {e}")
+
+def handle_subscription_updated(subscription):
+    """Handle subscription updates (renewal, plan change)"""
+    try:
+        stripe_subscription_id = subscription['id']
+        stripe_customer_id = subscription['customer']
+
+        # Get user_id
+        customer = stripe.Customer.retrieve(stripe_customer_id)
+        user_id = customer.metadata.get('user_id')
+
+        if not user_id:
+            logger.error(f"No user_id in customer metadata for {stripe_customer_id}")
+            return
+
+        # Determine plan
+        price_id = subscription['items']['data'][0]['price']['id']
+        if price_id == STRIPE_PRO_PRICE_ID:
+            plan = 'pro'
+        elif price_id == STRIPE_PREMIUM_PRICE_ID:
+            plan = 'premium'
+        else:
+            logger.error(f"Unknown price_id: {price_id}")
+            return
+
+        # Get updated period dates
+        current_period_start = datetime.datetime.fromtimestamp(subscription['current_period_start'])
+        current_period_end = datetime.datetime.fromtimestamp(subscription['current_period_end'])
+
+        # Update subscription in database
+        success = user_db.create_subscription(  # create_subscription handles upsert
+            user_id=user_id,
+            plan=plan,
+            stripe_subscription_id=stripe_subscription_id,
+            stripe_customer_id=stripe_customer_id,
+            current_period_start=current_period_start,
+            current_period_end=current_period_end
+        )
+
+        if success:
+            logger.info(f"Updated subscription for user {user_id}: {plan} until {current_period_end}")
+
+    except Exception as e:
+        logger.error(f"Error handling subscription updated: {e}")
+
+def handle_subscription_deleted(subscription):
+    """Handle subscription cancellation"""
+    try:
+        stripe_subscription_id = subscription['id']
+
+        # Cancel in database
+        success = user_db.cancel_subscription(stripe_subscription_id)
+
+        if success:
+            logger.info(f"Canceled subscription: {stripe_subscription_id}")
+
+    except Exception as e:
+        logger.error(f"Error handling subscription deleted: {e}")
+
+def handle_payment_succeeded(invoice):
+    """Handle successful payment"""
+    try:
+        subscription_id = invoice.get('subscription')
+        if subscription_id:
+            logger.info(f"Payment succeeded for subscription: {subscription_id}")
+            # Subscription will be updated via subscription.updated event
+
+    except Exception as e:
+        logger.error(f"Error handling payment succeeded: {e}")
+
+def handle_payment_failed(invoice):
+    """Handle failed payment"""
+    try:
+        subscription_id = invoice.get('subscription')
+        customer_id = invoice.get('customer')
+
+        if subscription_id:
+            logger.warning(f"Payment failed for subscription: {subscription_id}")
+            # Stripe will retry automatically, and will send subscription.deleted if all retries fail
+
+    except Exception as e:
+        logger.error(f"Error handling payment failed: {e}")
+
 # ---------------- BILLING & SUBSCRIPTION ----------------
 
 @app.route("/billing/plans", methods=["GET"])
@@ -3372,109 +3770,71 @@ def get_billing_plans():
     
     return jsonify({"success": True, "plans": plans})
 
+# Wrapper functions that use PostgreSQL
 def get_user_plan(user_id):
-    """
-    Get user's current plan, checking for expiry
-    Returns: plan name (str) - 'free', 'pro', 'premium', 'enterprise'
-    """
-    plans = load_data(PLAN_FILE)
-    plan_data = plans.get(user_id)
-
-    # If no plan data, return free
-    if not plan_data:
-        return 'free'
-
-    # If plan_data is just a string (old format), migrate it
-    if isinstance(plan_data, str):
-        # Old format - no expiry, treat as permanent
-        return plan_data
-
-    # New format: {"plan": "pro", "expires_at": "2025-01-01T00:00:00"}
-    plan_name = plan_data.get('plan', 'free')
-    expires_at = plan_data.get('expires_at')
-
-    # If no expiry date, it's permanent (paid subscription)
-    if not expires_at:
-        return plan_name
-
-    # Check if expired
-    expiry_date = datetime.datetime.fromisoformat(expires_at)
-    if datetime.datetime.utcnow() > expiry_date:
-        # Plan expired, downgrade to free
-        plans[user_id] = 'free'
-        save_data(PLAN_FILE, plans)
-        return 'free'
-
-    return plan_name
+    """Get user's current plan from PostgreSQL"""
+    return user_db.get_user_plan(user_id)
 
 def grant_pro_access(user_id, days):
-    """
-    Grant Pro plan access for a specific number of days
-    Used for referral rewards - does NOT override paid subscriptions
-    """
-    plans = load_data(PLAN_FILE)
-    current_plan_data = plans.get(user_id)
-
-    # Calculate new expiry date
-    new_expiry = datetime.datetime.utcnow() + datetime.timedelta(days=days)
-
-    # If user has no plan or is on free, give them Pro
-    if not current_plan_data or current_plan_data == 'free':
-        plans[user_id] = {
-            'plan': 'pro',
-            'expires_at': new_expiry.isoformat(),
-            'source': 'referral_reward'
-        }
-    # If user already has a temp Pro (from referrals), extend it
-    elif isinstance(current_plan_data, dict) and current_plan_data.get('source') == 'referral_reward':
-        current_expiry = datetime.datetime.fromisoformat(current_plan_data['expires_at'])
-        # Extend from current expiry or now, whichever is later
-        extend_from = max(current_expiry, datetime.datetime.utcnow())
-        new_expiry = extend_from + datetime.timedelta(days=days)
-        plans[user_id] = {
-            'plan': 'pro',
-            'expires_at': new_expiry.isoformat(),
-            'source': 'referral_reward'
-        }
-    # If user has a paid subscription (string or dict without source), DON'T override
-    else:
-        # They already have a paid plan, don't downgrade them
-        print(f"[Referral] User {user_id} has paid subscription, not applying Pro reward")
-        return False
-
-    save_data(PLAN_FILE, plans)
-    return True
+    """Grant Pro access from PostgreSQL"""
+    return user_db.grant_pro_days(user_id, days)
 
 @app.route("/billing/subscribe", methods=["POST"])
 @require_auth
-def create_subscription():
-    """Create new subscription (integrate with Stripe)"""
+def create_subscription_endpoint():
+    """Create Stripe Checkout session for subscription"""
     user_id = request.current_user['user_id']
+    email = request.current_user['email']
     data = request.get_json()
     plan_id = data.get('plan_id')
 
-    if plan_id not in ['pro', 'premium', 'enterprise']:
+    if plan_id not in ['pro', 'premium']:
         return jsonify({"success": False, "error": "Invalid plan"}), 400
 
-    # In a real implementation, integrate with Stripe here
-    # For now, just update the plan
-    plans = load_data(PLAN_FILE)
-    # Paid subscriptions have NO expiry - they're permanent until user cancels
-    plans[user_id] = {
-        'plan': plan_id,
-        'expires_at': None,  # No expiry for paid plans
-        'source': 'paid_subscription',
-        'subscribed_at': datetime.datetime.utcnow().isoformat()
-    }
-    save_data(PLAN_FILE, plans)
+    try:
+        # Get or create Stripe customer
+        user = user_db.get_user_by_id(user_id)
+        if not user:
+            return jsonify({"success": False, "error": "User not found"}), 404
 
-    log_analytics_event(user_id, 'subscription_created', {'plan': plan_id})
+        # Create or retrieve customer
+        customers = stripe.Customer.list(email=email, limit=1)
+        if customers.data:
+            customer = customers.data[0]
+        else:
+            customer = stripe.Customer.create(
+                email=email,
+                metadata={'user_id': user_id}
+            )
 
-    return jsonify({
-        "success": True,
-        "message": f"Subscribed to {plan_id} plan",
-        "plan": plan_id
-    })
+        # Get price ID based on plan
+        price_id = STRIPE_PRO_PRICE_ID if plan_id == 'pro' else STRIPE_PREMIUM_PRICE_ID
+
+        # Create checkout session
+        checkout_session = stripe.checkout.Session.create(
+            customer=customer.id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1
+            }],
+            mode='subscription',
+            success_url='https://slywriterapp.com/subscription-success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url='https://slywriterapp.com/subscription-canceled',
+            metadata={'user_id': user_id, 'plan': plan_id}
+        )
+
+        log_analytics_event(user_id, 'checkout_initiated', {'plan': plan_id})
+
+        return jsonify({
+            "success": True,
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id
+        })
+
+    except Exception as e:
+        logger.error(f"Error creating checkout session: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/billing/usage", methods=["GET"])
 @require_auth
@@ -3482,12 +3842,11 @@ def get_billing_usage():
     """Get current month's usage and limits"""
     user_id = request.current_user['user_id']
 
-    # Get plan and usage
-    plans = load_data(PLAN_FILE)
-    usage = load_data(USAGE_FILE)
+    # Get plan from PostgreSQL
+    plan = user_db.get_user_plan(user_id)
 
-    plan = get_user_plan(user_id)
-    words_used = usage.get(user_id, 0)
+    # Get word usage from PostgreSQL
+    words_used = user_db.get_word_usage(user_id)
 
     # Get word limit including referral bonuses
     base_limit, referral_bonus, total_limit = get_user_word_limit(user_id, plan)
@@ -3512,13 +3871,11 @@ def track_ai_generation():
     data = request.get_json()
     words_generated = data.get('words', 0)
 
-    # Load current usage
-    usage = load_data(USAGE_FILE)
-    current_usage = usage.get(user_id, 0)
+    # Get current usage (PostgreSQL)
+    current_usage = user_db.get_word_usage(user_id)
 
-    # Get user plan and word limit (including referral bonuses)
-    plans = load_data(PLAN_FILE)
-    user_plan = get_user_plan(user_id)
+    # Get user plan and word limit (PostgreSQL - includes referral bonuses)
+    user_plan = user_db.get_user_plan(user_id)
     base_limit, referral_bonus, total_limit = get_user_word_limit(user_id, user_plan)
 
     # Check if user has enough words
@@ -3532,54 +3889,83 @@ def track_ai_generation():
             "base_limit": base_limit,
             "referral_bonus": referral_bonus
         }), 403
-    
-    # Update usage
-    usage[user_id] = current_usage + words_generated
-    save_data(USAGE_FILE, usage)
-    
-    # Update global counter
+
+    # Update usage (PostgreSQL)
+    user_db.add_word_usage(user_id, words_generated)
+    new_usage = current_usage + words_generated
+
+    # Update global counter (keep in JSON for now - not critical data)
     global_stats = load_data(GLOBAL_STATS_FILE)
     global_stats['total_words'] = global_stats.get('total_words', 0) + words_generated
     global_stats['total_generations'] = global_stats.get('total_generations', 0) + 1
     save_data(GLOBAL_STATS_FILE, global_stats)
-    
+
     # Log analytics event
     log_analytics_event(user_id, 'ai_generation', {
         'words': words_generated,
         'plan': user_plan,
-        'remaining': total_limit - usage[user_id]
+        'remaining': total_limit - new_usage
     })
 
     return jsonify({
         "success": True,
         "words_used": words_generated,
-        "total_used": usage[user_id],
-        "words_remaining": total_limit - usage[user_id],
+        "total_used": new_usage,
+        "words_remaining": total_limit - new_usage,
         "base_word_limit": base_limit,
         "referral_bonus_words": referral_bonus,
         "total_word_limit": total_limit
     })
 
+@app.route("/api/track-words-typed", methods=["POST"])
+@require_auth
+def track_words_typed():
+    """
+    Track words typed by users in the desktop app
+    Increments the global counter for website display
+    """
+    user_id = request.current_user['user_id']
+    data = request.get_json()
+    words_typed = data.get('words', 0)
+
+    if words_typed <= 0:
+        return jsonify({"success": False, "error": "Invalid word count"}), 400
+
+    # Increment global counter (PostgreSQL)
+    user_db.increment_global_stat('total_words_typed', words_typed)
+
+    # Log analytics event
+    log_analytics_event(user_id, 'words_typed', {'words': words_typed})
+
+    # Get updated total for confirmation
+    total_words = user_db.get_global_stat('total_words_typed')
+
+    return jsonify({
+        "success": True,
+        "words_tracked": words_typed,
+        "total_words_typed": total_words
+    })
+
 @app.route("/api/global-stats", methods=["GET"])
 def get_global_stats():
-    """Get global statistics for website counter"""
+    """
+    Get global statistics for website counter
+    CORS enabled for public access from website
+    """
+    # Get stats from PostgreSQL
+    total_words_typed = user_db.get_global_stat('total_words_typed')
+    total_users = user_db.get_total_users_count()
+
+    # Keep legacy JSON stats for backward compatibility (non-critical data)
     global_stats = load_data(GLOBAL_STATS_FILE)
-    
-    # Get total users count
-    users = load_data(USERS_FILE)
-    total_users = len(users)
-    
-    # Get active users (logged in within last 30 days)
-    thirty_days_ago = (datetime.datetime.utcnow() - datetime.timedelta(days=30)).isoformat()
-    active_users = sum(1 for u in users.values() if u.get('last_login', '') > thirty_days_ago)
-    
+
     return jsonify({
         "success": True,
         "stats": {
-            "total_words": global_stats.get('total_words', 0),
-            "total_generations": global_stats.get('total_generations', 0),
+            "total_words_typed": total_words_typed,  # PRIMARY STAT for website
             "total_users": total_users,
-            "active_users": active_users,
+            "total_words": global_stats.get('total_words', 0),  # Legacy AI generation words
+            "total_generations": global_stats.get('total_generations', 0),
             "total_typing_sessions": global_stats.get('total_typing_sessions', 0)
         }
     })
@@ -3694,6 +4080,7 @@ def get_next_reset_date():
 def get_user_word_limit(user_id, user_plan='free'):
     """
     Calculate total word limit for a user including referral bonuses
+    Uses PostgreSQL for referral data
     Returns: (base_limit, referral_bonus, total_limit)
     """
     # Base word limits per plan
@@ -3707,9 +4094,8 @@ def get_user_word_limit(user_id, user_plan='free'):
 
     base_limit = base_limits.get(user_plan, 2000)
 
-    # Get referral bonuses
-    referrals = load_data(REFERRALS_FILE)
-    user_referrals = referrals.get(user_id, {})
+    # Get referral bonuses from PostgreSQL
+    user_referrals = user_db.get_referral_stats(user_id)
 
     # Calculate bonus words
     successful_referrals = user_referrals.get('successful_referrals', 0)
