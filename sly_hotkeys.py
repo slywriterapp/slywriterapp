@@ -84,13 +84,18 @@ def reset_hotkeys(app):
     save_config(app.cfg)
 
 def _toggle_overlay_hotkey(app):
+    # Check if user is logged in
+    if not hasattr(app, 'user') or not app.user:
+        print("[HOTKEY] Overlay toggle blocked - user not logged in")
+        return
+
     # Check for overlay tab in different locations
     overlay_tab = None
     if hasattr(app, 'overlay_tab'):
         overlay_tab = app.overlay_tab
     elif hasattr(app, 'tabs') and 'Overlay' in app.tabs:
         overlay_tab = app.tabs['Overlay']
-    
+
     if overlay_tab:
         current = overlay_tab.overlay_enabled.get()
         overlay_tab.overlay_enabled.set(not current)
@@ -99,6 +104,11 @@ def _toggle_overlay_hotkey(app):
 def _ai_generation_hotkey(app):
     """Handle AI text generation hotkey press"""
     try:
+        # Check if user is logged in
+        if not hasattr(app, 'user') or not app.user:
+            print("[HOTKEY] AI generation blocked - user not logged in")
+            return
+
         # Import here to avoid circular imports
         from ai_text_generator import trigger_ai_text_generation
         trigger_ai_text_generation(app)
@@ -108,13 +118,18 @@ def _ai_generation_hotkey(app):
 def _start_typing_hotkey(app):
     """Handle start typing hotkey press"""
     try:
+        # Check if user is logged in
+        if not hasattr(app, 'user') or not app.user:
+            print("[HOTKEY] Start typing blocked - user not logged in")
+            return
+
         # Check for typing tab in different locations
         typing_tab = None
         if hasattr(app, 'typing_tab'):
             typing_tab = app.typing_tab
         elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
             typing_tab = app.tabs['Typing']
-        
+
         if typing_tab and hasattr(typing_tab, 'start_typing'):
             typing_tab.start_typing()
             print("[HOTKEY] Started typing")
@@ -124,13 +139,18 @@ def _start_typing_hotkey(app):
 def _stop_typing_hotkey(app):
     """Handle stop typing hotkey press"""
     try:
+        # Check if user is logged in
+        if not hasattr(app, 'user') or not app.user:
+            print("[HOTKEY] Stop typing blocked - user not logged in")
+            return
+
         # Check for typing tab in different locations
         typing_tab = None
         if hasattr(app, 'typing_tab'):
             typing_tab = app.typing_tab
         elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
             typing_tab = app.tabs['Typing']
-        
+
         if typing_tab and hasattr(typing_tab, 'stop_typing_hotkey'):
             typing_tab.stop_typing_hotkey()
             print("[HOTKEY] Stopped typing")
@@ -140,13 +160,18 @@ def _stop_typing_hotkey(app):
 def _pause_typing_hotkey(app):
     """Handle pause typing hotkey press"""
     try:
+        # Check if user is logged in
+        if not hasattr(app, 'user') or not app.user:
+            print("[HOTKEY] Pause typing blocked - user not logged in")
+            return
+
         # Check for typing tab in different locations
         typing_tab = None
         if hasattr(app, 'typing_tab'):
             typing_tab = app.typing_tab
         elif hasattr(app, 'tabs') and 'Typing' in app.tabs:
             typing_tab = app.tabs['Typing']
-        
+
         if typing_tab and hasattr(typing_tab, 'toggle_pause'):
             typing_tab.toggle_pause()
             print("[HOTKEY] Toggled pause")

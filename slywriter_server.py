@@ -749,6 +749,30 @@ class UserDatabase:
             cur.close()
             conn.close()
 
+    def update_user_referrer(self, user_id, referrer_id):
+        """Update user's referred_by field"""
+        if not self.enabled:
+            return False
+
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        try:
+            cur.execute("""
+                UPDATE users
+                SET referred_by = %s
+                WHERE user_id = %s
+            """, (referrer_id, user_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user referrer: {e}")
+            conn.rollback()
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
     def update_google_user_login(self, email, google_id, picture, email_verified):
         """Update Google user info on login"""
         if not self.enabled:
@@ -819,6 +843,68 @@ class UserDatabase:
             logger.error(f"Error creating Google user: {e}")
             conn.rollback()
             return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def verify_email_by_token(self, token):
+        """
+        Verify user email by verification token
+        Returns user_id if successful, None if token invalid
+        """
+        if not self.enabled:
+            return None
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            # Find user with this token
+            cur.execute("""
+                SELECT user_id, email FROM users
+                WHERE verification_token = %s AND email_verified = FALSE
+            """, (token,))
+
+            user = cur.fetchone()
+            if not user:
+                return None
+
+            # Mark as verified and clear token
+            cur.execute("""
+                UPDATE users
+                SET email_verified = TRUE,
+                    verification_token = NULL
+                WHERE user_id = %s
+            """, (user['user_id'],))
+
+            conn.commit()
+            return user['user_id']
+
+        except Exception as e:
+            logger.error(f"Error verifying email: {e}")
+            conn.rollback()
+            return None
+        finally:
+            cur.close()
+            conn.close()
+
+    def get_user_by_verification_token(self, token):
+        """Get user by verification token"""
+        if not self.enabled:
+            return None
+
+        conn = self.get_connection()
+        cur = conn.cursor(row_factory=dict_row)
+
+        try:
+            cur.execute("""
+                SELECT * FROM users
+                WHERE verification_token = %s
+            """, (token,))
+            return cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error getting user by token: {e}")
+            return None
         finally:
             cur.close()
             conn.close()
@@ -1741,70 +1827,12 @@ def register():
 
         if not success:
             return jsonify({"success": False, "error": "Failed to create account"}), 500
-        
-        # Apply referral rewards if valid referrer
+
+        # NOTE: Referral bonuses are NOT applied here anymore.
+        # They will be applied when the user verifies their email to prevent abuse.
+        # See /auth/verify-email endpoint for referral bonus logic.
         if referrer_id:
-            try:
-                # Award REFEREE (new user) 500 words signup bonus
-                user_db.update_referral_stats(user_id, signup_bonus_words=500)
-
-                # Increment REFERRER's successful referral count
-                successful_count = user_db.increment_successful_referrals(referrer_id)
-
-                # Check for tier bonus milestones (only for referrer)
-                tier_rewards = [
-                    {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
-                    {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
-                    {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
-                    {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
-                    {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
-                    {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
-                    {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
-                    {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
-                    {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
-                    {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
-                ]
-
-                # Get current referral stats to check awarded tiers
-                referrer_stats = user_db.get_referral_stats(referrer_id)
-                awarded_tiers = referrer_stats.get('awarded_tiers', [])
-
-                # Calculate total tier bonus words and Pro days
-                tier_bonus_words = 0
-                total_pro_days_awarded = 0
-
-                # Go through all tiers and accumulate rewards for each tier reached
-                for reward in tier_rewards:
-                    if successful_count >= reward['referrals']:
-                        # Update to highest tier's word bonus
-                        if reward['words'] > 0:
-                            tier_bonus_words = reward['words']
-                        # Add Pro days for this tier if not already awarded
-                        if reward['pro_days'] > 0:
-                            if reward['tier'] not in awarded_tiers:
-                                total_pro_days_awarded += reward['pro_days']
-                                awarded_tiers.append(reward['tier'])
-
-                # Update referrer stats with new tier bonuses
-                user_db.update_referral_stats(
-                    referrer_id,
-                    tier_bonus_words=tier_bonus_words,
-                    awarded_tiers=awarded_tiers
-                )
-
-                # Grant Pro access if they earned new Pro days
-                if total_pro_days_awarded > 0:
-                    pro_granted = user_db.grant_pro_days(referrer_id, total_pro_days_awarded)
-                    if pro_granted:
-                        logger.info(f"[Referral] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
-                    else:
-                        logger.info(f"[Referral] User {referrer_id} already has paid plan, skipping Pro reward")
-
-                logger.info(f"[Referral] {email} (referee) awarded 500 words signup bonus")
-                logger.info(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus_words} words")
-
-            except Exception as e:
-                logger.error(f"Referral application failed: {e}")
+            logger.info(f"[Referral] User {email} signed up with referral code. Bonuses will be applied after email verification.")
         
         # Get user data to retrieve verification token
         user_data = user_db.get_user_by_email(email)
@@ -1910,6 +1938,15 @@ def login():
 
     if user_data.get('status') != 'active':
         return jsonify({"success": False, "error": "Account is deactivated"}), 401
+
+    # Check email verification (only for email auth, not Google/OAuth)
+    auth_provider = user_data.get('auth_provider', 'email')
+    if auth_provider == 'email' and not user_data.get('email_verified', False):
+        return jsonify({
+            "success": False,
+            "error": "Please verify your email address before logging in. Check your inbox for the verification link.",
+            "requires_verification": True
+        }), 403
 
     # Update last login (PostgreSQL)
     user_db.update_last_login(user_data['user_id'])
@@ -2194,30 +2231,26 @@ def get_profile():
     """Get current user profile"""
     user_id = request.current_user['user_id']
     email = request.current_user['email']
-    
-    # Get user data
-    users = load_data(USERS_FILE)
-    user_data = None
-    for user_email, data in users.items():
-        if data['user_id'] == user_id:
-            user_data = data
-            break
-    
+
+    # Get user data from PostgreSQL
+    user_data = user_db.get_user_by_id(user_id)
+
     if not user_data:
         return jsonify({"error": "User not found"}), 404
-    
-    # Get plan and usage
-    plans = load_data(PLAN_FILE)
-    usage = load_data(USAGE_FILE)
-    
+
+    # Get plan and usage from PostgreSQL
+    user_plan = user_db.get_user_plan(user_id)
+    words_used = user_db.get_word_usage(user_id)
+
     return jsonify({
         "user_id": user_id,
         "email": email,
         "name": user_data['name'],
         "verified": user_data.get('email_verified', False),
-        "plan": get_user_plan(user_id),
-        "words_used": usage.get(user_id, 0),
+        "plan": user_plan,
+        "words_used": words_used,
         "referral_code": user_data.get('referral_code', user_id[:8]),  # Use first 8 chars of user_id as fallback
+        "referred_by": user_data.get('referred_by'),  # Include whether user has used a referral code
         "created_at": user_data.get('created_at'),
         "last_login": user_data.get('last_login')
     })
@@ -2249,33 +2282,89 @@ def verify_email():
     if not token:
         logger.error("No token provided")
         return jsonify({"success": False, "error": "Missing verification token"}), 400
-    
-    # Find user with this token
-    users = load_data(USERS_FILE)
-    user_email = None
-    user_data = None
 
-    logger.info(f"Searching for token in {len(users)} users")
-    for email, data in users.items():
-        if data.get('verification_token') == token:
-            user_email = email
-            user_data = data
-            logger.info(f"Token matched for user: {email}")
-            break
+    # Verify email using PostgreSQL
+    logger.info(f"Verifying token: {token[:20]}...")
+    user_id = user_db.verify_email_by_token(token)
 
-    if not user_data:
-        logger.error(f"Token not found in users database")
+    if not user_id:
+        logger.error(f"Token not found in PostgreSQL database or already verified")
         return jsonify({"success": False, "error": "Invalid verification token"}), 400
-    
-    # Mark as verified
-    user_data['email_verified'] = True
-    user_data['verification_token'] = None
-    users[user_email] = user_data
-    save_data(USERS_FILE, users)
 
-    log_analytics_event(user_data['user_id'], 'email_verified')
+    # Get user details
+    user = user_db.get_user_by_id(user_id)
+    if not user:
+        logger.error(f"User {user_id} not found after verification")
+        return jsonify({"success": False, "error": "User not found"}), 404
 
-    logger.info(f"Email verified successfully for {user_email}")
+    # Apply referral bonuses now that email is verified (prevents abuse)
+    referrer_id = user.get('referred_by')
+    if referrer_id:
+        try:
+            # Award REFEREE (new user) 500 words signup bonus
+            user_db.update_referral_stats(user_id, signup_bonus_words=500)
+
+            # Increment REFERRER's successful referral count
+            successful_count = user_db.increment_successful_referrals(referrer_id)
+
+            # Check for tier bonus milestones (only for referrer)
+            tier_rewards = [
+                {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
+                {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
+                {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
+                {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
+                {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
+                {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
+                {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
+                {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
+                {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
+                {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
+            ]
+
+            # Get current referral stats to check awarded tiers
+            referrer_stats = user_db.get_referral_stats(referrer_id)
+            awarded_tiers = referrer_stats.get('awarded_tiers', [])
+
+            # Calculate total tier bonus words and Pro days
+            tier_bonus_words = 0
+            total_pro_days_awarded = 0
+
+            # Go through all tiers and accumulate rewards for each tier reached
+            for reward in tier_rewards:
+                if successful_count >= reward['referrals']:
+                    # Update to highest tier's word bonus
+                    if reward['words'] > 0:
+                        tier_bonus_words = reward['words']
+                    # Add Pro days for this tier if not already awarded
+                    if reward['pro_days'] > 0:
+                        if reward['tier'] not in awarded_tiers:
+                            total_pro_days_awarded += reward['pro_days']
+                            awarded_tiers.append(reward['tier'])
+
+            # Update referrer stats with new tier bonuses
+            user_db.update_referral_stats(
+                referrer_id,
+                tier_bonus_words=tier_bonus_words,
+                awarded_tiers=awarded_tiers
+            )
+
+            # Grant Pro access if they earned new Pro days
+            if total_pro_days_awarded > 0:
+                pro_granted = user_db.grant_pro_days(referrer_id, total_pro_days_awarded)
+                if pro_granted:
+                    logger.info(f"[Referral] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
+                else:
+                    logger.info(f"[Referral] User {referrer_id} already has paid plan, skipping Pro reward")
+
+            logger.info(f"[Referral] {user['email']} (referee) awarded 500 words signup bonus after verification")
+            logger.info(f"[Referral] {referrer_id} (referrer) now has {successful_count} verified referrals, tier bonus: {tier_bonus_words} words")
+
+        except Exception as e:
+            logger.error(f"Referral application failed during email verification: {e}")
+
+    log_analytics_event(user_id, 'email_verified')
+
+    logger.info(f"Email verified successfully for {user['email']}")
     return jsonify({"success": True, "message": "Email verified successfully"})
 
 @app.route("/auth/test-create-verification-token", methods=["POST"])
@@ -4498,6 +4587,153 @@ def validate_referral_code():
                 "valid": False
             }
         })
+
+@app.route("/api/referral/redeem", methods=["POST"])
+@require_auth
+def redeem_referral_code():
+    """Redeem a referral code after signup - allows users to add referral code post-registration"""
+    try:
+        user_id = request.current_user['user_id']
+        data = request.get_json()
+        referral_code = data.get('referral_code', '').strip().upper()
+
+        if not referral_code:
+            return jsonify({
+                "success": False,
+                "error": "Please enter a referral code"
+            }), 400
+
+        # Get current user from PostgreSQL
+        user = user_db.get_user_by_id(user_id)
+        if not user:
+            return jsonify({"success": False, "error": "User not found"}), 404
+
+        # Check if user already has a referrer
+        if user.get('referred_by'):
+            return jsonify({
+                "success": False,
+                "error": "You have already redeemed a referral code"
+            }), 400
+
+        # Check if user's email is verified
+        if not user.get('email_verified', False):
+            return jsonify({
+                "success": False,
+                "error": "Please verify your email before redeeming a referral code"
+            }), 400
+
+        # Find the referrer by referral code
+        referrer_id = user_db.get_user_by_referral_code(referral_code)
+
+        if not referrer_id:
+            return jsonify({
+                "success": False,
+                "error": "Invalid referral code. Please check and try again."
+            }), 400
+
+        # Check for self-referral
+        if referrer_id == user_id:
+            return jsonify({
+                "success": False,
+                "error": "You cannot use your own referral code"
+            }), 400
+
+        # Update user's referred_by field
+        success = user_db.update_user_referrer(user_id, referrer_id)
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": "Failed to redeem referral code. Please try again."
+            }), 500
+
+        # Apply referral bonuses (same logic as email verification)
+        try:
+            # Award REFEREE (current user) 500 words signup bonus
+            user_db.update_referral_stats(user_id, signup_bonus_words=500)
+
+            # Increment REFERRER's successful referral count
+            successful_count = user_db.increment_successful_referrals(referrer_id)
+
+            # Check for tier bonus milestones (only for referrer)
+            tier_rewards = [
+                {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
+                {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
+                {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
+                {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
+                {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
+                {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
+                {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
+                {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
+                {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
+                {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
+            ]
+
+            # Get current referral stats to check awarded tiers
+            referrer_stats = user_db.get_referral_stats(referrer_id)
+            awarded_tiers = referrer_stats.get('awarded_tiers', [])
+
+            # Calculate total tier bonus words and Pro days
+            tier_bonus_words = 0
+            total_pro_days_awarded = 0
+
+            # Go through all tiers and accumulate rewards for each tier reached
+            for reward in tier_rewards:
+                if successful_count >= reward['referrals']:
+                    # Update to highest tier's word bonus
+                    if reward['words'] > 0:
+                        tier_bonus_words = reward['words']
+                    # Add Pro days for this tier if not already awarded
+                    if reward['pro_days'] > 0:
+                        if reward['tier'] not in awarded_tiers:
+                            total_pro_days_awarded += reward['pro_days']
+                            awarded_tiers.append(reward['tier'])
+
+            # Update referrer stats with new tier bonuses
+            user_db.update_referral_stats(
+                referrer_id,
+                tier_bonus_words=tier_bonus_words,
+                awarded_tiers=awarded_tiers
+            )
+
+            # Grant Pro access if they earned new Pro days
+            if total_pro_days_awarded > 0:
+                pro_granted = user_db.grant_pro_days(referrer_id, total_pro_days_awarded)
+                if pro_granted:
+                    logger.info(f"[Referral Redeem] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
+                else:
+                    logger.info(f"[Referral Redeem] User {referrer_id} already has paid plan, skipping Pro reward")
+
+            logger.info(f"[Referral Redeem] {user['email']} redeemed code {referral_code} - awarded 500 words")
+            logger.info(f"[Referral Redeem] {referrer_id} (referrer) now has {successful_count} verified referrals, tier bonus: {tier_bonus_words} words")
+
+            # Get referrer info for response
+            referrer = user_db.get_user_by_id(referrer_id)
+            referrer_name = referrer.get('name', 'Your friend') if referrer else 'Your friend'
+
+            return jsonify({
+                "success": True,
+                "message": f"Success! You and {referrer_name} both received 500 bonus words!",
+                "data": {
+                    "words_earned": 500,
+                    "referrer_name": referrer_name
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Referral bonus application failed during redemption: {e}")
+            # Rollback the referred_by update
+            user_db.update_user_referrer(user_id, None)
+            return jsonify({
+                "success": False,
+                "error": "Failed to apply referral bonuses. Please try again."
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error redeeming referral code: {e}")
+        return jsonify({
+            "success": False,
+            "error": "An error occurred. Please try again later."
+        }), 500
 
 # ---------------- API DOCUMENTATION ENDPOINT ----------------
 

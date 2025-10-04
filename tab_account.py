@@ -86,7 +86,42 @@ class AccountTab(tk.Frame):
 
         self.referral_label = tk.Label(self, text="", wraplength=280, justify="center", bg=bg)
         self.referral_label.pack(pady=5)
-        
+
+        # Redeem Referral Code Section
+        self.redeem_frame = tk.LabelFrame(self, text="🎁 Redeem Referral Code",
+                                         font=('Segoe UI', 10, 'bold'), bg=bg,
+                                         bd=2, relief='groove')
+        self.redeem_frame.pack(pady=10, padx=20, fill='x')
+        self.redeem_frame.pack_forget()  # Hidden by default, show when logged in
+
+        # Info text
+        redeem_info = tk.Label(self.redeem_frame,
+                              text="Have a friend's referral code? Redeem it here to get 500 bonus words!",
+                              wraplength=280, justify="center", bg=bg, font=('Segoe UI', 9))
+        redeem_info.pack(pady=(5, 10))
+
+        # Entry and button frame
+        redeem_input_frame = tk.Frame(self.redeem_frame, bg=bg)
+        redeem_input_frame.pack(pady=(0, 10))
+
+        self.referral_code_entry = tk.Entry(redeem_input_frame, width=20,
+                                           font=('Segoe UI', 10),
+                                           justify='center')
+        self.referral_code_entry.pack(side='left', padx=(10, 5))
+        self.referral_code_entry.insert(0, "Enter code...")
+        self.referral_code_entry.bind('<FocusIn>', lambda e: self._clear_placeholder(e))
+        self.referral_code_entry.bind('<FocusOut>', lambda e: self._restore_placeholder(e))
+
+        self.redeem_btn = ttk.Button(redeem_input_frame, text="Redeem",
+                                    command=self._redeem_referral_code)
+        self.redeem_btn.pack(side='left', padx=(5, 10))
+
+        # Status message
+        self.redeem_status = tk.Label(self.redeem_frame, text="",
+                                     wraplength=280, justify="center",
+                                     bg=bg, font=('Segoe UI', 9))
+        self.redeem_status.pack(pady=(0, 5))
+
         # Upgrade/Referral Progress Panel - HIDDEN
         self.upgrade_frame = tk.LabelFrame(self, text="🚀 Upgrade & Referrals", 
                                           font=('Segoe UI', 10, 'bold'), bg=bg,
@@ -132,7 +167,8 @@ class AccountTab(tk.Frame):
         for widget in [
             self, self.status_label, self.usage_label, self.referral_label,
             self.upgrade_frame, self.referral_progress_frame, self.referral_status_label,
-            self.referral_details_label, self.upgrade_recommendation, self.upgrade_buttons_frame
+            self.referral_details_label, self.upgrade_recommendation, self.upgrade_buttons_frame,
+            self.redeem_frame, self.redeem_status
         ]:
             try:
                 widget.configure(bg=bg, fg=fg)
@@ -219,7 +255,10 @@ class AccountTab(tk.Frame):
         self.usage_label.config(text="")
         self.referral_label.config(text="")
         self.canvas.coords(self.progress_bar, 0, 0, 0, self.bar_height)
-        
+
+        # Hide redeem box on logout
+        self.redeem_frame.pack_forget()
+
         # 2. Show sign-in buttons, hide logout, and ensure they're enabled
         self.signin_btn.pack(pady=(20, 8))
         self.signin_btn.config(state='normal')  # Ensure button is enabled
@@ -261,11 +300,132 @@ class AccountTab(tk.Frame):
         """Check premium status using AccountUsageManager."""
         return self.usage_mgr.is_premium()
 
+    def _clear_placeholder(self, event):
+        """Clear placeholder text when entry is focused"""
+        if self.referral_code_entry.get() == "Enter code...":
+            self.referral_code_entry.delete(0, tk.END)
+            self.referral_code_entry.config(fg='black')
+
+    def _restore_placeholder(self, event):
+        """Restore placeholder text if entry is empty"""
+        if not self.referral_code_entry.get():
+            self.referral_code_entry.insert(0, "Enter code...")
+            self.referral_code_entry.config(fg='gray')
+
+    def _redeem_referral_code(self):
+        """Redeem a referral code via the API"""
+        import requests
+
+        # Get code from entry
+        code = self.referral_code_entry.get().strip()
+        if not code or code == "Enter code...":
+            self.redeem_status.config(text="❌ Please enter a referral code", fg='red')
+            return
+
+        # Check if user is logged in
+        if not self.google_info:
+            self.redeem_status.config(text="❌ Please log in first", fg='red')
+            return
+
+        # Disable button while processing
+        self.redeem_btn.config(state='disabled')
+        self.redeem_status.config(text="⏳ Redeeming...", fg='orange')
+        self.update()
+
+        try:
+            # Get auth token
+            token = self.google_info.get('token')
+            if not token:
+                raise Exception("No auth token found")
+
+            # Call API endpoint
+            response = requests.post(
+                f"{SERVER_URL}/api/referral/redeem",
+                json={"referral_code": code.upper()},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    message = data.get('message', 'Success!')
+                    self.redeem_status.config(text=f"✅ {message}", fg='green')
+                    # Clear the entry
+                    self.referral_code_entry.delete(0, tk.END)
+                    self.referral_code_entry.insert(0, "Enter code...")
+                    self.referral_code_entry.config(fg='gray')
+                    # Refresh usage to show new bonus words
+                    self.usage_mgr.load_usage()
+                    self.usage_mgr.update_usage_display()
+                    # Hide redeem box after successful redemption
+                    self.after(3000, lambda: self.redeem_frame.pack_forget())
+                else:
+                    error = data.get('error', 'Unknown error')
+                    self.redeem_status.config(text=f"❌ {error}", fg='red')
+            else:
+                error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
+                error = error_data.get('error', f'Error {response.status_code}')
+                self.redeem_status.config(text=f"❌ {error}", fg='red')
+
+        except requests.exceptions.Timeout:
+            self.redeem_status.config(text="❌ Request timed out. Please try again.", fg='red')
+        except Exception as e:
+            print(f"Error redeeming referral code: {e}")
+            self.redeem_status.config(text=f"❌ Error: {str(e)}", fg='red')
+        finally:
+            # Re-enable button
+            self.redeem_btn.config(state='normal')
+
+    def _check_and_show_redeem_box(self):
+        """Check if user can redeem a code and show/hide the redeem box accordingly"""
+        import requests
+
+        try:
+            # Get auth token
+            token = self.google_info.get('token')
+            if not token:
+                self.redeem_frame.pack_forget()
+                return
+
+            # Check if user already has a referrer via /auth/profile endpoint
+            response = requests.get(
+                f"{SERVER_URL}/auth/profile",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                # Check if user has already used a referral code (either during signup or in-app)
+                referred_by = data.get('referred_by')
+
+                if referred_by:
+                    # User already has a referrer - hide the redeem box permanently
+                    print(f"[Redeem Box] User already redeemed a code (referred_by={referred_by}), hiding box")
+                    self.redeem_frame.pack_forget()
+                else:
+                    # User hasn't used a referral code yet - show the redeem box
+                    print("[Redeem Box] User can redeem a code, showing box")
+                    self.redeem_frame.pack(pady=10, padx=20, fill='x')
+                    self.redeem_status.config(text="")  # Clear any previous status
+            else:
+                # Hide on error
+                print(f"[Redeem Box] Error fetching profile (status {response.status_code}), hiding box")
+                self.redeem_frame.pack_forget()
+
+        except Exception as e:
+            print(f"[Redeem Box] Error checking redeem eligibility: {e}")
+            # Hide on error to be safe
+            self.redeem_frame.pack_forget()
+
     def update_for_login(self, user_info):
         self.google_info = user_info
         self.usage_mgr.load_usage()
         self._render_user_status()
         self.usage_mgr.update_usage_display()
+        # Show redeem box if user hasn't redeemed a code yet
+        self._check_and_show_redeem_box()
         
         # Force immediate UI update for words left bar
         self.update_idletasks()
