@@ -5,7 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electron', {
   ipcRenderer: {
     on: (channel, func) => {
-      const validChannels = ['global-hotkey', 'navigate', 'update-display', 'toggle-overlay', 'global-hotkey-success', 'global-hotkey-error', 'global-hotkey-with-text', 'overlay-command', 'overlay-visibility-changed', 'update-hotkeys-overlay', 'show-ai-review']
+      const validChannels = ['global-hotkey', 'navigate', 'update-display', 'toggle-overlay', 'global-hotkey-success', 'global-hotkey-error', 'global-hotkey-with-text', 'overlay-command', 'overlay-visibility-changed', 'update-hotkeys-overlay', 'show-ai-review', 'update-checking', 'update-available', 'update-not-available']
       if (validChannels.includes(channel)) {
         // Deliberately strip event as it includes `sender`
         ipcRenderer.on(channel, (event, ...args) => func(...args))

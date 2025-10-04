@@ -1029,6 +1029,10 @@ function setupAutoUpdater() {
     console.log('[AUTO-UPDATE] Arch:', process.arch)
     console.log('[AUTO-UPDATE] ========================================')
 
+    // Send to main window (for login screen)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-checking')
+    }
     if (updateWindow && !updateWindow.isDestroyed()) {
       updateWindow.webContents.send('update-checking')
     }
@@ -1043,6 +1047,14 @@ function setupAutoUpdater() {
     console.log('[AUTO-UPDATE] Release notes:', info.releaseNotes)
     console.log('[AUTO-UPDATE] Files:', info.files)
     console.log('[AUTO-UPDATE] ========================================')
+
+    // Send to main window for login screen notification
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-available', {
+        version: info.version,
+        currentVersion: app.getVersion()
+      })
+    }
 
     // Create update window
     createUpdateWindow()
@@ -1066,6 +1078,10 @@ function setupAutoUpdater() {
     console.log('[AUTO-UPDATE] Checked version:', info?.version || 'N/A')
     console.log('[AUTO-UPDATE] ========================================')
 
+    // Send to main window
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-not-available', { version: app.getVersion() })
+    }
     if (updateWindow && !updateWindow.isDestroyed()) {
       updateWindow.webContents.send('update-not-available')
     }
