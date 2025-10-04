@@ -227,14 +227,14 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">Words Used</span>
                       <span className="text-white font-medium">
-                        {dashboardData.plan.words_used.toLocaleString()} / {dashboardData.plan.words_limit.toLocaleString()}
+                        {(dashboardData.plan.words_used || 0).toLocaleString()} / {(dashboardData.plan.words_limit || 0).toLocaleString()}
                       </span>
                     </div>
-                    
+
                     <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, dashboardData.plan.usage_percentage)}%` }}
+                        animate={{ width: `${Math.min(100, dashboardData.plan.usage_percentage || 0)}%` }}
                         transition={{ duration: 1, ease: "easeOut" }}
                         className={`h-full rounded-full ${
                           isOutOfWords ? 'bg-red-500' :
@@ -243,7 +243,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                         }`}
                       />
                     </div>
-                    
+
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">Words Remaining</span>
                       <span className={`font-medium ${
@@ -251,7 +251,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                         isLowOnWords ? 'text-yellow-400' :
                         'text-green-400'
                       }`}>
-                        {dashboardData.plan.words_remaining.toLocaleString()}
+                        {(dashboardData.plan.words_remaining || 0).toLocaleString()}
                       </span>
                     </div>
                     
