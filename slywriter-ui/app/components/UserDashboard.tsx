@@ -370,24 +370,83 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                   <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-6 border border-purple-500/30">
                     <h3 className="text-lg font-semibold text-white mb-2">Upgrade Your Plan</h3>
                     <p className="text-gray-300 text-sm mb-4">
-                      Unlock premium features like the Humanizer, unlimited profiles, and more words!
+                      Unlock premium features like the Humanizer, unlimited AI generation, and more words!
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
-                        <h4 className="text-green-400 font-semibold mb-2">Basic</h4>
-                        <p className="text-2xl font-bold text-white mb-1">$9.99<span className="text-sm text-gray-400">/mo</span></p>
-                        <p className="text-gray-400 text-xs">10,000 words/month</p>
-                      </div>
-                      <div className="bg-gray-900/50 rounded-lg p-4 border border-blue-500/50">
-                        <h4 className="text-blue-400 font-semibold mb-2">Pro</h4>
-                        <p className="text-2xl font-bold text-white mb-1">$19.99<span className="text-sm text-gray-400">/mo</span></p>
-                        <p className="text-gray-400 text-xs">20,000 words/month</p>
-                      </div>
-                      <div className="bg-gray-900/50 rounded-lg p-4 border border-purple-500/50">
-                        <h4 className="text-purple-400 font-semibold mb-2">Premium</h4>
-                        <p className="text-2xl font-bold text-white mb-1">$39.99<span className="text-sm text-gray-400">/mo</span></p>
-                        <p className="text-gray-400 text-xs">50,000 words/month</p>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <a
+                        href="https://buy.stripe.com/your-pro-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-gray-900/50 rounded-lg p-6 border border-blue-500/50 hover:border-blue-400 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-blue-400 font-semibold text-lg">Pro</h4>
+                          <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Popular</span>
+                        </div>
+                        <p className="text-3xl font-bold text-white mb-2">
+                          $8.99<span className="text-sm text-gray-400 font-normal">/mo</span>
+                        </p>
+                        <ul className="space-y-2 text-sm text-gray-300 mb-4">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-400" />
+                            5,000 words/week
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-400" />
+                            Unlimited AI generation
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-400" />
+                            3 humanizer uses/week
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-blue-400" />
+                            Advanced features
+                          </li>
+                        </ul>
+                        <div className="text-center text-sm text-blue-400 group-hover:text-blue-300">
+                          Click to subscribe →
+                        </div>
+                      </a>
+
+                      <a
+                        href="https://buy.stripe.com/your-premium-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-6 border border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer group relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 bg-gradient-to-l from-purple-500 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                          BEST VALUE
+                        </div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-purple-400 font-semibold text-lg">Premium</h4>
+                          <Crown className="w-5 h-5 text-yellow-400" />
+                        </div>
+                        <p className="text-3xl font-bold text-white mb-2">
+                          $14.99<span className="text-sm text-gray-400 font-normal">/mo</span>
+                        </p>
+                        <ul className="space-y-2 text-sm text-gray-300 mb-4">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-400" />
+                            Unlimited words
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-400" />
+                            Unlimited AI humanizer
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-400" />
+                            All premium features
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-400" />
+                            Priority support
+                          </li>
+                        </ul>
+                        <div className="text-center text-sm text-purple-400 group-hover:text-purple-300">
+                          Click to subscribe →
+                        </div>
+                      </a>
                     </div>
                   </div>
                 )}
