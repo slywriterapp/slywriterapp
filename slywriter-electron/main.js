@@ -984,15 +984,32 @@ function setupAutoUpdater() {
   // Check for updates on app start (after splash screen)
   // INTEGRATED WITH LICENSE CHECK
   setTimeout(async () => {
+    console.log('[AUTO-UPDATE] ========================================')
+    console.log('[AUTO-UPDATE] Initial update check starting...')
+    console.log('[AUTO-UPDATE] Timestamp:', new Date().toISOString())
+
     // Re-verify license before checking updates
     const licenseData = await verifyLicense()
+    console.log('[AUTO-UPDATE] License valid:', licenseData.valid)
 
     if (licenseData.valid) {
       // Only check for updates if license is valid
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-        console.log('Update check failed:', err)
-      })
+      console.log('[AUTO-UPDATE] Initiating update check...')
+      try {
+        const result = await autoUpdater.checkForUpdatesAndNotify()
+        console.log('[AUTO-UPDATE] Check result:', result)
+      } catch (err) {
+        console.error('[AUTO-UPDATE] Update check failed:', err)
+        console.error('[AUTO-UPDATE] Error details:', {
+          message: err.message,
+          code: err.code,
+          stack: err.stack
+        })
+      }
+    } else {
+      console.log('[AUTO-UPDATE] Skipping update check - license invalid')
     }
+    console.log('[AUTO-UPDATE] ========================================')
   }, 3500)
 
   // Check for updates every 30 minutes
@@ -1002,16 +1019,30 @@ function setupAutoUpdater() {
     })
   }, 30 * 60 * 1000)
 
-  // Auto-updater event handlers
+  // Auto-updater event handlers with ENHANCED DEBUGGING
   autoUpdater.on('checking-for-update', () => {
-    console.log('Checking for updates...')
+    console.log('[AUTO-UPDATE] ========================================')
+    console.log('[AUTO-UPDATE] Checking for updates...')
+    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
+    console.log('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL())
+    console.log('[AUTO-UPDATE] Platform:', process.platform)
+    console.log('[AUTO-UPDATE] Arch:', process.arch)
+    console.log('[AUTO-UPDATE] ========================================')
+
     if (updateWindow && !updateWindow.isDestroyed()) {
       updateWindow.webContents.send('update-checking')
     }
   })
 
   autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info.version)
+    console.log('[AUTO-UPDATE] ========================================')
+    console.log('[AUTO-UPDATE] ✅ UPDATE AVAILABLE!')
+    console.log('[AUTO-UPDATE] New version:', info.version)
+    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
+    console.log('[AUTO-UPDATE] Release date:', info.releaseDate)
+    console.log('[AUTO-UPDATE] Release notes:', info.releaseNotes)
+    console.log('[AUTO-UPDATE] Files:', info.files)
+    console.log('[AUTO-UPDATE] ========================================')
 
     // Create update window
     createUpdateWindow()
@@ -1024,18 +1055,32 @@ function setupAutoUpdater() {
     }, 500)
 
     // Start download automatically
+    console.log('[AUTO-UPDATE] Starting download...')
     autoUpdater.downloadUpdate()
   })
 
-  autoUpdater.on('update-not-available', () => {
-    console.log('No updates available')
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[AUTO-UPDATE] ========================================')
+    console.log('[AUTO-UPDATE] ℹ️ No updates available')
+    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
+    console.log('[AUTO-UPDATE] Checked version:', info?.version || 'N/A')
+    console.log('[AUTO-UPDATE] ========================================')
+
     if (updateWindow && !updateWindow.isDestroyed()) {
       updateWindow.webContents.send('update-not-available')
     }
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
-    console.log(`Download progress: ${progressObj.percent}%`)
+    const logInterval = Math.floor(progressObj.percent / 10) * 10
+    if (progressObj.percent >= logInterval && progressObj.percent < logInterval + 2) {
+      console.log('[AUTO-UPDATE] Download progress:', {
+        percent: progressObj.percent.toFixed(2) + '%',
+        transferred: (progressObj.transferred / 1024 / 1024).toFixed(2) + ' MB',
+        total: (progressObj.total / 1024 / 1024).toFixed(2) + ' MB',
+        bytesPerSecond: (progressObj.bytesPerSecond / 1024).toFixed(2) + ' KB/s'
+      })
+    }
 
     // Send progress to update window
     if (updateWindow && !updateWindow.isDestroyed()) {
@@ -1044,7 +1089,12 @@ function setupAutoUpdater() {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('Update downloaded:', info.version)
+    console.log('[AUTO-UPDATE] ========================================')
+    console.log('[AUTO-UPDATE] ✅ UPDATE DOWNLOADED SUCCESSFULLY!')
+    console.log('[AUTO-UPDATE] Version:', info.version)
+    console.log('[AUTO-UPDATE] Files downloaded:', info.files)
+    console.log('[AUTO-UPDATE] Ready to install on restart')
+    console.log('[AUTO-UPDATE] ========================================')
 
     // Send to update window
     if (updateWindow && !updateWindow.isDestroyed()) {
@@ -1053,7 +1103,13 @@ function setupAutoUpdater() {
   })
 
   autoUpdater.on('error', (error) => {
-    console.error('Update error:', error)
+    console.error('[AUTO-UPDATE] ========================================')
+    console.error('[AUTO-UPDATE] ❌ UPDATE ERROR!')
+    console.error('[AUTO-UPDATE] Error message:', error.message)
+    console.error('[AUTO-UPDATE] Error stack:', error.stack)
+    console.error('[AUTO-UPDATE] Current version:', app.getVersion())
+    console.error('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL())
+    console.error('[AUTO-UPDATE] ========================================')
 
     // Send error to update window
     if (updateWindow && !updateWindow.isDestroyed()) {
