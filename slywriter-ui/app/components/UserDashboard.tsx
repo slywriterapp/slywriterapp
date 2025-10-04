@@ -387,7 +387,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <a
-                        href={`https://buy.stripe.com/your-pro-link?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
+                        href={`${process.env.NEXT_PUBLIC_STRIPE_PRO_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-gray-900/50 rounded-lg p-6 border border-blue-500/50 hover:border-blue-400 transition-all cursor-pointer group"
@@ -423,7 +423,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                       </a>
 
                       <a
-                        href={`https://buy.stripe.com/your-premium-link?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
+                        href={`${process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-6 border border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer group relative overflow-hidden"
