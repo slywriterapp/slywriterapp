@@ -1003,12 +1003,53 @@ def register():
                 ref_data = load_data(REFERRAL_FILE)
                 code_map = ref_data.get("code_map", {})
                 referrer_id = code_map.get(referral_code)
-                
+
                 if referrer_id and referrer_id != user_id:
+                    # Save referral relationship
                     ref_by_uid = ref_data.get("by_uid", {})
                     ref_by_uid[user_id] = referrer_id
                     ref_data["by_uid"] = ref_by_uid
                     save_data(REFERRAL_FILE, ref_data)
+
+                    # Load referrals data to track rewards
+                    referrals = load_data(REFERRALS_FILE)
+
+                    # Award REFEREE (new user) 500 words signup bonus
+                    if user_id not in referrals:
+                        referrals[user_id] = {}
+                    referrals[user_id]['signup_bonus_words'] = 500
+                    referrals[user_id]['referred_by'] = referrer_id
+
+                    # Award REFERRER 500 words base bonus + increment successful referrals
+                    if referrer_id not in referrals:
+                        referrals[referrer_id] = {'successful_referrals': 0}
+
+                    referrals[referrer_id]['successful_referrals'] = referrals[referrer_id].get('successful_referrals', 0) + 1
+                    successful_count = referrals[referrer_id]['successful_referrals']
+
+                    # Check for tier bonus milestones (only for referrer)
+                    tier_rewards = [
+                        {"tier": 1, "referrals": 1, "words": 1000},
+                        {"tier": 2, "referrals": 2, "words": 2500},
+                        {"tier": 3, "referrals": 5, "words": 5000},
+                        {"tier": 4, "referrals": 10, "words": 10000},
+                        {"tier": 5, "referrals": 20, "words": 25000},
+                        {"tier": 6, "referrals": 50, "words": 50000}
+                    ]
+
+                    # Calculate total tier bonus
+                    tier_bonus = 0
+                    for reward in tier_rewards:
+                        if successful_count >= reward['referrals']:
+                            tier_bonus = reward['words']
+
+                    referrals[referrer_id]['tier_bonus_words'] = tier_bonus
+
+                    save_data(REFERRALS_FILE, referrals)
+
+                    print(f"[Referral] {email} (referee) awarded 500 words signup bonus")
+                    print(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus} words")
+
             except Exception as e:
                 print(f"Referral application failed: {e}")
         
@@ -1175,15 +1216,10 @@ def verify_token():
     
     usage = load_data(USAGE_FILE)
     words_used = usage.get(user_data['user_id'], 0)
-    
-    # Get word limits based on plan
-    word_limits = {
-        'free': 2000,      # Free users: 2,000 words
-        'basic': 10000,    # Basic plan: 10,000 words
-        'pro': 20000,      # Pro plan: 20,000 words
-        'premium': 50000   # Premium plan: 50,000 words
-    }
-    
+
+    # Get word limits including referral bonuses
+    base_limit, referral_bonus, total_limit = get_user_word_limit(user_data['user_id'], user_plan)
+
     return jsonify({
         "success": True,
         "user_id": user_data['user_id'],
@@ -1191,7 +1227,9 @@ def verify_token():
         "name": user_data['name'],
         "plan": user_plan,
         "words_used": words_used,
-        "word_limit": word_limits.get(user_plan, 1000),
+        "base_word_limit": base_limit,
+        "referral_bonus_words": referral_bonus,
+        "total_word_limit": total_limit,
         "verified": user_data.get('email_verified', False)
     })
 
@@ -2856,31 +2894,25 @@ def create_subscription():
 def get_billing_usage():
     """Get current month's usage and limits"""
     user_id = request.current_user['user_id']
-    
+
     # Get plan and usage
     plans = load_data(PLAN_FILE)
     usage = load_data(USAGE_FILE)
-    
+
     plan = plans.get(user_id, 'free')
     words_used = usage.get(user_id, 0)
-    
-    # Plan limits (words per month)
-    limits = {
-        'free': 2000,      # Free users: 2,000 words
-        'basic': 10000,    # Basic plan: 10,000 words
-        'pro': 20000,      # Pro plan: 20,000 words
-        'premium': 50000,  # Premium plan: 50,000 words
-        'enterprise': float('inf')  # Unlimited
-    }
-    
-    limit = limits.get(plan, 1000)
-    
+
+    # Get word limit including referral bonuses
+    base_limit, referral_bonus, total_limit = get_user_word_limit(user_id, plan)
+
     return jsonify({
         "success": True,
         "plan": plan,
         "words_used": words_used,
-        "words_limit": limit if limit != float('inf') else "unlimited",
-        "usage_percentage": (words_used / limit * 100) if limit != float('inf') else 0
+        "base_words_limit": base_limit if base_limit != float('inf') else "unlimited",
+        "referral_bonus_words": referral_bonus,
+        "total_words_limit": total_limit if total_limit != float('inf') else "unlimited",
+        "usage_percentage": (words_used / total_limit * 100) if total_limit != float('inf') else 0
     })
 
 # ---------------- ANALYTICS & REPORTING ----------------
@@ -2892,32 +2924,26 @@ def track_ai_generation():
     user_id = request.current_user['user_id']
     data = request.get_json()
     words_generated = data.get('words', 0)
-    
+
     # Load current usage
     usage = load_data(USAGE_FILE)
     current_usage = usage.get(user_id, 0)
-    
-    # Get user plan and limits
+
+    # Get user plan and word limit (including referral bonuses)
     plans = load_data(PLAN_FILE)
     user_plan = plans.get(user_id, 'free')
-    
-    word_limits = {
-        'free': 2000,
-        'basic': 10000,
-        'pro': 20000,
-        'premium': 50000
-    }
-    
-    limit = word_limits.get(user_plan, 2000)
-    
+    base_limit, referral_bonus, total_limit = get_user_word_limit(user_id, user_plan)
+
     # Check if user has enough words
-    if current_usage + words_generated > limit:
+    if current_usage + words_generated > total_limit:
         return jsonify({
             "success": False,
             "error": "Insufficient words remaining",
-            "words_remaining": max(0, limit - current_usage),
+            "words_remaining": max(0, total_limit - current_usage),
             "words_needed": words_generated,
-            "plan": user_plan
+            "plan": user_plan,
+            "base_limit": base_limit,
+            "referral_bonus": referral_bonus
         }), 403
     
     # Update usage
@@ -2934,15 +2960,17 @@ def track_ai_generation():
     log_analytics_event(user_id, 'ai_generation', {
         'words': words_generated,
         'plan': user_plan,
-        'remaining': limit - usage[user_id]
+        'remaining': total_limit - usage[user_id]
     })
-    
+
     return jsonify({
         "success": True,
         "words_used": words_generated,
         "total_used": usage[user_id],
-        "words_remaining": limit - usage[user_id],
-        "word_limit": limit
+        "words_remaining": total_limit - usage[user_id],
+        "base_word_limit": base_limit,
+        "referral_bonus_words": referral_bonus,
+        "total_word_limit": total_limit
     })
 
 @app.route("/api/global-stats", methods=["GET"])
@@ -2986,16 +3014,38 @@ def get_user_dashboard():
     usage = load_data(USAGE_FILE)
     words_used = usage.get(user_id, 0)
     
-    # Word limits
+    # Base word limits per plan
     word_limits = {
         'free': 2000,
         'basic': 10000,
         'pro': 20000,
         'premium': 50000
     }
-    
-    limit = word_limits.get(user_plan, 2000)
-    
+
+    base_limit = word_limits.get(user_plan, 2000)
+
+    # Get referral data
+    referral_code = user_data.get('referral_code', '')
+    referrals = load_data(REFERRALS_FILE)
+    user_referrals = referrals.get(user_id, {})
+
+    # Calculate bonus words from referrals
+    # Base reward: 500 words per successful referral (both referrer and referee get this)
+    successful_referrals = user_referrals.get('successful_referrals', 0)
+    base_referral_bonus = successful_referrals * 500
+
+    # Tier rewards (only for referrer, NOT referee)
+    tier_bonus_words = user_referrals.get('tier_bonus_words', 0)
+
+    # Bonus from being referred (referee gets 500 words one-time)
+    signup_bonus = user_referrals.get('signup_bonus_words', 0)
+
+    # Total referral bonus
+    referral_bonus = base_referral_bonus + tier_bonus_words + signup_bonus
+
+    # Total word limit = base plan limit + all referral bonuses
+    total_limit = base_limit + referral_bonus
+
     # Feature access based on plan
     features = {
         'ai_generation': True,  # All plans get AI generation
@@ -3007,14 +3057,6 @@ def get_user_dashboard():
         'priority_support': user_plan in ['pro', 'premium'],
         'advanced_analytics': user_plan in ['pro', 'premium']
     }
-    
-    # Get referral data
-    referral_code = user_data.get('referral_code', '')
-    referrals = load_data(REFERRALS_FILE)
-    user_referrals = referrals.get(user_id, {})
-    
-    # Calculate bonus words from referrals
-    referral_bonus = user_referrals.get('successful_referrals', 0) * 500  # 500 words per referral
     
     return jsonify({
         "success": True,
@@ -3028,18 +3070,23 @@ def get_user_dashboard():
             },
             "plan": {
                 "name": user_plan,
-                "words_limit": limit,
+                "base_words_limit": base_limit,  # Base plan limit
+                "referral_bonus_words": referral_bonus,  # Total bonus from referrals
+                "total_words_limit": total_limit,  # Base + referral bonuses
                 "words_used": words_used,
-                "words_remaining": max(0, limit - words_used),
-                "usage_percentage": min(100, (words_used / limit * 100)) if limit > 0 else 0,
+                "words_remaining": max(0, total_limit - words_used),
+                "usage_percentage": min(100, (words_used / total_limit * 100)) if total_limit > 0 else 0,
                 "reset_date": get_next_reset_date(),
                 "features": features
             },
             "referrals": {
                 "code": referral_code,
-                "successful": user_referrals.get('successful_referrals', 0),
+                "successful": successful_referrals,
                 "pending": user_referrals.get('pending_referrals', 0),
-                "bonus_words": referral_bonus,
+                "base_bonus_words": base_referral_bonus,  # 500 words per referral
+                "tier_bonus_words": tier_bonus_words,  # Extra words from tier milestones
+                "signup_bonus_words": signup_bonus,  # Bonus from being referred
+                "total_bonus_words": referral_bonus,  # Total of all bonuses
                 "share_link": f"https://slywriterapp.com?ref={referral_code}"
             },
             "stats": {
@@ -3056,6 +3103,42 @@ def get_next_reset_date():
     now = datetime.datetime.utcnow()
     next_month = now.replace(day=1) + datetime.timedelta(days=32)
     return next_month.replace(day=1).isoformat()
+
+def get_user_word_limit(user_id, user_plan='free'):
+    """
+    Calculate total word limit for a user including referral bonuses
+    Returns: (base_limit, referral_bonus, total_limit)
+    """
+    # Base word limits per plan
+    base_limits = {
+        'free': 2000,
+        'basic': 10000,
+        'pro': 20000,
+        'premium': 50000,
+        'enterprise': float('inf')
+    }
+
+    base_limit = base_limits.get(user_plan, 2000)
+
+    # Get referral bonuses
+    referrals = load_data(REFERRALS_FILE)
+    user_referrals = referrals.get(user_id, {})
+
+    # Calculate bonus words
+    successful_referrals = user_referrals.get('successful_referrals', 0)
+    base_referral_bonus = successful_referrals * 500  # 500 words per referral
+    tier_bonus_words = user_referrals.get('tier_bonus_words', 0)  # Tier milestone bonuses
+    signup_bonus = user_referrals.get('signup_bonus_words', 0)  # One-time signup bonus
+
+    total_referral_bonus = base_referral_bonus + tier_bonus_words + signup_bonus
+
+    # Total limit
+    if base_limit == float('inf'):
+        total_limit = float('inf')
+    else:
+        total_limit = base_limit + total_referral_bonus
+
+    return (base_limit, total_referral_bonus, total_limit)
 
 @app.route("/analytics/dashboard", methods=["GET"])
 @require_auth
@@ -3146,6 +3229,82 @@ def export_user_data():
     return jsonify({"success": True, "data": export_data})
 
 # ---------------- PUBLIC STATS & REFERRAL ENDPOINTS ----------------
+
+@app.route("/api/referral/info", methods=["GET"])
+@require_auth
+def get_referral_info():
+    """Get detailed referral information for the current user"""
+    try:
+        user_id = request.current_user['user_id']
+        email = request.current_user['email']
+
+        # Get user data for referral code
+        users = load_data(USERS_FILE)
+        user_data = users.get(email, {})
+        referral_code = user_data.get('referral_code', '')
+
+        # Get referral stats
+        referrals = load_data(REFERRALS_FILE)
+        user_referrals = referrals.get(user_id, {})
+
+        # Calculate rewards
+        successful_referrals = user_referrals.get('successful_referrals', 0)
+        base_bonus = successful_referrals * 500  # 500 words per referral
+        tier_bonus = user_referrals.get('tier_bonus_words', 0)
+        signup_bonus = user_referrals.get('signup_bonus_words', 0)
+        total_bonus = base_bonus + tier_bonus + signup_bonus
+
+        # Tier information
+        tiers = [
+            {"tier": 1, "referrals": 1, "reward": "1,000 bonus words"},
+            {"tier": 2, "referrals": 2, "reward": "2,500 bonus words"},
+            {"tier": 3, "referrals": 5, "reward": "5,000 bonus words"},
+            {"tier": 4, "referrals": 10, "reward": "10,000 bonus words"},
+            {"tier": 5, "referrals": 20, "reward": "25,000 bonus words"},
+            {"tier": 6, "referrals": 50, "reward": "50,000 bonus words"}
+        ]
+
+        # Find current tier and next tier
+        current_tier = None
+        next_tier = None
+        for i, tier in enumerate(tiers):
+            if successful_referrals >= tier['referrals']:
+                current_tier = tier
+            elif next_tier is None and successful_referrals < tier['referrals']:
+                next_tier = tier
+
+        return jsonify({
+            "success": True,
+            "referral_code": referral_code,
+            "share_link": f"https://slywriterapp.com?ref={referral_code}",
+            "stats": {
+                "successful_referrals": successful_referrals,
+                "pending_referrals": user_referrals.get('pending_referrals', 0)
+            },
+            "rewards": {
+                "base_bonus_words": base_bonus,  # 500 per referral
+                "tier_bonus_words": tier_bonus,  # Milestone bonuses
+                "signup_bonus_words": signup_bonus,  # One-time referee bonus
+                "total_bonus_words": total_bonus
+            },
+            "progress": {
+                "current_tier": current_tier,
+                "next_tier": next_tier,
+                "referrals_to_next_tier": next_tier['referrals'] - successful_referrals if next_tier else 0
+            },
+            "explanation": {
+                "referee_reward": "New users who sign up with your code get 500 bonus words",
+                "referrer_reward": "You get 500 bonus words for each successful referral",
+                "tier_rewards": "Only you (the referrer) get tier milestone bonuses",
+                "tiers": tiers
+            }
+        })
+    except Exception as e:
+        print(f"Error getting referral info: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to get referral information"
+        }), 500
 
 @app.route("/api/public/global-words", methods=["GET"])
 def get_global_word_count():
