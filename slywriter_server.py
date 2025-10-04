@@ -1029,26 +1029,51 @@ def register():
 
                     # Check for tier bonus milestones (only for referrer)
                     tier_rewards = [
-                        {"tier": 1, "referrals": 1, "words": 1000},
-                        {"tier": 2, "referrals": 2, "words": 2500},
-                        {"tier": 3, "referrals": 5, "words": 5000},
-                        {"tier": 4, "referrals": 10, "words": 10000},
-                        {"tier": 5, "referrals": 20, "words": 25000},
-                        {"tier": 6, "referrals": 50, "words": 50000}
+                        {"tier": 1, "referrals": 1, "words": 1000, "pro_days": 0},
+                        {"tier": 2, "referrals": 2, "words": 2500, "pro_days": 0},
+                        {"tier": 3, "referrals": 3, "words": 0, "pro_days": 7},
+                        {"tier": 4, "referrals": 5, "words": 5000, "pro_days": 0},
+                        {"tier": 5, "referrals": 7, "words": 0, "pro_days": 14},
+                        {"tier": 6, "referrals": 10, "words": 10000, "pro_days": 0},
+                        {"tier": 7, "referrals": 15, "words": 0, "pro_days": 30},
+                        {"tier": 8, "referrals": 20, "words": 25000, "pro_days": 0},
+                        {"tier": 9, "referrals": 30, "words": 0, "pro_days": 60},
+                        {"tier": 10, "referrals": 50, "words": 50000, "pro_days": 90}
                     ]
 
-                    # Calculate total tier bonus
-                    tier_bonus = 0
+                    # Calculate total tier bonus words and Pro days
+                    tier_bonus_words = 0
+                    total_pro_days_awarded = 0
+
+                    # Go through all tiers and accumulate rewards for each tier reached
                     for reward in tier_rewards:
                         if successful_count >= reward['referrals']:
-                            tier_bonus = reward['words']
+                            # Update to highest tier's word bonus
+                            if reward['words'] > 0:
+                                tier_bonus_words = reward['words']
+                            # Add Pro days for this tier if not already awarded
+                            if reward['pro_days'] > 0:
+                                # Check if this tier was already awarded
+                                awarded_tiers = referrals[referrer_id].get('awarded_tiers', [])
+                                if reward['tier'] not in awarded_tiers:
+                                    total_pro_days_awarded += reward['pro_days']
+                                    awarded_tiers.append(reward['tier'])
+                                    referrals[referrer_id]['awarded_tiers'] = awarded_tiers
 
-                    referrals[referrer_id]['tier_bonus_words'] = tier_bonus
+                    referrals[referrer_id]['tier_bonus_words'] = tier_bonus_words
+
+                    # Grant Pro access if they earned new Pro days
+                    if total_pro_days_awarded > 0:
+                        success = grant_pro_access(referrer_id, total_pro_days_awarded)
+                        if success:
+                            print(f"[Referral] Granted {total_pro_days_awarded} days of Pro to {referrer_id}")
+                        else:
+                            print(f"[Referral] User {referrer_id} already has paid plan, skipping Pro reward")
 
                     save_data(REFERRALS_FILE, referrals)
 
                     print(f"[Referral] {email} (referee) awarded 500 words signup bonus")
-                    print(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus} words")
+                    print(f"[Referral] {referrer_id} (referrer) now has {successful_count} referrals, tier bonus: {tier_bonus_words} words")
 
             except Exception as e:
                 print(f"Referral application failed: {e}")
@@ -1164,7 +1189,7 @@ def login():
     
     # Get user plan
     plans = load_data(PLAN_FILE)
-    user_plan = plans.get(user_data['user_id'], 'free')
+    user_plan = get_user_plan(user_data['user_id'])
     
     # Get usage
     usage = load_data(USAGE_FILE)
@@ -1212,7 +1237,7 @@ def verify_token():
     
     # Get user plan and usage
     plans = load_data(PLAN_FILE)
-    user_plan = plans.get(user_data['user_id'], 'free')
+    user_plan = get_user_plan(user_data['user_id'])
     
     usage = load_data(USAGE_FILE)
     words_used = usage.get(user_data['user_id'], 0)
@@ -1368,7 +1393,7 @@ def google_login():
         
         # Get user plan
         plans = load_data(PLAN_FILE)
-        user_plan = plans.get(user_id, 'free')
+        user_plan = get_user_plan(user_id)
         
         # Get usage
         usage = load_data(USAGE_FILE)
@@ -1488,7 +1513,7 @@ def get_profile():
         "email": email,
         "name": user_data['name'],
         "verified": user_data.get('email_verified', False),
-        "plan": plans.get(user_id, 'free'),
+        "plan": get_user_plan(user_id),
         "words_used": usage.get(user_id, 0),
         "referral_code": user_data.get('referral_code', user_id[:8]),  # Use first 8 chars of user_id as fallback
         "created_at": user_data.get('created_at'),
@@ -2005,7 +2030,7 @@ def generate_filler():
             user_data = users[user_email]
             user_id = user_data.get('user_id')
             plans = load_data(PLAN_FILE)
-            plan = plans.get(user_id, 'free').lower()
+            plan = get_user_plan(user_id).lower()
 
             # Check if premium features are available
             if plan == 'free':
@@ -2864,6 +2889,79 @@ def get_billing_plans():
     
     return jsonify({"success": True, "plans": plans})
 
+def get_user_plan(user_id):
+    """
+    Get user's current plan, checking for expiry
+    Returns: plan name (str) - 'free', 'pro', 'premium', 'enterprise'
+    """
+    plans = load_data(PLAN_FILE)
+    plan_data = plans.get(user_id)
+
+    # If no plan data, return free
+    if not plan_data:
+        return 'free'
+
+    # If plan_data is just a string (old format), migrate it
+    if isinstance(plan_data, str):
+        # Old format - no expiry, treat as permanent
+        return plan_data
+
+    # New format: {"plan": "pro", "expires_at": "2025-01-01T00:00:00"}
+    plan_name = plan_data.get('plan', 'free')
+    expires_at = plan_data.get('expires_at')
+
+    # If no expiry date, it's permanent (paid subscription)
+    if not expires_at:
+        return plan_name
+
+    # Check if expired
+    expiry_date = datetime.datetime.fromisoformat(expires_at)
+    if datetime.datetime.utcnow() > expiry_date:
+        # Plan expired, downgrade to free
+        plans[user_id] = 'free'
+        save_data(PLAN_FILE, plans)
+        return 'free'
+
+    return plan_name
+
+def grant_pro_access(user_id, days):
+    """
+    Grant Pro plan access for a specific number of days
+    Used for referral rewards - does NOT override paid subscriptions
+    """
+    plans = load_data(PLAN_FILE)
+    current_plan_data = plans.get(user_id)
+
+    # Calculate new expiry date
+    new_expiry = datetime.datetime.utcnow() + datetime.timedelta(days=days)
+
+    # If user has no plan or is on free, give them Pro
+    if not current_plan_data or current_plan_data == 'free':
+        plans[user_id] = {
+            'plan': 'pro',
+            'expires_at': new_expiry.isoformat(),
+            'source': 'referral_reward'
+        }
+    # If user already has a temp Pro (from referrals), extend it
+    elif isinstance(current_plan_data, dict) and current_plan_data.get('source') == 'referral_reward':
+        current_expiry = datetime.datetime.fromisoformat(current_plan_data['expires_at'])
+        # Extend from current expiry or now, whichever is later
+        extend_from = max(current_expiry, datetime.datetime.utcnow())
+        new_expiry = extend_from + datetime.timedelta(days=days)
+        plans[user_id] = {
+            'plan': 'pro',
+            'expires_at': new_expiry.isoformat(),
+            'source': 'referral_reward'
+        }
+    # If user has a paid subscription (string or dict without source), DON'T override
+    else:
+        # They already have a paid plan, don't downgrade them
+        print(f"[Referral] User {user_id} has paid subscription, not applying Pro reward")
+        return False
+
+    save_data(PLAN_FILE, plans)
+    return True
+
 @app.route("/billing/subscribe", methods=["POST"])
 @require_auth
 def create_subscription():
@@ -2871,18 +2969,24 @@ def create_subscription():
     user_id = request.current_user['user_id']
     data = request.get_json()
     plan_id = data.get('plan_id')
-    
+
     if plan_id not in ['pro', 'premium', 'enterprise']:
         return jsonify({"success": False, "error": "Invalid plan"}), 400
-    
+
     # In a real implementation, integrate with Stripe here
     # For now, just update the plan
     plans = load_data(PLAN_FILE)
-    plans[user_id] = plan_id
+    # Paid subscriptions have NO expiry - they're permanent until user cancels
+    plans[user_id] = {
+        'plan': plan_id,
+        'expires_at': None,  # No expiry for paid plans
+        'source': 'paid_subscription',
+        'subscribed_at': datetime.datetime.utcnow().isoformat()
+    }
     save_data(PLAN_FILE, plans)
-    
+
     log_analytics_event(user_id, 'subscription_created', {'plan': plan_id})
-    
+
     return jsonify({
         "success": True,
         "message": f"Subscribed to {plan_id} plan",
@@ -2899,7 +3003,7 @@ def get_billing_usage():
     plans = load_data(PLAN_FILE)
     usage = load_data(USAGE_FILE)
 
-    plan = plans.get(user_id, 'free')
+    plan = get_user_plan(user_id)
     words_used = usage.get(user_id, 0)
 
     # Get word limit including referral bonuses
@@ -2931,7 +3035,7 @@ def track_ai_generation():
 
     # Get user plan and word limit (including referral bonuses)
     plans = load_data(PLAN_FILE)
-    user_plan = plans.get(user_id, 'free')
+    user_plan = get_user_plan(user_id)
     base_limit, referral_bonus, total_limit = get_user_word_limit(user_id, user_plan)
 
     # Check if user has enough words
@@ -3009,7 +3113,7 @@ def get_user_dashboard():
     
     # Get plan and usage
     plans = load_data(PLAN_FILE)
-    user_plan = plans.get(user_id, 'free')
+    user_plan = get_user_plan(user_id)
     
     usage = load_data(USAGE_FILE)
     words_used = usage.get(user_id, 0)
@@ -3254,14 +3358,18 @@ def get_referral_info():
         signup_bonus = user_referrals.get('signup_bonus_words', 0)
         total_bonus = base_bonus + tier_bonus + signup_bonus
 
-        # Tier information
+        # Tier information - NEW STRUCTURE
         tiers = [
-            {"tier": 1, "referrals": 1, "reward": "1,000 bonus words"},
-            {"tier": 2, "referrals": 2, "reward": "2,500 bonus words"},
-            {"tier": 3, "referrals": 5, "reward": "5,000 bonus words"},
-            {"tier": 4, "referrals": 10, "reward": "10,000 bonus words"},
-            {"tier": 5, "referrals": 20, "reward": "25,000 bonus words"},
-            {"tier": 6, "referrals": 50, "reward": "50,000 bonus words"}
+            {"tier": 1, "referrals": 1, "reward": "1,000 bonus words", "words": 1000, "pro_days": 0},
+            {"tier": 2, "referrals": 2, "reward": "2,500 bonus words", "words": 2500, "pro_days": 0},
+            {"tier": 3, "referrals": 3, "reward": "7 days Pro access", "words": 0, "pro_days": 7},
+            {"tier": 4, "referrals": 5, "reward": "5,000 bonus words", "words": 5000, "pro_days": 0},
+            {"tier": 5, "referrals": 7, "reward": "14 days Pro access", "words": 0, "pro_days": 14},
+            {"tier": 6, "referrals": 10, "reward": "10,000 bonus words", "words": 10000, "pro_days": 0},
+            {"tier": 7, "referrals": 15, "reward": "30 days Pro access", "words": 0, "pro_days": 30},
+            {"tier": 8, "referrals": 20, "reward": "25,000 bonus words", "words": 25000, "pro_days": 0},
+            {"tier": 9, "referrals": 30, "reward": "60 days Pro access", "words": 0, "pro_days": 60},
+            {"tier": 10, "referrals": 50, "reward": "50,000 bonus words + 90 days Pro", "words": 50000, "pro_days": 90}
         ]
 
         # Find current tier and next tier
@@ -3273,6 +3381,9 @@ def get_referral_info():
             elif next_tier is None and successful_referrals < tier['referrals']:
                 next_tier = tier
 
+        # Get Pro days awarded
+        pro_days_awarded = user_referrals.get('tier_pro_days', 0)
+
         return jsonify({
             "success": True,
             "referral_code": referral_code,
@@ -3282,10 +3393,12 @@ def get_referral_info():
                 "pending_referrals": user_referrals.get('pending_referrals', 0)
             },
             "rewards": {
-                "base_bonus_words": base_bonus,  # 500 per referral
-                "tier_bonus_words": tier_bonus,  # Milestone bonuses
-                "signup_bonus_words": signup_bonus,  # One-time referee bonus
-                "total_bonus_words": total_bonus
+                "flat_bonus_per_referral": 500,  # BOTH referrer and referee get this
+                "total_flat_bonus": base_bonus,  # 500 × successful referrals
+                "tier_bonus_words": tier_bonus,  # Milestone word bonuses (referrer only)
+                "tier_pro_days": pro_days_awarded,  # Total Pro days earned (referrer only)
+                "signup_bonus_words": signup_bonus,  # One-time bonus from being referred
+                "total_bonus_words": total_bonus  # Total of all word bonuses
             },
             "progress": {
                 "current_tier": current_tier,
@@ -3293,9 +3406,11 @@ def get_referral_info():
                 "referrals_to_next_tier": next_tier['referrals'] - successful_referrals if next_tier else 0
             },
             "explanation": {
-                "referee_reward": "New users who sign up with your code get 500 bonus words",
-                "referrer_reward": "You get 500 bonus words for each successful referral",
-                "tier_rewards": "Only you (the referrer) get tier milestone bonuses",
+                "flat_reward": "🎁 EVERY referral gives YOU and your FRIEND 500 bonus words each!",
+                "tier_rewards": "🎯 Tier bonuses are EXTRA rewards on top of the flat bonus (referrer only)",
+                "referee_gets": "New users who sign up with your code get 500 bonus words",
+                "referrer_gets": "You get 500 words per referral + tier milestone bonuses",
+                "paid_subscriptions": "Tier Pro rewards won't override paid Pro/Premium subscriptions",
                 "tiers": tiers
             }
         })
@@ -3629,7 +3744,7 @@ def admin_list_users():
         user_id = user_data['user_id']
         user_info = {
             **user_data,
-            'plan': plans.get(user_id, 'free'),
+            'plan': get_user_plan(user_id),
             'words_used': usage.get(user_id, 0)
         }
         # Remove sensitive data
@@ -3796,7 +3911,7 @@ def verify_license():
 
     user_data = users[user_email]
     user_id = user_data.get('user_id')
-    plan = plans.get(user_id, 'free').lower()
+    plan = get_user_plan(user_id).lower()
 
     logger.info(f"User found: {user_email}, Plan: {plan}")
 
@@ -3983,7 +4098,7 @@ def ai_generate():
     user_data = users[user_email]
     user_id = user_data.get('user_id')
     plans = load_data(PLAN_FILE)
-    plan = plans.get(user_id, 'free').lower()
+    plan = get_user_plan(user_id).lower()
 
     # Check AI generation limit
     plan_limits = {
@@ -4082,7 +4197,7 @@ def ai_humanize():
     user_data = users[user_email]
     user_id = user_data.get('user_id')
     plans = load_data(PLAN_FILE)
-    plan = plans.get(user_id, 'free').lower()
+    plan = get_user_plan(user_id).lower()
 
     # Check humanizer limit
     plan_limits = {
