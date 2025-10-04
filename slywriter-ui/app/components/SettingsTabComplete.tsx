@@ -271,6 +271,42 @@ function GeneralSettings({ settings, setSettings }: any) {
           <option value="ja">Japanese</option>
         </select>
       </div>
+
+      {/* Check for Updates (Electron only) */}
+      {typeof window !== 'undefined' && (window as any).electron && (
+        <div className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-white">App Updates</div>
+              <div className="text-xs text-gray-400">Check for the latest version</div>
+            </div>
+            <button
+              onClick={async () => {
+                toast.loading('Checking for updates...', { id: 'manual-update-check' })
+                try {
+                  const result = await (window as any).electron.ipcRenderer.invoke('check-for-updates')
+                  console.log('Manual update check result:', result)
+
+                  // Get current version
+                  const version = await (window as any).electron.ipcRenderer.invoke('get-app-version')
+
+                  // The actual update status will come via IPC events
+                  setTimeout(() => {
+                    toast.dismiss('manual-update-check')
+                  }, 3000)
+                } catch (error) {
+                  console.error('Update check failed:', error)
+                  toast.error('Failed to check for updates', { id: 'manual-update-check' })
+                }
+              }}
+              className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+            >
+              <RefreshCwIcon className="w-4 h-4" />
+              Check for Updates
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
