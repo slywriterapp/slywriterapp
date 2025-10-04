@@ -437,6 +437,15 @@ function createWindow() {
       mainWindow.webContents.openDevTools()
     }
   })
+
+  // Fallback: show window after 5 seconds even if page hasn't loaded
+  // This prevents the app from being invisible if the server is slow/down
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.log('[Window] Showing window after timeout (page may not have loaded)')
+      mainWindow.show()
+    }
+  }, 5000)
   
   // Add error handling for failed page loads
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
@@ -950,39 +959,10 @@ async function handleLicenseError(licenseData) {
   }
 
   if (licenseData.error === 'no_license' || licenseData.error === 'user_not_found') {
-    // Show login page inside the app instead of quitting
-    console.log('[License] No license found - showing login page')
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      // Load the login page
-      const loginUrl = isDev ? 'http://localhost:3000/login' : 'https://slywriter-ui.onrender.com/login'
-      mainWindow.loadURL(loginUrl)
-      mainWindow.show()
-
-      // Show a friendly notification
-      const response = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Welcome to SlyWriter',
-        message: 'Please log in or create an account',
-        detail: 'You can log in using the window that just opened, or visit slywriter.ai in your browser.',
-        buttons: ['Continue in App', 'Open in Browser', 'Quit'],
-        defaultId: 0,
-        cancelId: 2
-      })
-
-      if (response.response === 1) {
-        // Open in browser
-        shell.openExternal('https://www.slywriter.ai')
-      } else if (response.response === 2) {
-        // User chose to quit
-        app.quit()
-        return false
-      }
-      // If "Continue in App" (0), let them use the login page in the window
-    }
-
-    // Don't quit - let them log in
-    return false
+    // Allow app to continue and show login page
+    // The window will load the login page since hasUserConfig will be false
+    console.log('[License] No license found - will show login page')
+    return true // Let the app continue to create windows and show login
   }
 
   // Generic error - allow with warning
