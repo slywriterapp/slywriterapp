@@ -368,13 +368,26 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
 
                 {dashboardData.plan.name === 'free' && (
                   <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-6 border border-purple-500/30">
+                    <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-yellow-400 font-medium text-sm">Important:</p>
+                          <p className="text-yellow-300/80 text-xs mt-1">
+                            Premium access is tied to the email you purchase with (<span className="font-semibold">{dashboardData.user.email}</span>).
+                            Make sure to log in with this email after purchasing to access your subscription.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <h3 className="text-lg font-semibold text-white mb-2">Upgrade Your Plan</h3>
                     <p className="text-gray-300 text-sm mb-4">
                       Unlock premium features like the Humanizer, unlimited AI generation, and more words!
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <a
-                        href="https://buy.stripe.com/your-pro-link"
+                        href={`https://buy.stripe.com/your-pro-link?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-gray-900/50 rounded-lg p-6 border border-blue-500/50 hover:border-blue-400 transition-all cursor-pointer group"
@@ -410,7 +423,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                       </a>
 
                       <a
-                        href="https://buy.stripe.com/your-premium-link"
+                        href={`https://buy.stripe.com/your-premium-link?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-6 border border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer group relative overflow-hidden"
