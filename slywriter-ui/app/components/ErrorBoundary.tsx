@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     // Log to telemetry if available
     if (typeof window !== 'undefined') {
       try {
-        fetch(${RENDER_API_URL}/api/telemetry/error', {
+        fetch(`${RENDER_API_URL}/api/telemetry/error`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
