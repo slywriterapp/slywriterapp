@@ -10,7 +10,7 @@ import {
   ClipboardIcon, ArrowRightIcon
 } from 'lucide-react'
 
-const API_URL = ${RENDER_API_URL}'
+const API_URL = RENDER_API_URL
 
 export default function HumanizerTabSimple() {
   const [inputText, setInputText] = useState('')
