@@ -1,12 +1,12 @@
 # Core Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
 
 # Database
-sqlalchemy==2.0.23
-alembic==1.12.1
-psycopg2-binary==2.9.9
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
@@ -16,10 +16,10 @@ google-auth==2.23.4
 PyJWT==2.8.0
 
 # Payment Processing
-stripe==7.10.0
+stripe==11.4.0
 
 # AI Integration
-openai==1.6.1
+openai==1.59.7
 
 # WebSocket & Async
 websockets==12.0
@@ -31,7 +31,7 @@ keyboard==0.13.5
 pyperclip==1.8.2
 
 # Utils
-pydantic==2.5.2
+pydantic==2.10.5
 python-dateutil==2.8.2
 requests==2.31.0
 
