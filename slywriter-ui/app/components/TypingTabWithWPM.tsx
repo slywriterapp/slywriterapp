@@ -437,8 +437,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           
         case 'typing_started':
           setCountdown(undefined)  // Clear countdown
-          setStatus('⌨️ Typing in progress')
-          
+          setStatus('⌨️ Typing...')
+
           // Show overlay when typing starts with initial stats
           if (typeof window !== 'undefined' && (window as any).electron) {
             if ((window as any).electron.showOverlay) {
@@ -451,7 +451,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               progress: 0,
               wpm: 0,
               charsTyped: 0,
-              status: '⌨️ Typing in progress'
+              status: '⌨️ Typing...'
             })
             }
           }
@@ -506,7 +506,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           if (typeof window !== 'undefined' && window.electron?.ipcRenderer) {
             window.electron.ipcRenderer.send('typing-status', {
               type: 'typing',
-              status: data.data.status || '⌨️ Typing in progress',
+              status: data.data.status || '⌨️ Typing...',
               progress: progressValue,
               wpm: data.data.wpm || 0,
               charsTyped: data.data.chars_typed || 0
@@ -533,12 +533,34 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setPausesTaken(data.data.pauses_taken)
           telemetry.trackTypingMetric('pause', data.data.pauses_taken)
           setStatus(data.data.status)
+
+          // Send to Electron overlay
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
+              type: 'typing',
+              status: data.data.status || '⏸️ Paused',
+              progress: progress,
+              wpm: wpm,
+              charsTyped: charsTyped
+            })
+          }
           break
           
         case 'zone_out':
           setZoneOutActive(true)
           setStatus(data.data.status)
           setTimeout(() => setZoneOutActive(false), data.data.duration * 1000)
+
+          // Send to Electron overlay
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
+              type: 'typing',
+              status: data.data.status || '😴 Zoning out...',
+              progress: progress,
+              wpm: wpm,
+              charsTyped: charsTyped
+            })
+          }
           break
           
         case 'micro_hesitation':
@@ -548,6 +570,17 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         case 'ai_filler':
           setAiFillers(data.data.fillers_used)
           setStatus('AI Filler...')
+
+          // Send to Electron overlay
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
+              type: 'typing',
+              status: '🤖 AI Filler...',
+              progress: progress,
+              wpm: wpm,
+              charsTyped: charsTyped
+            })
+          }
           break
           
         case 'complete':
@@ -603,6 +636,16 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               toast.error(data.data.message)
               setIsTyping(false)
               setStatus('Error')
+
+              // Send to Electron overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'complete',
+                  status: '❌ Error: ' + (data.data.message || 'Unknown error'),
+                  progress: progress,
+                  wpm: wpm
+                })
+              }
               break
               
             case 'typing_complete':
