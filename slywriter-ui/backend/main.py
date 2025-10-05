@@ -1250,11 +1250,9 @@ async def humanize_text(request: AIHumanizeRequest):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
-        prompt = f"Rewrite the following text to make it sound more natural and human-like while preserving the original meaning:
 
-{request.text}"
-        
+        prompt = f"Rewrite the following text to make it sound more natural and human-like while preserving the original meaning:\\n\\n{request.text}"
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
