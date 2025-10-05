@@ -283,10 +283,8 @@ def create_user(db: Session, email: str, plan: str = "Free"):
     # Generate unique referral code
     referral_code = secrets.token_urlsafe(8)
 
-    # Set week start to last Monday
-    today = datetime.now()
-    days_since_monday = today.weekday()
-    week_start = today - timedelta(days=days_since_monday)
+    # Set week start to NOW (user's signup time) - not Monday
+    week_start = datetime.utcnow()
 
     user = User(
         email=email,
@@ -302,24 +300,24 @@ def create_user(db: Session, email: str, plan: str = "Free"):
     return user
 
 def check_weekly_reset(db: Session, user: User):
-    """Check if user's weekly limits should reset"""
+    """Check if user's weekly limits should reset - based on signup date, not Monday"""
     from datetime import datetime, timedelta
 
     if not user.week_start_date:
+        # No week start date - set it to now
+        user.week_start_date = datetime.utcnow()
+        db.commit()
         return False
 
     days_since_week_start = (datetime.utcnow() - user.week_start_date).days
 
     if days_since_week_start >= 7:
-        # Reset weekly counters
-        today = datetime.utcnow()
-        days_since_monday = today.weekday()
-        new_week_start = today - timedelta(days=days_since_monday)
-
-        user.week_start_date = new_week_start
+        # Reset weekly counters - add exactly 7 days to maintain same day of week
+        user.week_start_date = user.week_start_date + timedelta(days=7)
         user.words_used_this_week = 0
         user.ai_gen_used_this_week = 0
         user.humanizer_used_this_week = 0
+        # NOTE: referral_bonus is NOT reset - it's permanent bonus words
 
         db.commit()
         return True
@@ -327,7 +325,7 @@ def check_weekly_reset(db: Session, user: User):
     return False
 
 def get_user_limits(user: User):
-    """Calculate user's limits based on their plan"""
+    """Calculate user's limits based on their plan + referral bonuses"""
     PLAN_LIMITS = {
         "Free": {"words": 500, "ai_gen": 3, "humanizer": 0},
         "Pro": {"words": 5000, "ai_gen": -1, "humanizer": 3},
@@ -336,12 +334,29 @@ def get_user_limits(user: User):
 
     limits = PLAN_LIMITS.get(user.plan, PLAN_LIMITS["Free"])
 
+    # Calculate total words available = plan base + referral bonuses
+    base_words = limits["words"]
+    bonus_words = user.referral_bonus or 0
+
+    if base_words == -1:
+        # Unlimited plan
+        total_words_available = -1
+        words_remaining = "Unlimited"
+        word_limit_display = "Unlimited"
+    else:
+        # Limited plan - add bonuses
+        total_words_available = base_words + bonus_words
+        words_remaining = max(0, total_words_available - user.words_used_this_week)
+        word_limit_display = f"{base_words:,} + {bonus_words:,} bonus = {total_words_available:,} words/week"
+
     return {
-        "word_limit": limits["words"],
-        "word_limit_display": "Unlimited" if limits["words"] == -1 else f"{limits['words']:,} words/week",
+        "word_limit": total_words_available,  # Total including bonuses
+        "word_limit_display": word_limit_display,
         "words_used": user.words_used_this_week,
-        "words_remaining": "Unlimited" if limits["words"] == -1 else max(0, limits["words"] - user.words_used_this_week),
-        "total_words_available": limits["words"],
+        "words_remaining": words_remaining,
+        "total_words_available": total_words_available,
+        "base_word_limit": base_words,  # Plan's base limit
+        "bonus_words": bonus_words,  # Referral bonus words
 
         "ai_gen_limit": limits["ai_gen"],
         "ai_gen_limit_display": "Unlimited" if limits["ai_gen"] == -1 else f"{limits['ai_gen']} uses/week",
