@@ -69,7 +69,11 @@
       "Bash(npx asar extract:*)",
       "Read(//c/Users/brice/AppData/Local/Programs/SlyWriter/resources/**)",
       "Bash(gh release delete-asset:*)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(perl:*)",
+      "WebFetch(domain:slywriterapp.onrender.com)",
+      "Bash(npm audit:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": [],

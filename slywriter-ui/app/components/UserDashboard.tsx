@@ -164,7 +164,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
           {/* Close button - absolute positioned */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 text-white/90 hover:text-white transition-colors bg-black/20 hover:bg-black/30 rounded-full w-8 h-8 flex items-center justify-center"
+            className="absolute top-4 right-4 z-50 text-white/90 hover:text-white transition-colors bg-black/20 hover:bg-black/30 rounded-full w-8 h-8 flex items-center justify-center cursor-pointer"
           >
             ✕
           </button>
@@ -202,7 +202,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === tab
                     ? 'text-purple-400 border-b-2 border-purple-400'
                     : 'text-gray-400 hover:text-white'
@@ -284,7 +284,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                       </p>
                       <button
                         onClick={() => setActiveTab('referrals')}
-                        className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600 transition-colors"
+                        className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600 transition-colors cursor-pointer"
                       >
                         Share & Earn Words
                       </button>
@@ -502,7 +502,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                       />
                       <button
                         onClick={copyReferralCode}
-                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-2 cursor-pointer"
                       >
                         {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                         {copied ? 'Copied!' : 'Copy'}
@@ -528,13 +528,13 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                   <div className="space-y-3">
                     <h4 className="text-white font-medium">Share on Social Media</h4>
                     <div className="flex gap-3">
-                      <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm cursor-pointer">
                         Twitter
                       </button>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm cursor-pointer">
                         Facebook
                       </button>
-                      <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
+                      <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm cursor-pointer">
                         WhatsApp
                       </button>
                     </div>

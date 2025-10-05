@@ -324,19 +324,41 @@ export default function LoginPage() {
   return (
     <>
       {/* Google Sign-In Script */}
-      <Script 
-        src="https://accounts.google.com/gsi/client" 
+      <Script
+        src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
         onLoad={() => {
           // Script loaded, initialization will happen in useEffect
         }}
       />
-      
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+
+      {/* Breathing animation styles */}
+      <style jsx>{`
+        @keyframes breathe {
+          0%, 100% {
+            box-shadow:
+              0 20px 40px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(139, 92, 246, 0.3),
+              0 0 20px rgba(139, 92, 246, 0.15);
+          }
+          50% {
+            box-shadow:
+              0 20px 40px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(139, 92, 246, 0.6),
+              0 0 40px rgba(139, 92, 246, 0.4);
+          }
+        }
+
+        .breathe-border {
+          animation: breathe 3s ease-in-out infinite;
+        }
+      `}</style>
+
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-black/40 backdrop-blur-xl p-8 rounded-2xl shadow-2xl w-full max-w-md border border-purple-500/20"
+        className="bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl p-8 rounded-2xl w-full max-w-md border border-purple-500/30 breathe-border"
       >
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">SlyWriter</h1>
