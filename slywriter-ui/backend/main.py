@@ -1349,8 +1349,7 @@ async def generate_study_questions(request: StudyQuestionsRequest):
         )
         
         questions_text = response.choices[0].message.content
-        questions = [q.strip() for q in questions_text.split('
-') if q.strip()]
+        questions = [q.strip() for q in questions_text.split('\n') if q.strip()]
         
         return {
             "success": True,
