@@ -18,6 +18,7 @@ interface DashboardData {
     user_id: string
     joined: string
     verified: boolean
+    profile_picture?: string
   }
   plan: {
     name: string
@@ -158,32 +159,42 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-purple-500/20"
+          className="relative bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-purple-500/20"
         >
+          {/* Close button - absolute positioned */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 z-10 text-white/90 hover:text-white transition-colors bg-black/20 hover:bg-black/30 rounded-full w-8 h-8 flex items-center justify-center"
+          >
+            ✕
+          </button>
+
           {/* Header */}
           <div className={`bg-gradient-to-r ${getPlanColor(dashboardData.plan.name)} p-6`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
+              {/* Profile Picture or Plan Icon */}
+              {dashboardData.user.profile_picture ? (
+                <img
+                  src={dashboardData.user.profile_picture}
+                  alt={dashboardData.user.name || 'User'}
+                  className="w-16 h-16 rounded-full border-2 border-white/30"
+                />
+              ) : (
                 <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                   {getPlanIcon(dashboardData.plan.name)}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    {dashboardData.user.name || 'User'} Dashboard
-                  </h2>
-                  <p className="text-white/80 text-sm">
-                    {dashboardData.plan.name.charAt(0).toUpperCase() + dashboardData.plan.name.slice(1)} Plan
-                  </p>
-                </div>
+              )}
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-white">
+                  {dashboardData.user.name || 'User'} Dashboard
+                </h2>
+                <p className="text-white/80 text-sm">
+                  {dashboardData.plan.name.charAt(0).toUpperCase() + dashboardData.plan.name.slice(1)} Plan
+                </p>
               </div>
-              <button
-                onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
             </div>
           </div>
+
 
           {/* Tabs */}
           <div className="flex border-b border-gray-800">
