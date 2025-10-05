@@ -455,6 +455,14 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
     # Check for weekly reset
     check_weekly_reset(db, user)
 
+    # Check if premium from referrals has expired
+    if user.premium_until and user.premium_until < datetime.utcnow():
+        # Premium expired, revert to Free if no active Stripe subscription
+        if not user.subscription_status or user.subscription_status != "active":
+            user.plan = "Free"
+            user.premium_until = None
+            db.commit()
+
     # Get user limits
     limits = get_user_limits(user)
 
@@ -466,6 +474,13 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
         "usage": user.words_used_this_week,
         "humanizer_usage": user.humanizer_used_this_week,
         "ai_gen_usage": user.ai_gen_used_this_week,
+        "referrals": {
+            "code": user.referral_code,
+            "count": user.referral_count,
+            "tier_claimed": user.referral_tier_claimed,
+            "bonus_words": user.referral_bonus
+        },
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
         **limits
     }
 
@@ -730,6 +745,93 @@ async def check_reset_endpoint(user_id: str, db: Session = Depends(get_db)):
     return {
         "reset": was_reset,
         "week_start": user.week_start_date.strftime("%Y-%m-%d") if user.week_start_date else None
+    }
+
+# Referral reward claim endpoint
+class ClaimRewardRequest(BaseModel):
+    tier: int
+    email: str
+
+@app.post("/api/referrals/claim-reward")
+async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depends(get_db)):
+    """Claim a referral tier reward"""
+    user = get_user_by_email(db, request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Define tier requirements and rewards
+    TIER_REQUIREMENTS = [
+        {"tier": 1, "referrals": 1, "reward": "1000 words"},
+        {"tier": 2, "referrals": 2, "reward": "2500 words"},
+        {"tier": 3, "referrals": 3, "reward": "1 week Premium"},
+        {"tier": 4, "referrals": 5, "reward": "5000 words"},
+        {"tier": 5, "referrals": 7, "reward": "2 weeks Premium"},
+        {"tier": 6, "referrals": 10, "reward": "10000 words"},
+        {"tier": 7, "referrals": 15, "reward": "1 month Premium"},
+        {"tier": 8, "referrals": 20, "reward": "25000 words"},
+        {"tier": 9, "referrals": 30, "reward": "2 months Premium"},
+        {"tier": 10, "referrals": 50, "reward": "6 months Premium"},
+    ]
+
+    tier_data = next((t for t in TIER_REQUIREMENTS if t["tier"] == request.tier), None)
+    if not tier_data:
+        raise HTTPException(status_code=400, detail="Invalid tier")
+
+    # Check if user has enough referrals
+    if user.referral_count < tier_data["referrals"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient referrals. Need {tier_data['referrals']}, have {user.referral_count}"
+        )
+
+    # Check if tier already claimed
+    if user.referral_tier_claimed >= request.tier:
+        raise HTTPException(status_code=400, detail="Tier already claimed")
+
+    # Apply the reward
+    reward_text = tier_data["reward"]
+
+    if "words" in reward_text:
+        # Extract word count
+        import re
+        match = re.search(r'(\d+)', reward_text)
+        if match:
+            words = int(match.group(1))
+            user.referral_bonus += words
+            result_message = f"Added {words:,} bonus words"
+    elif "Premium" in reward_text:
+        # Extract duration
+        import re
+        match = re.search(r'(\d+)\s*(week|month)', reward_text)
+        if match:
+            amount = int(match.group(1))
+            unit = match.group(2)
+            days = amount * 7 if unit == "week" else amount * 30
+
+            # Calculate new premium_until date
+            current_end = user.premium_until if user.premium_until and user.premium_until > datetime.utcnow() else datetime.utcnow()
+            user.premium_until = current_end + timedelta(days=days)
+
+            # Update plan to Premium if not already
+            if user.plan != "Premium":
+                user.plan = "Premium"
+
+            result_message = f"Premium extended to {user.premium_until.strftime('%Y-%m-%d')}"
+    else:
+        result_message = "Unknown reward type"
+
+    # Update claimed tier
+    user.referral_tier_claimed = request.tier
+    db.commit()
+
+    return {
+        "success": True,
+        "message": result_message,
+        "tier": request.tier,
+        "reward": reward_text,
+        "bonus_words": user.referral_bonus,
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+        "plan": user.plan
     }
 
 # Global statistics endpoint

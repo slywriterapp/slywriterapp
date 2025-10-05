@@ -29,35 +29,23 @@ export default function MissionTab() {
   const [currentTier, setCurrentTier] = useState(0)
   const [copied, setCopied] = useState(false)
   
-  // Load referral data from API
+  // Load referral data from localStorage (synced from backend on login)
   useEffect(() => {
-    const fetchReferralData = async () => {
+    const userData = localStorage.getItem('user_data')
+    if (userData) {
       try {
-        const token = localStorage.getItem('token')
-        if (!token) return
+        const user = JSON.parse(userData)
+        setReferralCode(user.referrals?.code || '')
+        setTotalReferrals(user.referrals?.count || 0)
+        setCurrentTier(user.referrals?.tier_claimed || 0)
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/user-dashboard`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setReferralCode(data.referrals?.code || '')
-          setTotalReferrals(data.referrals?.successful || 0)
-          setCurrentTier(data.referrals?.tier || 0)
-
-          // Calculate donations (10 cents per referral)
-          const referralDonations = (data.referrals?.successful || 0) * 0.1
-          setTotalDonated(referralDonations)
-        }
+        // Calculate donations (10 cents per referral)
+        const referralDonations = (user.referrals?.count || 0) * 0.1
+        setTotalDonated(referralDonations)
       } catch (error) {
-        console.error('Failed to fetch referral data:', error)
+        console.error('Failed to parse user data:', error)
       }
     }
-
-    fetchReferralData()
   }, [])
   
   // Battle Pass Tiers
@@ -377,37 +365,51 @@ export default function MissionTab() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => {
-                            // Claim the reward
-                            const referralData = JSON.parse(localStorage.getItem('slywriter-referrals') || '{}')
-                            referralData.claimedTier = tier.tier
-                            
-                            // Apply the reward
-                            if (tier.reward.includes('words')) {
-                              const match = tier.reward.match(/\d+,?\d*/)
-                              const words = match ? parseInt(match[0].replace(',', '')) : 0
-                              const usage = JSON.parse(localStorage.getItem('slywriter-usage') || '{}')
-                              usage.bonusWords = (usage.bonusWords || 0) + words
-                              localStorage.setItem('slywriter-usage', JSON.stringify(usage))
-                              toast.success(`🎁 Claimed ${words.toLocaleString()} bonus words!`)
-                            } else if (tier.reward.includes('Premium')) {
-                              // Add premium time
-                              const match = tier.reward.match(/(\d+)\s*(week|month)/)
-                              if (match) {
-                                const amount = parseInt(match[1])
-                                const unit = match[2]
-                                const days = unit === 'week' ? amount * 7 : amount * 30
-                                const subscription = JSON.parse(localStorage.getItem('slywriter-subscription') || '{}')
-                                const currentEnd = subscription.premiumUntil ? new Date(subscription.premiumUntil) : new Date()
-                                const newEnd = new Date(Math.max(currentEnd.getTime(), Date.now()) + days * 86400000)
-                                subscription.premiumUntil = newEnd.toISOString()
-                                localStorage.setItem('slywriter-subscription', JSON.stringify(subscription))
-                                toast.success(`🎁 Claimed ${tier.reward}! Premium extended to ${newEnd.toLocaleDateString()}`)
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem('token')
+                              const userData = JSON.parse(localStorage.getItem('user_data') || '{}')
+                              const email = userData.email
+
+                              if (!email) {
+                                toast.error('Please log in to claim rewards')
+                                return
                               }
+
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/referrals/claim-reward`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                  tier: tier.tier,
+                                  email: email
+                                })
+                              })
+
+                              const data = await response.json()
+                              if (response.ok) {
+                                setCurrentTier(tier.tier)
+                                toast.success(`🎁 ${data.message}!`)
+
+                                // Refresh user data to get updated bonus words and premium status
+                                const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/login`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ email: email })
+                                })
+                                const userData = await userResponse.json()
+                                if (userData.user) {
+                                  localStorage.setItem('user_data', JSON.stringify(userData.user))
+                                }
+                              } else {
+                                toast.error(data.detail || 'Failed to claim reward')
+                              }
+                            } catch (error) {
+                              console.error('Failed to claim reward:', error)
+                              toast.error('Failed to claim reward')
                             }
-                            
-                            localStorage.setItem('slywriter-referrals', JSON.stringify(referralData))
-                            setCurrentTier(tier.tier)
                           }}
                           className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold"
                         >

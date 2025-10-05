@@ -57,6 +57,10 @@ class User(Base):
     referred_by = Column(String, nullable=True)
     referral_bonus = Column(Integer, default=0)
     referral_count = Column(Integer, default=0)
+    referral_tier_claimed = Column(Integer, default=0)  # Highest tier claimed
+
+    # Premium from referrals
+    premium_until = Column(DateTime, nullable=True)  # Premium expiration from referral rewards
     
     # Settings
     settings = Column(JSON, default={})
