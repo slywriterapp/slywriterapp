@@ -18,20 +18,41 @@ export default function SplashScreen() {
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center"
-          style={{ backgroundColor: '#191919' }}
-        >
+        <>
+          <style jsx>{`
+            @keyframes breathe {
+              0%, 100% {
+                box-shadow:
+                  0 30px 60px rgba(0, 0, 0, 0.8),
+                  0 0 0 1px rgba(139, 92, 246, 0.3),
+                  0 0 30px rgba(139, 92, 246, 0.2);
+              }
+              50% {
+                box-shadow:
+                  0 30px 60px rgba(0, 0, 0, 0.8),
+                  0 0 0 1px rgba(139, 92, 246, 0.7),
+                  0 0 60px rgba(139, 92, 246, 0.5);
+              }
+            }
+
+            .breathe-glow {
+              animation: breathe 3s ease-in-out infinite;
+            }
+          `}</style>
+
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.1, opacity: 0 }}
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex flex-col items-center gap-6"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950"
           >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.1, opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex flex-col items-center gap-6 p-12 rounded-3xl bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-xl breathe-glow"
+            >
             {/* Logo */}
             <motion.img
               src="/slywriter_logo.png"
@@ -95,6 +116,7 @@ export default function SplashScreen() {
             </motion.div>
           </motion.div>
         </motion.div>
+        </>
       )}
     </AnimatePresence>
   )

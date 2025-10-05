@@ -453,12 +453,59 @@ function SlyWriterApp() {
   // Show loading screen while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Checking authentication...</p>
+      <>
+        <style jsx>{`
+          @keyframes breathe {
+            0%, 100% {
+              box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(139, 92, 246, 0.3),
+                0 0 20px rgba(139, 92, 246, 0.15);
+            }
+            50% {
+              box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(139, 92, 246, 0.6),
+                0 0 40px rgba(139, 92, 246, 0.4);
+            }
+          }
+
+          .breathe-border {
+            animation: breathe 3s ease-in-out infinite;
+          }
+
+          @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+          }
+
+          .shimmer {
+            background: linear-gradient(
+              90deg,
+              rgba(139, 92, 246, 0) 0%,
+              rgba(139, 92, 246, 0.3) 50%,
+              rgba(139, 92, 246, 0) 100%
+            );
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+          }
+        `}</style>
+
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+          <div className="relative">
+            <div className="bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl p-12 rounded-2xl border border-purple-500/30 breathe-border">
+              <div className="text-center">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 shimmer rounded-full" />
+                  <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto relative z-10"></div>
+                </div>
+                <p className="text-white text-xl font-medium mb-2">Loading SlyWriter</p>
+                <p className="text-gray-400 text-sm">Checking authentication...</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
   

@@ -77,23 +77,59 @@ export default function AuthRedirectPage() {
   }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
-      <div className="text-center max-w-2xl p-8">
-        <Loader2 className="w-12 h-12 text-white animate-spin mx-auto mb-4" />
-        <p className="text-white text-lg mb-6">Completing sign in...</p>
-        
-        {/* Debug info */}
-        {debugInfo.length > 0 && (
-          <div className="bg-black/50 backdrop-blur p-4 rounded-lg text-left">
-            <p className="text-yellow-400 font-mono text-xs mb-2">Debug Info:</p>
-            {debugInfo.map((info, index) => (
-              <p key={index} className="text-gray-300 font-mono text-xs">
-                {info}
-              </p>
-            ))}
+    <>
+      {/* Breathing animation styles */}
+      <style jsx>{`
+        @keyframes breathe {
+          0%, 100% {
+            box-shadow:
+              0 20px 40px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(139, 92, 246, 0.3),
+              0 0 20px rgba(139, 92, 246, 0.15);
+          }
+          50% {
+            box-shadow:
+              0 20px 40px rgba(0, 0, 0, 0.6),
+              0 0 0 1px rgba(139, 92, 246, 0.6),
+              0 0 40px rgba(139, 92, 246, 0.4);
+          }
+        }
+
+        .breathe-border {
+          animation: breathe 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+          0% { background-position: -1000px 0; }
+          100% { background-position: 1000px 0; }
+        }
+
+        .shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(139, 92, 246, 0) 0%,
+            rgba(139, 92, 246, 0.3) 50%,
+            rgba(139, 92, 246, 0) 100%
+          );
+          background-size: 1000px 100%;
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
+
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+        <div className="relative">
+          <div className="bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-xl p-12 rounded-2xl border border-purple-500/30 breathe-border">
+            <div className="text-center">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 shimmer rounded-full" />
+                <Loader2 className="w-16 h-16 text-purple-400 animate-spin mx-auto relative z-10" />
+              </div>
+              <p className="text-white text-xl font-medium mb-2">Completing sign in</p>
+              <p className="text-gray-400 text-sm">Please wait...</p>
+            </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
