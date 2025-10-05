@@ -972,35 +972,33 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
         logger.info(f"Determined plan: {plan}")
 
-        # Find user by email and update plan
+        # Get or create user
         user = get_user_by_email(db, customer_email)
-        if user:
-            logger.info(f"User found in database: {user.email}")
-            user.plan = plan
-            user.stripe_customer_id = session.get("customer")
-            user.stripe_subscription_id = session.get("subscription")
+        if not user:
+            logger.info(f"User not found in database, creating new user: {customer_email}")
+            user = create_user(db, customer_email, plan="Free")
+            logger.info(f"Created new user: {customer_email}")
 
-            # Get subscription details
-            subscription_id = session.get("subscription")
-            if subscription_id:
-                try:
-                    subscription = stripe.Subscription.retrieve(subscription_id)
-                    user.subscription_status = subscription.status
-                    user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
-                    user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
-                    logger.info(f"Subscription retrieved: {subscription.id}, status: {subscription.status}")
-                except Exception as e:
-                    logger.error(f"Error retrieving subscription: {e}")
+        # Update plan and subscription details
+        logger.info(f"Updating user {user.email} to {plan} plan")
+        user.plan = plan
+        user.stripe_customer_id = session.get("customer")
+        user.stripe_subscription_id = session.get("subscription")
 
-            db.commit()
-            logger.info(f"✅ Successfully upgraded user {customer_email} to {plan} plan")
-        else:
-            logger.error(f"❌ User NOT found in database for email: {customer_email}")
-            # List all users to debug
-            all_users = db.query(User).all()
-            logger.error(f"Database has {len(all_users)} users")
-            for u in all_users[:5]:  # Log first 5 users
-                logger.error(f"  - {u.email}")
+        # Get subscription details
+        subscription_id = session.get("subscription")
+        if subscription_id:
+            try:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                user.subscription_status = subscription.status
+                user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
+                user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+                logger.info(f"Subscription retrieved: {subscription.id}, status: {subscription.status}")
+            except Exception as e:
+                logger.error(f"Error retrieving subscription: {e}")
+
+        db.commit()
+        logger.info(f"✅ Successfully upgraded user {customer_email} to {plan} plan")
 
     elif event_type == "customer.subscription.updated":
         subscription = event["data"]["object"]
@@ -1051,10 +1049,12 @@ async def sync_subscription(request: Request, db: Session = Depends(get_db)):
 
         logger.info(f"Manual subscription sync requested for: {email}")
 
-        # Get user
+        # Get or create user
         user = get_user_by_email(db, email)
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            logger.info(f"User not found in database, creating new user: {email}")
+            user = create_user(db, email, plan="Free")
+            logger.info(f"Created new user: {email}")
 
         # Search for customer in Stripe by email
         customers = stripe.Customer.list(email=email, limit=1)
