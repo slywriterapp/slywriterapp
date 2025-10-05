@@ -325,7 +325,7 @@ def check_weekly_reset(db: Session, user: User):
     return False
 
 def get_user_limits(user: User):
-    """Calculate user's limits based on their plan + referral bonuses"""
+    """Calculate user's limits - bonus words consumed first, then weekly allowance"""
     PLAN_LIMITS = {
         "Free": {"words": 500, "ai_gen": 3, "humanizer": 0},
         "Pro": {"words": 5000, "ai_gen": -1, "humanizer": 3},
@@ -334,7 +334,7 @@ def get_user_limits(user: User):
 
     limits = PLAN_LIMITS.get(user.plan, PLAN_LIMITS["Free"])
 
-    # Calculate total words available = plan base + referral bonuses
+    # Calculate words
     base_words = limits["words"]
     bonus_words = user.referral_bonus or 0
 
@@ -344,19 +344,24 @@ def get_user_limits(user: User):
         words_remaining = "Unlimited"
         word_limit_display = "Unlimited"
     else:
-        # Limited plan - add bonuses
-        total_words_available = base_words + bonus_words
-        words_remaining = max(0, total_words_available - user.words_used_this_week)
-        word_limit_display = f"{base_words:,} + {bonus_words:,} bonus = {total_words_available:,} words/week"
+        # Total available = bonus (consumed first) + (base - used_this_week)
+        weekly_remaining = max(0, base_words - user.words_used_this_week)
+        total_words_available = bonus_words + weekly_remaining
+        words_remaining = total_words_available
+
+        if bonus_words > 0:
+            word_limit_display = f"{bonus_words:,} bonus + {weekly_remaining:,}/{base_words:,} weekly = {total_words_available:,} total"
+        else:
+            word_limit_display = f"{weekly_remaining:,}/{base_words:,} words this week"
 
     return {
-        "word_limit": total_words_available,  # Total including bonuses
+        "word_limit": base_words,  # Weekly base limit
         "word_limit_display": word_limit_display,
         "words_used": user.words_used_this_week,
         "words_remaining": words_remaining,
         "total_words_available": total_words_available,
         "base_word_limit": base_words,  # Plan's base limit
-        "bonus_words": bonus_words,  # Referral bonus words
+        "bonus_words": bonus_words,  # Current referral bonus (decreases as used)
 
         "ai_gen_limit": limits["ai_gen"],
         "ai_gen_limit_display": "Unlimited" if limits["ai_gen"] == -1 else f"{limits['ai_gen']} uses/week",
@@ -372,9 +377,24 @@ def get_user_limits(user: User):
     }
 
 def track_word_usage(db: Session, user: User, words: int):
-    """Track word usage for a user"""
-    user.words_used_this_week += words
+    """Track word usage - consumes bonus words first, then weekly allowance"""
+    # Always increment total lifetime words
     user.total_words_typed += words
+
+    # Consume bonus words first
+    if user.referral_bonus and user.referral_bonus > 0:
+        if words <= user.referral_bonus:
+            # All words consumed from bonus
+            user.referral_bonus -= words
+        else:
+            # Consume all remaining bonus, rest from weekly allowance
+            remaining_words = words - user.referral_bonus
+            user.referral_bonus = 0
+            user.words_used_this_week += remaining_words
+    else:
+        # No bonus words, use weekly allowance
+        user.words_used_this_week += words
+
     db.commit()
     return user
 
