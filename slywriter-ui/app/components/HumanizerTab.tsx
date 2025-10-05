@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
@@ -14,7 +15,7 @@ import {
 
 const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   ? 'http://localhost:5000'
-  : 'https://slywriterapp.onrender.com'
+  : ${RENDER_API_URL}'
 
 export default function HumanizerTab() {
   const { user, usageLimits, canUseHumanizer, trackHumanizerUsage } = useAuth()

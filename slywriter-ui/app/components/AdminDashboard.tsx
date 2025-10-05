@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import axios from 'axios'
-import { 
+import { RENDER_API_URL } from '../config/api'
+import {
   UserIcon, ActivityIcon, AlertTriangleIcon, TrendingUpIcon,
   DatabaseIcon, DownloadIcon, RefreshCwIcon, SearchIcon,
   BarChart3Icon, PieChartIcon, CalendarIcon, ClockIcon,
@@ -81,15 +82,15 @@ export default function AdminDashboard() {
     setLoading(true)
     try {
       // Load stats from cloud
-      const statsRes = await axios.get('https://slywriterapp.onrender.com/api/admin/telemetry/stats', {
+      const statsRes = await axios.get(`${RENDER_API_URL}/api/admin/telemetry/stats`, {
         headers: {
           'X-Admin-Password': sessionStorage.getItem('adminPassword') || password
         }
       })
       setStats(statsRes.data)
-      
+
       // Load recent entries from cloud
-      const entriesRes = await axios.get('https://slywriterapp.onrender.com/api/admin/telemetry?limit=50', {
+      const entriesRes = await axios.get(`${RENDER_API_URL}/api/admin/telemetry?limit=50`, {
         headers: {
           'X-Admin-Password': sessionStorage.getItem('adminPassword') || password
         }
@@ -107,7 +108,7 @@ export default function AdminDashboard() {
 
   const exportData = async () => {
     try {
-      const res = await axios.get('https://slywriterapp.onrender.com/api/admin/telemetry/export', {
+      const res = await axios.get(`${RENDER_API_URL}/api/admin/telemetry/export`, {
         headers: {
           'X-Admin-Password': sessionStorage.getItem('adminPassword') || password
         }

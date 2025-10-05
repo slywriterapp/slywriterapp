@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { 
@@ -13,7 +14,7 @@ import {
   RocketIcon, TargetIcon, CheckCircleIcon, XCircleIcon, ClockIcon
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = ${RENDER_API_URL}'
 
 // Learning style quiz questions
 const QUIZ_QUESTIONS = [

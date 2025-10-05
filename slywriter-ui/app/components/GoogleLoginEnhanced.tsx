@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import { 
   LogInIcon, LogOutIcon, UserIcon, GiftIcon, 
   CheckCircleIcon, XCircleIcon, CrownIcon, KeyIcon
@@ -11,7 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || ${RENDER_API_URL}'
 
 export default function GoogleLoginEnhanced() {
   const { user, login, logout, isLoading } = useAuth()

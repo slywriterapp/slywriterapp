@@ -24,7 +24,23 @@ interface SettingsSection {
 export default function SettingsTabComplete() {
   const { user, logout } = useAuth()
   const [activeSection, setActiveSection] = useState('general')
-  
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+
+  // Get app version from Electron
+  useEffect(() => {
+    const getVersion = async () => {
+      if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+        try {
+          const version = await (window as any).electron.ipcRenderer.invoke('get-app-version')
+          setAppVersion(version)
+        } catch (error) {
+          console.error('Failed to get app version:', error)
+        }
+      }
+    }
+    getVersion()
+  }, [])
+
   // Settings state
   const [settings, setSettings] = useState({
     // General
@@ -64,9 +80,6 @@ export default function SettingsTabComplete() {
     { id: 'overlay', title: 'Overlay', icon: MonitorIcon, description: 'Floating window' },
     { id: 'typing', title: 'Typing', icon: KeyboardIcon, description: 'Automation settings' },
     { id: 'notifications', title: 'Notifications', icon: BellIcon, description: 'Alerts & sounds' },
-    { id: 'schedule', title: 'Schedule', icon: ClockIcon, description: 'Automation timing' },
-    { id: 'account', title: 'Account', icon: UserIcon, description: 'Profile & plan' },
-    { id: 'referrals', title: 'Referrals', icon: GiftIcon, description: 'Invite friends' },
     { id: 'privacy', title: 'Privacy', icon: ShieldIcon, description: 'Security settings' },
     { id: 'advanced', title: 'Advanced', icon: SettingsIcon, description: 'Expert options' }
   ]
@@ -272,6 +285,16 @@ function GeneralSettings({ settings, setSettings }: any) {
         </select>
       </div>
 
+      {/* App Version Display (Electron only) */}
+      {typeof window !== 'undefined' && (window as any).electron && appVersion && (
+        <div className="p-3 bg-gray-900/50 border border-gray-700/50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-gray-400">Running on version:</div>
+            <div className="text-sm font-semibold text-purple-400">{appVersion}</div>
+          </div>
+        </div>
+      )}
+
       {/* Check for Updates (Electron only) */}
       {typeof window !== 'undefined' && (window as any).electron && (
         <div className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-lg">
@@ -286,9 +309,6 @@ function GeneralSettings({ settings, setSettings }: any) {
                 try {
                   const result = await (window as any).electron.ipcRenderer.invoke('check-for-updates')
                   console.log('Manual update check result:', result)
-
-                  // Get current version
-                  const version = await (window as any).electron.ipcRenderer.invoke('get-app-version')
 
                   // The actual update status will come via IPC events
                   setTimeout(() => {
@@ -614,161 +634,22 @@ function ReferralSettings({ user }: any) {
 
 // Privacy Settings Component
 function PrivacySettings({ settings, setSettings }: any) {
-  const [betaTelemetryEnabled, setBetaTelemetryEnabled] = useState(true)
-  const [betaUserId, setBetaUserId] = useState('')
-  
-  useEffect(() => {
-    // Load beta telemetry settings
-    const enabled = localStorage.getItem('betaTelemetryEnabled') !== 'false'
-    setBetaTelemetryEnabled(enabled)
-    setBetaUserId(localStorage.getItem('betaUserId') || 'Not generated')
-  }, [])
-  
-  const toggleBetaTelemetry = (enabled: boolean) => {
-    setBetaTelemetryEnabled(enabled)
-    localStorage.setItem('betaTelemetryEnabled', enabled.toString())
-    toast.success(enabled ? 'Beta telemetry enabled' : 'Beta telemetry disabled')
-  }
-  
-  const exportMyData = () => {
-    const data = JSON.parse(localStorage.getItem('betaTelemetryData') || '[]')
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `my_telemetry_data_${new Date().toISOString()}.json`
-    a.click()
-    toast.success('Your data exported successfully')
-  }
-  
-  const clearMyData = () => {
-    if (confirm('This will clear all your locally stored telemetry data. Continue?')) {
-      localStorage.removeItem('betaTelemetryData')
-      toast.success('Your telemetry data has been cleared')
-    }
-  }
-  
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold text-white mb-4">Privacy & Security</h3>
-      
-      {/* Beta Testing Notice */}
-      <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-4">
+
+      {/* Privacy Notice */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
         <div className="flex items-start gap-3">
-          <AlertCircleIcon className="w-5 h-5 text-orange-400 mt-0.5" />
+          <ShieldIcon className="w-5 h-5 text-purple-400 mt-0.5" />
           <div>
-            <div className="text-sm font-semibold text-orange-300 mb-1">Beta Testing Mode Active</div>
+            <div className="text-sm font-semibold text-purple-300 mb-1">Your Privacy Matters</div>
             <div className="text-xs text-gray-300">
-              You're using a beta version that collects anonymous usage data to improve the app.
-              No personal information or typed content is ever collected.
+              SlyWriter respects your privacy. All typing data is processed locally on your device.
+              We never collect or store your typed content.
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Beta Telemetry Control */}
-      <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-white flex items-center gap-2">
-              Beta Telemetry
-              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded">BETA</span>
-            </div>
-            <div className="text-xs text-gray-400">Anonymous app usage and error tracking</div>
-          </div>
-          <button
-            onClick={() => toggleBetaTelemetry(!betaTelemetryEnabled)}
-            className={`relative w-14 h-7 rounded-full transition-colors ${
-              betaTelemetryEnabled ? 'bg-green-500' : 'bg-gray-600'
-            }`}
-          >
-            <div
-              className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                betaTelemetryEnabled ? 'translate-x-7' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-        
-        {/* Beta User ID */}
-        <div className="pt-2 border-t border-gray-700">
-          <div className="text-xs text-gray-400 mb-1">Your Anonymous Beta ID:</div>
-          <code className="text-xs text-purple-300 font-mono bg-gray-900 px-2 py-1 rounded">
-            {betaUserId}
-          </code>
-        </div>
-        
-        {/* Data Actions */}
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={exportMyData}
-            className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-xs text-white rounded transition-colors"
-          >
-            Export My Data
-          </button>
-          <button
-            onClick={clearMyData}
-            className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-xs text-white rounded transition-colors"
-          >
-            Clear My Data
-          </button>
-        </div>
-      </div>
-      
-      {/* Original Data Collection */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Usage Statistics</div>
-          <div className="text-xs text-gray-400">Local statistics about your typing sessions</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.dataCollection}
-          onChange={(e) => setSettings({...settings, dataCollection: e.target.checked})}
-          className="accent-purple-500"
-        />
-      </div>
-      
-      {/* Crash Reports */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Crash Reports</div>
-          <div className="text-xs text-gray-400">Send crash reports to help fix bugs</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.crashReports}
-          onChange={(e) => setSettings({...settings, crashReports: e.target.checked})}
-          className="accent-purple-500"
-        />
-      </div>
-      
-      {/* Encrypt Local Data */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Encrypt Local Data</div>
-          <div className="text-xs text-gray-400">Encrypt data stored on your device</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.encryptLocal}
-          onChange={(e) => setSettings({...settings, encryptLocal: e.target.checked})}
-          className="accent-purple-500"
-        />
-      </div>
-      
-      {/* Clear on Exit */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Clear Data on Exit</div>
-          <div className="text-xs text-gray-400">Remove temporary data when closing app</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.clearOnExit}
-          onChange={(e) => setSettings({...settings, clearOnExit: e.target.checked})}
-          className="accent-purple-500"
-        />
       </div>
       
       {/* Data Management */}
@@ -846,35 +727,7 @@ function AdvancedSettings({ settings, setSettings }: any) {
           <option value="debug">Debug</option>
         </select>
       </div>
-      
-      {/* Experimental Features */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Experimental Features</div>
-          <div className="text-xs text-gray-400">Enable beta features (may be unstable)</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.experimentalFeatures}
-          onChange={(e) => setSettings({...settings, experimentalFeatures: e.target.checked})}
-          className="accent-purple-500"
-        />
-      </div>
-      
-      {/* Developer Mode */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Developer Mode</div>
-          <div className="text-xs text-gray-400">Show debug information and tools</div>
-        </div>
-        <input
-          type="checkbox"
-          checked={settings.developerMode}
-          onChange={(e) => setSettings({...settings, developerMode: e.target.checked})}
-          className="accent-purple-500"
-        />
-      </div>
-      
+
       {/* Reset */}
       <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
         <h4 className="text-sm font-medium text-yellow-300 mb-2">Danger Zone</h4>

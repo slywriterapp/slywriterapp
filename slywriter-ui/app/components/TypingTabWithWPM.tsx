@@ -8,12 +8,13 @@ import toast from 'react-hot-toast'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useHotkeys as useCustomHotkeys } from '../hooks/useHotkeys'
 import { FirstTimeHelper, FeatureTooltip, QuickTip } from './FeatureTooltips'
-import { 
+import OutOfWordsModal from './OutOfWordsModal'
+import {
   PlayIcon, PauseIcon, StopCircleIcon, SparklesIcon,
   FileTextIcon, CopyIcon, TrashIcon, CheckIcon,
   ClockIcon, TrendingUpIcon, TargetIcon, EyeIcon,
   DownloadIcon, UploadIcon, SaveIcon, RotateCcwIcon,
-  ZapIcon, BrainIcon, ShieldIcon, TimerIcon, 
+  ZapIcon, BrainIcon, ShieldIcon, TimerIcon,
   KeyboardIcon, GaugeIcon, AlertCircleIcon, CrownIcon,
   RefreshCwIcon, ActivityIcon, ChevronUpIcon, ChevronDownIcon,
   SlidersIcon
@@ -93,6 +94,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   const [showStats, setShowStats] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showOutOfWordsModal, setShowOutOfWordsModal] = useState(false)
   
   // WPM Test state
   const [showWpmTest, setShowWpmTest] = useState(false)
@@ -804,7 +806,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     // Check word limit for authenticated users
     const wordCount = textToType.split(/\s+/).length
     if (user && (!canType || wordCount > wordsRemaining)) {
-      toast.error(`Word limit exceeded! ${wordsRemaining} words remaining today`)
+      setShowOutOfWordsModal(true)
       return
     }
     
@@ -1825,27 +1827,31 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             </div>
           </label>
           
-          {/* AI Filler - PREMIUM FEATURE */}
-          <label className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-lg cursor-pointer hover:from-purple-900/40 hover:to-pink-900/40 transition-all group relative border border-purple-500/30">
+          {/* AI Filler - PRO FEATURE */}
+          <label className={`flex items-center gap-3 p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-lg transition-all group relative border border-purple-500/30 ${!isPremium ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:from-purple-900/40 hover:to-pink-900/40'}`}>
             <input
               type="checkbox"
-              checked={aiFillerEnabled}
+              checked={aiFillerEnabled && isPremium}
               onChange={(e) => {
+                if (!isPremium) {
+                  toast.error('AI Filler requires Pro or Premium plan', { icon: '🔒' })
+                  return
+                }
                 setAiFillerEnabled(e.target.checked)
                 localStorage.setItem('slywriter-ai-filler', e.target.checked.toString())
                 if (e.target.checked) {
-                  toast.success('🎭 Premium AI Filler activated!', { icon: '👑' })
+                  toast.success('🎭 AI Filler activated!', { icon: '✨' })
                 }
               }}
               className="w-5 h-5 text-purple-500 rounded"
-              disabled={isTyping}
+              disabled={isTyping || !isPremium}
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-white font-medium text-sm">AI Filler</span>
-                <span className="text-xs bg-gradient-to-r from-purple-500 to-pink-500 px-2 py-0.5 rounded-full text-white font-bold">PREMIUM</span>
+                <span className={`font-medium text-sm ${!isPremium ? 'text-gray-400' : 'text-white'}`}>AI Filler</span>
+                <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-0.5 rounded-full text-white font-bold">PRO</span>
               </div>
-              <p className="text-xs text-gray-400">Realistic drafts</p>
+              <p className="text-xs text-gray-400">Realistic drafts{!isPremium ? ' - Requires Pro or Premium' : ''}</p>
             </div>
             {/* Premium Tooltip */}
             <div className="absolute bottom-full right-0 mb-2 w-80 p-3 bg-gradient-to-br from-purple-900 to-pink-900 rounded-lg shadow-xl border border-purple-500/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -2195,6 +2201,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         accept=".txt"
         onChange={loadFile}
         className="hidden"
+      />
+
+      {/* Out of Words Modal */}
+      <OutOfWordsModal
+        isOpen={showOutOfWordsModal}
+        onClose={() => setShowOutOfWordsModal(false)}
+        wordsRemaining={wordsRemaining}
+        userEmail={user?.email || ''}
+        referralCode={user?.referralCode || ''}
       />
     </div>
   )

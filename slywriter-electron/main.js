@@ -1,3 +1,9 @@
+// TODO: Enable signature verification after purchasing code signing certificate
+// Temporarily disabled until EV certificate is purchased ($249/year from SSL.com)
+// SECURITY: This allows unsigned updates - MUST enable after getting certificate
+// Steps: 1) Purchase cert, 2) Sign builds, 3) Remove this line
+process.env.ELECTRON_UPDATER_ALLOW_UNSIGNED = 'true'
+
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard, shell, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -396,6 +402,7 @@ function createWindow() {
     frame: true,
     backgroundColor: '#000000',
     show: false, // Don't show until splash is done
+    autoHideMenuBar: true, // Hide menu bar for production (File, Edit, View, etc.)
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -405,6 +412,44 @@ function createWindow() {
     icon: path.join(__dirname, 'assets', 'icon.ico'), // SlyWriter logo
     titleBarStyle: 'hiddenInset',
     show: false
+  })
+
+  // Remove menu bar completely for production
+  mainWindow.setMenu(null)
+
+  // Handle external links intelligently
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.log('[Window] External link clicked:', url)
+
+    // Allow Google OAuth popups to open in Electron (needed for sign-in)
+    if (url.includes('accounts.google.com') || url.includes('oauth')) {
+      console.log('[Window] Allowing OAuth popup in Electron')
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 600,
+          center: true,
+          resizable: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        }
+      }
+    }
+
+    // Open Stripe and other external links in system browser
+    if (url.includes('stripe.com') || url.includes('checkout') || url.includes('payment')) {
+      console.log('[Window] Opening payment link in system browser')
+      require('electron').shell.openExternal(url)
+      return { action: 'deny' }
+    }
+
+    // Default: open in system browser
+    console.log('[Window] Opening external link in system browser')
+    require('electron').shell.openExternal(url)
+    return { action: 'deny' }
   })
 
   // Load the Next.js app - check if user is already logged in
@@ -827,14 +872,21 @@ function createUpdateWindow() {
     return
   }
 
+  const { screen } = require('electron')
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+
   updateWindow = new BrowserWindow({
-    width: 600,
-    height: 500,
+    width: 500,
+    height: 350,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false, // NOT always on top - less intrusive
     resizable: false,
-    center: true,
+    skipTaskbar: false, // Show in taskbar so users can find it
+    x: screenWidth - 520, // Position bottom-right with margin
+    y: screenHeight - 370,
+    modal: false, // NOT modal - don't block main window
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -845,6 +897,11 @@ function createUpdateWindow() {
 
   updateWindow.on('closed', () => {
     updateWindow = null
+  })
+
+  // Close update window when clicking outside (lose focus)
+  updateWindow.on('blur', () => {
+    // Don't auto-close, let user close manually or it will close on install
   })
 }
 

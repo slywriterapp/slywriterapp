@@ -4143,7 +4143,7 @@ def get_user_dashboard():
                 "words_used": words_used,
                 "words_remaining": max(0, total_limit - words_used),
                 "usage_percentage": min(100, (words_used / total_limit * 100)) if total_limit > 0 else 0,
-                "reset_date": get_next_reset_date(),
+                "reset_date": get_user_reset_date(user_id),
                 "features": features
             },
             "referrals": {
@@ -4165,8 +4165,49 @@ def get_user_dashboard():
         }
     })
 
+def get_user_reset_date(user_id):
+    """
+    Calculate user's next weekly reset date based on account creation
+    Reset occurs 1 week after creation, then every subsequent week
+    """
+    user = user_db.get_user_by_id(user_id)
+    if not user:
+        # Fallback to monthly reset if user not found
+        now = datetime.datetime.utcnow()
+        next_month = now.replace(day=1) + datetime.timedelta(days=32)
+        return next_month.replace(day=1).isoformat()
+
+    created_at = user.get('created_at')
+    if not created_at:
+        # Fallback if no creation date
+        now = datetime.datetime.utcnow()
+        next_month = now.replace(day=1) + datetime.timedelta(days=32)
+        return next_month.replace(day=1).isoformat()
+
+    # Ensure created_at is a datetime object
+    if isinstance(created_at, str):
+        created_at = datetime.datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+
+    now = datetime.datetime.utcnow()
+
+    # Calculate first reset (7 days after account creation)
+    first_reset = created_at + datetime.timedelta(days=7)
+
+    # If current time is before first reset, return first reset
+    if now < first_reset:
+        return first_reset.isoformat()
+
+    # Calculate how many weeks have passed since first reset
+    time_since_first = now - first_reset
+    weeks_passed = time_since_first.days // 7
+
+    # Calculate next reset (add weeks to first reset, then add 1 more week)
+    next_reset = first_reset + datetime.timedelta(weeks=weeks_passed + 1)
+
+    return next_reset.isoformat()
+
 def get_next_reset_date():
-    """Get the next monthly reset date"""
+    """Get the next monthly reset date (deprecated - use get_user_reset_date)"""
     now = datetime.datetime.utcnow()
     next_month = now.replace(day=1) + datetime.timedelta(days=32)
     return next_month.replace(day=1).isoformat()

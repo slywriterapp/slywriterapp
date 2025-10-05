@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, shell } = require('electron')
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -24,9 +24,17 @@ contextBridge.exposeInMainWorld('electron', {
       }
     },
     invoke: (channel, ...args) => {
-      const validChannels = ['hide-overlay', 'show-overlay', 'toggle-overlay', 'set-clipboard', 'get-clipboard', 'focus-window', 'check-auth', 'save-auth', 'clear-auth', 'navigate-to-app', 'save-user-config', 'get-user-config']
+      const validChannels = ['hide-overlay', 'show-overlay', 'toggle-overlay', 'set-clipboard', 'get-clipboard', 'focus-window', 'check-auth', 'save-auth', 'clear-auth', 'navigate-to-app', 'save-user-config', 'get-user-config', 'get-app-version', 'check-for-updates']
       if (validChannels.includes(channel)) {
         return ipcRenderer.invoke(channel, ...args)
+      }
+    }
+  },
+  shell: {
+    openExternal: (url) => {
+      // Only allow http/https URLs for security
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return shell.openExternal(url)
       }
     }
   }

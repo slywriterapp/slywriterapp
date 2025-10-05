@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { 
@@ -10,7 +11,7 @@ import {
   CircleIcon, CheckIcon, XIcon, InfoIcon
 } from 'lucide-react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || RENDER_API_URL
 
 interface Hotkey {
   action: string
@@ -72,52 +73,14 @@ export default function HotkeysTabEnhanced() {
     }
   }
   
-  // Start recording a hotkey
-  const startRecording = async (action: string) => {
-    try {
-      // Notify backend to start recording
-      await axios.post(`${API_URL}/api/hotkeys/record`, {
-        action,
-        recording: true
-      })
-      
-      setIsRecording(true)
-      setRecordingAction(action)
-      setPressedKeys(new Set())
-      
-      toast.success(`Recording hotkey for ${action}. Press your key combination...`)
-      
-      // Listen for key presses
-      document.addEventListener('keydown', handleKeyDown)
-      document.addEventListener('keyup', handleKeyUp)
-      
-      // Auto-stop after 5 seconds
-      setTimeout(() => {
-        if (isRecording) {
-          stopRecording(false)
-          toast.error('Recording timeout. Please try again.')
-        }
-      }, 5000)
-      
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to start recording')
-      setIsRecording(false)
-      setRecordingAction(null)
-    }
-  }
-  
   // Stop recording
-  const stopRecording = async (save: boolean = true) => {
+  const stopRecording = useCallback(async (save: boolean = true) => {
     try {
       // Notify backend to stop recording
       await axios.post(`${API_URL}/api/hotkeys/record`, {
         action: recordingAction,
         recording: false
       })
-      
-      // Remove event listeners
-      document.removeEventListener('keydown', handleKeyDown)
-      document.removeEventListener('keyup', handleKeyUp)
       
       if (save && pressedKeys.size > 0 && recordingAction) {
         const combination = Array.from(pressedKeys).join('+')
@@ -153,36 +116,83 @@ export default function HotkeysTabEnhanced() {
       setRecordingAction(null)
       setPressedKeys(new Set())
     }
-  }
-  
+  }, [recordingAction, pressedKeys, hotkeys, saveHotkeys])
+
   // Handle key press during recording
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isRecording) return
+
     e.preventDefault()
     e.stopPropagation()
-    
+
     const key = getKeyName(e)
     setPressedKeys(prev => new Set([...prev, key]))
-    
+
     // Stop recording on Escape
     if (e.key === 'Escape') {
       stopRecording(false)
       toast('Recording cancelled', { icon: 'ℹ️' })
     }
-  }, [])
-  
+  }, [isRecording, stopRecording])
+
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (!isRecording) return
+
     e.preventDefault()
     e.stopPropagation()
-    
+
     // Auto-save when all keys are released
-    if (pressedKeys.size > 0) {
-      setTimeout(() => {
-        if (isRecording) {
+    setPressedKeys(prev => {
+      if (prev.size > 0) {
+        setTimeout(() => {
           stopRecording(true)
-        }
-      }, 100)
+        }, 100)
+      }
+      return prev
+    })
+  }, [isRecording, stopRecording])
+
+  // Manage event listeners with useEffect
+  useEffect(() => {
+    if (isRecording) {
+      document.addEventListener('keydown', handleKeyDown)
+      document.addEventListener('keyup', handleKeyUp)
+
+      // Auto-stop after 5 seconds
+      const timeout = setTimeout(() => {
+        stopRecording(false)
+        toast.error('Recording timeout. Please try again.')
+      }, 5000)
+
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown)
+        document.removeEventListener('keyup', handleKeyUp)
+        clearTimeout(timeout)
+      }
     }
-  }, [pressedKeys, isRecording])
+  }, [isRecording, handleKeyDown, handleKeyUp, stopRecording])
+
+  // Start recording a hotkey
+  const startRecording = async (action: string) => {
+    try {
+      // Notify backend to start recording
+      await axios.post(`${API_URL}/api/hotkeys/record`, {
+        action,
+        recording: true
+      })
+
+      setIsRecording(true)
+      setRecordingAction(action)
+      setPressedKeys(new Set())
+
+      toast.success(`Recording hotkey for ${action}. Press your key combination...`)
+
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to start recording')
+      setIsRecording(false)
+      setRecordingAction(null)
+    }
+  }
   
   // Convert KeyboardEvent to readable key name
   const getKeyName = (e: KeyboardEvent): string => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 import { 
@@ -9,7 +10,7 @@ import {
   ClipboardIcon, ArrowRightIcon
 } from 'lucide-react'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = ${RENDER_API_URL}'
 
 export default function HumanizerTabSimple() {
   const [inputText, setInputText] = useState('')

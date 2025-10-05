@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import { 
   User, Mail, Calendar, Shield, Zap, TrendingUp, 
   Award, Users, Copy, Check, AlertCircle, Sparkles,
@@ -57,7 +58,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'plan' | 'referrals' | 'stats'>('overview')
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://slywriterapp.onrender.com'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || ${RENDER_API_URL}'
 
   useEffect(() => {
     fetchDashboard()
@@ -386,10 +387,13 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                       Unlock premium features like the Humanizer, unlimited AI generation, and more words!
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <a
-                        href={`${process.env.NEXT_PUBLIC_STRIPE_PRO_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <div
+                        onClick={() => {
+                          const url = `${process.env.NEXT_PUBLIC_STRIPE_PRO_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`
+                          console.log('[Dashboard] Opening Pro subscription link:', url)
+                          // window.open will be intercepted by Electron and opened in system browser
+                          window.open(url, '_blank')
+                        }}
                         className="bg-gray-900/50 rounded-lg p-6 border border-blue-500/50 hover:border-blue-400 transition-all cursor-pointer group"
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -420,12 +424,15 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                         <div className="text-center text-sm text-blue-400 group-hover:text-blue-300">
                           Click to subscribe →
                         </div>
-                      </a>
+                      </div>
 
-                      <a
-                        href={`${process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <div
+                        onClick={() => {
+                          const url = `${process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PAYMENT_LINK}?prefilled_email=${encodeURIComponent(dashboardData.user.email)}`
+                          console.log('[Dashboard] Opening Premium subscription link:', url)
+                          // window.open will be intercepted by Electron and opened in system browser
+                          window.open(url, '_blank')
+                        }}
                         className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-lg p-6 border border-purple-500/50 hover:border-purple-400 transition-all cursor-pointer group relative overflow-hidden"
                       >
                         <div className="absolute top-0 right-0 bg-gradient-to-l from-purple-500 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -459,7 +466,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                         <div className="text-center text-sm text-purple-400 group-hover:text-purple-300">
                           Click to subscribe →
                         </div>
-                      </a>
+                      </div>
                     </div>
                   </div>
                 )}

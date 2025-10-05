@@ -587,10 +587,10 @@ function SlyWriterApp() {
               })}
             </AnimatePresence>
 
-            {/* Premium Features Section */}
+            {/* Features Section */}
             <div className="mt-6 pt-6 border-t border-white/10">
-              <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-2">Premium Features</h3>
-              
+              <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-2">Features</h3>
+
               <button
                 onClick={() => {
                   // Toggle Electron overlay - state will be updated by visibility-changed event
@@ -604,11 +604,6 @@ function SlyWriterApp() {
                 <LayersIcon className="w-4 h-4" />
                 <span className="text-sm">Overlay Window</span>
                 <span className={`ml-auto w-2 h-2 rounded-full transition-colors ${overlayVisible ? 'bg-green-400' : 'bg-gray-600'}`} />
-              </button>
-
-              <button className="w-full flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-gray-900/5 text-gray-400 hover:text-white transition-all">
-                <GiftIcon className="w-4 h-4" />
-                <span className="text-sm">Referral Program</span>
               </button>
             </div>
           </nav>

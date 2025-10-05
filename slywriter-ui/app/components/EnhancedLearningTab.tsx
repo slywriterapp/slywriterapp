@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
 // Use Render server for AI generation (has OpenAI API key configured server-side)
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = ${RENDER_API_URL}'
 import {
   BookOpenIcon,
   BrainIcon,

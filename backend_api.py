@@ -1,7 +1,7 @@
 # backend_api.py - FastAPI backend for SlyWriter
 # This wraps existing Python functionality in a REST API
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
@@ -31,6 +31,23 @@ except ImportError:
 
 # Load environment variables for OpenAI
 load_dotenv()
+
+# Admin authentication
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+def verify_admin(authorization: str = Header(None)):
+    """Verify admin access using Authorization header"""
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=500, detail="Admin authentication not configured")
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+    token = authorization.replace("Bearer ", "")
+    if token != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid admin credentials")
+
+    return True
 try:
     import sly_config
 except ImportError:
@@ -910,9 +927,8 @@ def save_telemetry_to_file(entry):
         print(f"Failed to save telemetry to file: {e}")
 
 @app.get("/api/admin/telemetry")
-async def get_telemetry_data(limit: int = 100):
-    """Admin endpoint to view telemetry data"""
-    # TODO: Add authentication for admin access
+async def get_telemetry_data(limit: int = 100, authorized: bool = Depends(verify_admin)):
+    """Admin endpoint to view telemetry data (requires admin authentication)"""
     return {
         "total_entries": len(telemetry_storage),
         "recent_entries": telemetry_storage[-limit:],
@@ -921,9 +937,8 @@ async def get_telemetry_data(limit: int = 100):
     }
 
 @app.get("/api/admin/telemetry/export")
-async def export_telemetry():
-    """Export all telemetry data"""
-    # TODO: Add authentication for admin access
+async def export_telemetry(authorized: bool = Depends(verify_admin)):
+    """Export all telemetry data (requires admin authentication)"""
     return telemetry_storage
 
 # ============== LICENSE VERIFICATION ENDPOINTS ==============

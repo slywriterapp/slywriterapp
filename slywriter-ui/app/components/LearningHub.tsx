@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RENDER_API_URL } from '../config/api'
 import { BookOpen, Brain, TrendingUp, Clock, Star, ChevronRight, Sparkles, Target, Zap, Check } from 'lucide-react'
+import { RENDER_API_URL } from '../config/api'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
-const API_URL = 'https://slywriterapp.onrender.com'
+const API_URL = ${RENDER_API_URL}'
 
 interface LearningTopic {
   id: string

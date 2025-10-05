@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Wand2, RefreshCw, Copy, Check, Brain, Zap, BookOpen, Briefcase, Heart, Gamepad2, Code, Palette, AlertCircleIcon, XCircleIcon, BrainIcon, SparklesIcon, X, Lightbulb, Info, TrendingUp, MessageSquare, CheckCircle2, Target, Rocket } from 'lucide-react'
+import { RENDER_API_URL } from '../config/api'
 import { FirstTimeHelper } from './FeatureTooltips'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -11,8 +12,8 @@ import { useAuth } from '../context/AuthContext'
 import UpgradeModal from './UpgradeModal'
 import UsageMeter from './UsageMeter'
 
-// Use direct Render URL with proper error handling - for beta testing with 20 users
-const API_URL = 'https://slywriterapp.onrender.com'
+// Use Render API URL from config
+const API_URL = RENDER_API_URL
 const LOCAL_API_URL = 'http://127.0.0.1:8000'  // Local typing server
 
 interface AITemplate {
@@ -398,32 +399,15 @@ export default function AIHubTab() {
         
       } catch (axiosError: any) {
         console.error('[AIHub] Axios error details:', axiosError)
-        
-        // If Render server is sleeping, provide mock response for testing
+
+        // If Render server is sleeping, show error instead of mock data
         if (axiosError.code === 'ERR_NETWORK' || axiosError.response?.status === 503) {
-          console.log('[AIHub] Server appears to be sleeping, using mock response')
-          
-          // Provide a mock response based on template
-          const mockResponses: any = {
-            'creative': 'The canvas of imagination stretches before us, inviting exploration of ideas both profound and whimsical. Each word becomes a brushstroke, painting narratives that dance between reality and dreams.',
-            'professional': 'I am writing to present a comprehensive analysis of the matter at hand. After careful consideration of all relevant factors, I have prepared this detailed assessment for your review.',
-            'academic': 'This analysis examines the fundamental principles underlying the subject matter. Through systematic evaluation of empirical evidence and theoretical frameworks, we establish a foundation for further discourse.',
-            'casual': 'Hey! So I was thinking about this topic and it\'s actually pretty interesting. There are so many different angles to consider, and each one brings something unique to the table.',
-            'technical': 'The implementation architecture consists of modular components designed for scalability and maintainability. Each module interfaces through well-defined APIs, ensuring loose coupling and high cohesion.',
-            'gaming': 'The gameplay mechanics create an immersive experience that challenges players while maintaining accessibility. Level design encourages exploration and rewards strategic thinking.'
-          }
-          
-          generatedText = mockResponses[settings.selectedTemplate] || mockResponses['creative']
-          
-          // Adjust length if needed
-          if (settings.response_type === 'essay') {
-            generatedText = generatedText + ' ' + generatedText + ' ' + generatedText // Triple for essay length
-          }
-          
-          toast('AI server is waking up. Using sample text for now. Try again in 30 seconds for real AI generation.', { 
-            icon: '⚠️',
-            duration: 6000 
+          console.log('[AIHub] Server appears to be sleeping')
+
+          toast.error('AI server is starting up. Please wait 30 seconds and try again.', {
+            duration: 6000
           })
+          throw new Error('Server is waking up. Please try again in 30 seconds.')
         } else {
           throw axiosError
         }

@@ -29,23 +29,35 @@ export default function MissionTab() {
   const [currentTier, setCurrentTier] = useState(0)
   const [copied, setCopied] = useState(false)
   
-  // Load referral data from localStorage on mount
+  // Load referral data from API
   useEffect(() => {
-    // Generate unique referral code for user
-    const userId = localStorage.getItem('userId') || 'anonymous'
-    const userCode = `SLY${userId.slice(0, 6).toUpperCase()}`
-    setReferralCode(userCode)
-    
-    // Load referral stats
-    const referralData = JSON.parse(localStorage.getItem('slywriter-referrals') || '{}')
-    setTotalReferrals(referralData.count || 0)
-    setCurrentTier(referralData.claimedTier || 0)
-    
-    // Calculate donations (10 cents per referral + 10% of subscriptions)
-    const subscriptionData = JSON.parse(localStorage.getItem('slywriter-subscription') || '{}')
-    const subscriptionDonations = (subscriptionData.totalPaid || 0) * 0.1
-    const referralDonations = (referralData.count || 0) * 0.1
-    setTotalDonated(subscriptionDonations + referralDonations)
+    const fetchReferralData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/user-dashboard`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setReferralCode(data.referrals?.code || '')
+          setTotalReferrals(data.referrals?.successful || 0)
+          setCurrentTier(data.referrals?.tier || 0)
+
+          // Calculate donations (10 cents per referral)
+          const referralDonations = (data.referrals?.successful || 0) * 0.1
+          setTotalDonated(referralDonations)
+        }
+      } catch (error) {
+        console.error('Failed to fetch referral data:', error)
+      }
+    }
+
+    fetchReferralData()
   }, [])
   
   // Battle Pass Tiers
