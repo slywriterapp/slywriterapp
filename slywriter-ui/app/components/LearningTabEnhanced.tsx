@@ -14,7 +14,7 @@ import {
   RocketIcon, TargetIcon, CheckCircleIcon, XCircleIcon, ClockIcon
 } from 'lucide-react'
 
-const API_URL = ${RENDER_API_URL}'
+const API_URL = RENDER_API_URL
 
 // Learning style quiz questions
 const QUIZ_QUESTIONS = [

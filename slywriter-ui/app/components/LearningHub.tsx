@@ -8,7 +8,7 @@ import { RENDER_API_URL } from '../config/api'
 import toast from 'react-hot-toast'
 import axios from 'axios'
 
-const API_URL = ${RENDER_API_URL}'
+const API_URL = RENDER_API_URL
 
 interface LearningTopic {
   id: string

@@ -15,7 +15,7 @@ import {
 
 const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   ? 'http://localhost:5000'
-  : ${RENDER_API_URL}'
+  : RENDER_API_URL
 
 export default function HumanizerTab() {
   const { user, usageLimits, canUseHumanizer, trackHumanizerUsage } = useAuth()
