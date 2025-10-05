@@ -219,7 +219,7 @@ export default function MissionTab() {
           <div className="text-2xl font-mono font-bold text-white">{referralCode || 'Loading...'}</div>
           {referralCode && (
             <p className="text-xs text-gray-500 mt-2">
-              Share this code with friends. They get 10% off, you unlock rewards, and $0.10 goes to charity!
+              Share this code with friends. They get 500 bonus words, you unlock rewards, and $0.10 goes to charity!
             </p>
           )}
         </div>
