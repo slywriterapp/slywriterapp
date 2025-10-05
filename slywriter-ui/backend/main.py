@@ -1364,6 +1364,46 @@ async def generate_study_questions(request: StudyQuestionsRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+class CreateLessonRequest(BaseModel):
+    topic: str
+    difficulty: Optional[str] = "medium"
+
+@app.post("/api/learning/create-lesson")
+async def create_lesson(request: CreateLessonRequest):
+    """Create a learning lesson using AI"""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        
+        difficulty_prompts = {
+            "easy": "Create a beginner-friendly lesson about",
+            "medium": "Create an intermediate lesson about",
+            "hard": "Create an advanced, detailed lesson about"
+        }
+        
+        prompt = f"{difficulty_prompts.get(request.difficulty, difficulty_prompts['medium'])} {request.topic}. Include: 1) Overview, 2) Key concepts, 3) Examples, 4) Practice exercises"
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert educator creating structured learning lessons."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1500
+        )
+        
+        return {
+            "success": True,
+            "topic": request.topic,
+            "difficulty": request.difficulty,
+            "lesson": response.choices[0].message.content
+        }
+    except Exception as e:
+        logger.error(f"Create lesson error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
