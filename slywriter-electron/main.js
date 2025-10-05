@@ -559,7 +559,8 @@ function createOverlay() {
       nodeIntegration: false,
       contextIsolation: true,
       backgroundThrottling: false,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     show: false,
     hasShadow: true,

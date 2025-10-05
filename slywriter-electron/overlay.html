@@ -416,7 +416,7 @@
   
   <script>
     console.log('[OVERLAY] Script starting...')
-    const { ipcRenderer } = require('electron')
+    const ipcRenderer = window.electron?.ipcRenderer
     console.log('[OVERLAY] ipcRenderer loaded:', !!ipcRenderer)
     
     // Elements
