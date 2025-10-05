@@ -8,9 +8,13 @@ from sqlalchemy.orm import sessionmaker, relationship, Session
 from datetime import datetime
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./slywriter.db")
+logger.info(f"Using database: {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else DATABASE_URL}")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -170,8 +174,17 @@ class UserAchievement(Base):
 
 # Database initialization
 def init_db():
-    Base.metadata.create_all(bind=engine)
-    
+    """Initialize database tables"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        # If using SQLite as fallback, it's okay to fail
+        if "sqlite" in DATABASE_URL.lower():
+            logger.warning("Using SQLite - database will reset on restart")
+        raise
+
     # Create default profiles
     db = SessionLocal()
     try:
