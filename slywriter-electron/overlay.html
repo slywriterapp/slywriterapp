@@ -580,7 +580,7 @@
         countdownOverlay.classList.remove('hidden')
         countdownNumber.textContent = data.value
         pulse.className = 'pulse-indicator idle'
-        status.textContent = 'Starting...'
+        status.textContent = `Starting in ${data.value}...`
       } else if (data.type === 'typing') {
         countdownOverlay.classList.add('hidden')
         

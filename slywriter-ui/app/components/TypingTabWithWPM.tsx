@@ -427,8 +427,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setStatus(`Starting in ${data.data.count}...`)
           
           // Send to Electron overlay
-          if (typeof window !== 'undefined' && (window as any).electron?.updateOverlay) {
-            (window as any).electron.updateOverlay({
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
               type: 'countdown',
               value: data.data.count
             })
@@ -445,14 +445,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               (window as any).electron.showOverlay()
             }
             // Send initial stats
-            if ((window as any).electron.updateOverlay) {
-              (window as any).electron.updateOverlay({
-              type: 'start',
+            if ((window as any).electron.ipcRenderer) {
+              (window as any).electron.ipcRenderer.send('typing-status', {
+              type: 'typing',
               progress: 0,
               wpm: 0,
-              accuracy: 100,
               charsTyped: 0,
-              totalChars: totalChars || 0,
               status: '⌨️ Typing in progress'
             })
             }
@@ -475,8 +473,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setStatus(data.data.status || '⌨️ Typing in progress')
           
           // Update overlay with current stats
-          if (typeof window !== 'undefined' && (window as any).electron?.updateOverlay) {
-            (window as any).electron.updateOverlay({
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
               type: 'progress',
               progress: progressValue,
               wpm: currentWpm,
@@ -561,8 +559,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setSessionId(null)
           
           // Send final stats to overlay
-          if (typeof window !== 'undefined' && (window as any).electron?.updateOverlay) {
-            (window as any).electron.updateOverlay({
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            (window as any).electron.ipcRenderer.send('typing-status', {
               type: 'complete',
               progress: 100,
               wpm: wpm,
@@ -618,8 +616,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               setSessionId(null)
               
               // Send final stats to overlay
-              if (typeof window !== 'undefined' && (window as any).electron?.updateOverlay) {
-                (window as any).electron.updateOverlay({
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
                   type: 'complete',
                   progress: 100,
                   wpm: wpm,
@@ -645,14 +643,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                   toast.success('Textbox cleared - ready for next paste!', { icon: '🔄' })
                 }, 1000) // Wait 1 second after completion before clearing
               }
-              
-              // Update overlay
-              if (typeof window !== 'undefined' && (window as any).electron) {
-                (window as any).electron.updateOverlay({
-                  type: 'complete'
-                })
-              }
-              
+
               // Show success toast
               toast.success('✅ Typing completed successfully!', {
                 duration: 3000,
