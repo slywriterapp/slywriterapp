@@ -10,6 +10,12 @@ interface UserData {
   plan?: string
   user_id?: string
   picture?: string
+  words_remaining?: number | string
+  word_limit?: number | string
+  ai_gen_remaining?: number | string
+  humanizer_remaining?: number | string
+  ai_gen_limit?: number
+  humanizer_limit?: number
 }
 
 export default function UserProfile({ onShowDashboard }: { onShowDashboard?: () => void }) {
@@ -91,9 +97,49 @@ export default function UserProfile({ onShowDashboard }: { onShowDashboard?: () 
               <UserIcon className="w-4 h-4 text-indigo-400" />
             </div>
           )}
-          <div>
+          <div className="flex-1">
             <div className="text-sm font-medium text-white">{userData.name || userData.email}</div>
-            <div className="text-xs text-gray-400">{userData.plan || 'free'} plan • Dashboard</div>
+            <div className="text-xs text-gray-400 flex items-center gap-2">
+              <span>{(userData.plan || 'Free').charAt(0).toUpperCase() + (userData.plan || 'Free').slice(1)} plan</span>
+              {userData.plan === 'Free' && (
+                <>
+                  <span>•</span>
+                  <span className="text-green-400">
+                    {typeof userData.words_remaining === 'number'
+                      ? userData.words_remaining.toLocaleString()
+                      : userData.words_remaining || '500'} words
+                  </span>
+                  <span>•</span>
+                  <span className="text-blue-400">
+                    {typeof userData.ai_gen_remaining === 'number'
+                      ? userData.ai_gen_remaining
+                      : 3}/3 AI
+                  </span>
+                </>
+              )}
+              {userData.plan === 'Pro' && (
+                <>
+                  <span>•</span>
+                  <span className="text-green-400">
+                    {typeof userData.words_remaining === 'number'
+                      ? userData.words_remaining.toLocaleString()
+                      : userData.words_remaining || '5000'} words
+                  </span>
+                  <span>•</span>
+                  <span className="text-purple-400">
+                    {typeof userData.humanizer_remaining === 'number'
+                      ? userData.humanizer_remaining
+                      : 3}/3 humanizer
+                  </span>
+                </>
+              )}
+              {userData.plan === 'Premium' && (
+                <>
+                  <span>•</span>
+                  <span className="text-yellow-400">∞ Unlimited</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </motion.button>
