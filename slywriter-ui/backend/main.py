@@ -333,9 +333,6 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
     typing_engine.reset()
     typing_engine.is_typing = True
 
-    # Increment global session counter
-    global_stats["total_sessions"] += 1
-
     # Start typing in background
     background_tasks.add_task(
         type_text_worker,
