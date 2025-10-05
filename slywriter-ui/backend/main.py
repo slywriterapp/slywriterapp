@@ -22,6 +22,19 @@ import hashlib
 import jwt
 from sqlalchemy.orm import Session
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Optional GUI automation imports (only available in local/desktop mode)
+try:
+    import pyautogui
+    import keyboard
+    GUI_AVAILABLE = True
+except ImportError:
+    GUI_AVAILABLE = False
+    logger.warning("GUI automation libraries not available - running in headless mode")
+
 # Import database models and functions
 from database import (
     init_db, get_db, User, TypingSession, Analytics,
@@ -29,10 +42,6 @@ from database import (
     get_user_limits, track_word_usage, track_ai_generation,
     track_humanizer_usage, create_typing_session
 )
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Initialize Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -244,7 +253,7 @@ async def type_text_worker(
             break
             
         # Type the character (unless in preview mode)
-        if not preview_mode:
+        if not preview_mode and GUI_AVAILABLE:
             # Random typo
             if typos_enabled and random.random() < 0.02:  # 2% typo chance
                 typo_char = generate_typo(char)
