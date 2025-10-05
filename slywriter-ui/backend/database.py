@@ -28,6 +28,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)  # Indexed for fast email lookup
     google_id = Column(String, unique=True, nullable=True, index=True)
     username = Column(String, nullable=True)
+    profile_picture = Column(String, nullable=True)  # Google profile picture URL
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     last_login = Column(DateTime, default=datetime.utcnow)
     

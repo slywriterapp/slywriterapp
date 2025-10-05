@@ -526,12 +526,13 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
                 credential, 
                 google_requests.Request(), 
                 GOOGLE_CLIENT_ID
-            )
-            
-            # Get email from token
+            )            # Get email and profile picture from token
             email = idinfo.get("email")
             if not email:
                 raise HTTPException(status_code=400, detail="Email not found in token")
+
+            # Extract profile picture URL if available
+            profile_picture = idinfo.get("picture")
                 
         except ValueError as e:
             logger.error(f"Invalid Google token: {e}")
@@ -543,10 +544,14 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
         if not user:
             user = create_user(db, email, plan="Free")
             is_new_user = True
-            logger.info(f"Created new user via Google: {email}")
-        else:
+            logger.info(f"Created new user via Google: {email}")        else:
             user.last_login = datetime.utcnow()
-            db.commit()
+
+        # Update profile picture if available
+        if profile_picture:
+            user.profile_picture = profile_picture
+
+        db.commit()
         
         # Check for weekly reset
         check_weekly_reset(db, user)
@@ -1611,7 +1616,8 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
                 "email": user.email,
                 "user_id": str(user.id),
                 "joined": user.created_at.isoformat() if user.created_at else datetime.now().isoformat(),
-                "verified": True  # Always true for simplicity
+                "verified": True,  # Always true for simplicity
+                "profile_picture": user.profile_picture  # Google profile picture URL
             },
             "plan": {
                 "name": plan_name,
