@@ -194,3 +194,71 @@ def init_db():
                     conn.execute(text("ALTER TABLE users ADD COLUMN profile_picture TEXT"))
                 conn.commit()
             logger.info("Migration successful: profile_picture column added")
+
+    except Exception as e:
+        logger.error(f"Failed to create database tables: {e}")
+        # If using SQLite as fallback, it's okay to fail
+        if "sqlite" in DATABASE_URL.lower():
+            logger.warning("Using SQLite - database will reset on restart")
+        raise
+
+    # Create default profiles
+    db = SessionLocal()
+    try:
+        # Check if profiles exist
+        existing = db.query(Profile).filter_by(is_builtin=True).first()
+        if not existing:
+            default_profiles = [
+                Profile(
+                    name="Slow",
+                    is_builtin=True,
+                    min_delay=0.274,  # 30 WPM based on formula: 274ms min
+                    max_delay=0.634,  # 30 WPM based on formula: 634ms max
+                    typos_enabled=True,  # ON by default
+                    typo_chance=0.05,  # 5% chance for slow typing
+                    pause_frequency=5,
+                    pause_duration_min=1.5,
+                    pause_duration_max=3.5
+                ),
+                Profile(
+                    name="Medium",
+                    is_builtin=True,
+                    min_delay=0.137,  # 60 WPM based on formula: 137ms min
+                    max_delay=0.317,  # 60 WPM based on formula: 317ms max
+                    typos_enabled=True,  # ON by default
+                    typo_chance=0.03,  # 3% chance for medium typing
+                    pause_frequency=7,
+                    pause_duration_min=1.0,
+                    pause_duration_max=2.5
+                ),
+                Profile(
+                    name="Fast",
+                    is_builtin=True,
+                    min_delay=0.068,  # 120 WPM based on formula: 68ms min
+                    max_delay=0.159,  # 120 WPM based on formula: 159ms max
+                    typos_enabled=True,  # ON by default
+                    typo_chance=0.02,  # 2% chance for fast typing
+                    pause_frequency=10,
+                    pause_duration_min=0.5,
+                    pause_duration_max=1.5
+                )
+            ]
+            
+            for profile in default_profiles:
+                db.add(profile)
+            
+            db.commit()
+            logger.info("Default profiles created")
+    except Exception as e:
+        logger.error(f"Failed to create default profiles: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+# Helper functions
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
