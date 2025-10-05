@@ -946,12 +946,15 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
     if event_type == "checkout.session.completed":
         session = event["data"]["object"]
+        logger.info(f"Checkout session completed: {session.get('id')}")
 
         # Get customer email and metadata
         customer_email = session.get("customer_email") or session.get("customer_details", {}).get("email")
+        logger.info(f"Customer email from Stripe: {customer_email}")
 
         # Determine which plan based on amount
         amount = session.get("amount_total", 0) / 100  # Convert cents to dollars
+        logger.info(f"Payment amount: ${amount}")
 
         if amount == 8.99:
             plan = "Pro"
@@ -960,9 +963,12 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         else:
             plan = "Free"
 
+        logger.info(f"Determined plan: {plan}")
+
         # Find user by email and update plan
         user = get_user_by_email(db, customer_email)
         if user:
+            logger.info(f"User found in database: {user.email}")
             user.plan = plan
             user.stripe_customer_id = session.get("customer")
             user.stripe_subscription_id = session.get("subscription")
@@ -975,13 +981,19 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                     user.subscription_status = subscription.status
                     user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
                     user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+                    logger.info(f"Subscription retrieved: {subscription.id}, status: {subscription.status}")
                 except Exception as e:
                     logger.error(f"Error retrieving subscription: {e}")
 
             db.commit()
-            logger.info(f"Upgraded user {customer_email} to {plan} plan")
+            logger.info(f"✅ Successfully upgraded user {customer_email} to {plan} plan")
         else:
-            logger.warning(f"User not found for email: {customer_email}")
+            logger.error(f"❌ User NOT found in database for email: {customer_email}")
+            # List all users to debug
+            all_users = db.query(User).all()
+            logger.error(f"Database has {len(all_users)} users")
+            for u in all_users[:5]:  # Log first 5 users
+                logger.error(f"  - {u.email}")
 
     elif event_type == "customer.subscription.updated":
         subscription = event["data"]["object"]
@@ -1018,6 +1030,80 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             logger.info(f"Downgraded user {user.email} to Free plan")
 
     return {"status": "success"}
+
+# Manual subscription sync endpoint (fallback if webhooks fail)
+@app.post("/api/stripe/sync-subscription")
+async def sync_subscription(request: Request, db: Session = Depends(get_db)):
+    """Manually sync Stripe subscription for a user (fallback if webhook fails)"""
+    try:
+        data = await request.json()
+        email = data.get("email")
+
+        if not email:
+            raise HTTPException(status_code=400, detail="Email required")
+
+        logger.info(f"Manual subscription sync requested for: {email}")
+
+        # Get user
+        user = get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Search for customer in Stripe by email
+        customers = stripe.Customer.list(email=email, limit=1)
+
+        if not customers.data:
+            return {
+                "success": False,
+                "message": "No Stripe customer found with this email"
+            }
+
+        customer = customers.data[0]
+        logger.info(f"Found Stripe customer: {customer.id}")
+
+        # Get active subscriptions
+        subscriptions = stripe.Subscription.list(customer=customer.id, status="active", limit=1)
+
+        if not subscriptions.data:
+            return {
+                "success": False,
+                "message": "No active subscription found"
+            }
+
+        subscription = subscriptions.data[0]
+        logger.info(f"Found active subscription: {subscription.id}")
+
+        # Determine plan from price
+        price = subscription["items"]["data"][0]["price"]
+        amount = price["unit_amount"] / 100
+
+        if amount == 8.99:
+            plan = "Pro"
+        elif amount == 15.00:
+            plan = "Premium"
+        else:
+            plan = "Free"
+
+        # Update user
+        user.plan = plan
+        user.stripe_customer_id = customer.id
+        user.stripe_subscription_id = subscription.id
+        user.subscription_status = subscription.status
+        user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
+        user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+
+        db.commit()
+        logger.info(f"✅ Manually synced {email} to {plan} plan")
+
+        return {
+            "success": True,
+            "message": f"Successfully upgraded to {plan} plan",
+            "plan": plan
+        }
+
+    except Exception as e:
+        logger.error(f"Manual sync error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
