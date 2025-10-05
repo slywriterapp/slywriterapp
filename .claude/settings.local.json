@@ -68,7 +68,8 @@
       "Bash(timeout:*)",
       "Bash(npx asar extract:*)",
       "Read(//c/Users/brice/AppData/Local/Programs/SlyWriter/resources/**)",
-      "Bash(gh release delete-asset:*)"
+      "Bash(gh release delete-asset:*)",
+      "Bash(tasklist)"
     ],
     "deny": [],
     "ask": [],
