@@ -99,28 +99,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = Cookies.get('auth_token')
-      if (!token) {
+      const token = Cookies.get('auth_token') || localStorage.getItem('auth_token')
+      const userDataStr = localStorage.getItem('user_data')
+
+      if (!token || !userDataStr) {
         setIsLoading(false)
         return
       }
 
-      const response = await axios.get(`${getApiUrl()}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+      // Load user data from localStorage
+      const userData = JSON.parse(userDataStr)
+      setUser(userData)
+
+      const isPrem = userData.plan === 'premium' || userData.plan === 'Premium' ||
+                     userData.plan === 'pro' || userData.plan === 'Pro'
+      setIsPremium(isPrem)
+
+      // Load usage limits from localStorage (they're part of userData now)
+      setUsageLimits({
+        word_limit: userData.word_limit || userData.base_word_limit || 500,
+        word_limit_display: userData.word_limit_display || '',
+        words_used: userData.words_used || userData.usage || 0,
+        words_remaining: userData.words_remaining || 0,
+        humanizer_limit: userData.humanizer_limit || 0,
+        humanizer_limit_display: userData.humanizer_limit_display || '',
+        humanizer_uses: userData.humanizer_uses || userData.humanizer_usage || 0,
+        humanizer_remaining: userData.humanizer_remaining || 0,
+        ai_gen_limit: userData.ai_gen_limit || 3,
+        ai_gen_limit_display: userData.ai_gen_limit_display || '',
+        ai_gen_uses: userData.ai_gen_uses || userData.ai_gen_usage || 0,
+        ai_gen_remaining: userData.ai_gen_remaining !== undefined ? userData.ai_gen_remaining : 3,
+        week_start_date: userData.week_start_date || ''
       })
 
-      if (response.data.user) {
-        setUser(response.data.user)
-        const isPrem = response.data.user.plan === 'premium' || response.data.user.plan === 'Premium' ||
-                       response.data.user.plan === 'pro' || response.data.user.plan === 'Pro'
-        setIsPremium(isPrem)
-
-        // Fetch usage limits
-        await refreshUsage()
-      }
+      // Set words remaining
+      const remaining = userData.words_remaining
+      setWordsRemaining(typeof remaining === 'number' ? remaining : 999999)
     } catch (error) {
       console.error('Auth check failed:', error)
       Cookies.remove('auth_token')
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user_data')
     } finally {
       setIsLoading(false)
     }

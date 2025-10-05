@@ -335,7 +335,8 @@ export default function AIHubTab() {
     if (!canUseAIGen) {
       const plan = user?.plan || 'Free'
       if (plan === 'Free' || plan === 'free') {
-        toast.error(`You've used all ${usageLimits?.ai_gen_limit} AI generations this week!`)
+        const limit = usageLimits?.ai_gen_limit || 3
+        toast.error(`You've used all ${limit} AI generations this week!`)
         setShowUpgradeModal(true)
         return
       } else {

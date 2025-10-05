@@ -96,30 +96,25 @@ export default function LoginPage() {
 
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success || data.status === 'success') {
         // Save token to localStorage and Electron if available
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('user_data', JSON.stringify({
-          email: data.email,
-          name: data.name,
-          plan: data.plan,
-          user_id: data.user_id
-        }))
+        const token = data.token || data.access_token
+        const userData = data.user || data
+
+        localStorage.setItem('auth_token', token)
+        localStorage.setItem('user_data', JSON.stringify(userData))
 
         toast.success(isSignup ? 'Account created successfully!' : 'Logged in successfully!')
-        
+
         // Check if we're in Electron
         const isElectron = typeof window !== 'undefined' && (window as any).electron
         console.log('Regular login - Is Electron environment:', isElectron)
-        
+
         if (isElectron) {
           try {
             await (window as any).electron.ipcRenderer.invoke('save-auth', {
-              token: data.token,
-              email: data.email,
-              name: data.name,
-              plan: data.plan,
-              user_id: data.user_id
+              token: token,
+              ...userData
             })
             // Navigate to auth-redirect page
             console.log('Regular login - Navigating to auth redirect...')
@@ -191,25 +186,22 @@ export default function LoginPage() {
 
       const data = await result.json()
 
-      if (data.success) {
+      if (data.success || data.status === 'success') {
         console.log('[5] Backend returned success!')
-        console.log('[6] Token from backend:', data.token ? `${data.token.substring(0, 20)}...` : 'MISSING')
-        
+        const token = data.token || data.access_token
+        const userData = data.user || data
+
+        console.log('[6] Token from backend:', token ? `${token.substring(0, 20)}...` : 'MISSING')
+
         // Clear any existing auth data first
         console.log('[7] Clearing old auth data...')
         localStorage.removeItem('auth_token')
         localStorage.removeItem('user_data')
-        
+
         // Save token to localStorage and Electron if available
         console.log('[8] Saving new auth data to localStorage...')
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('user_data', JSON.stringify({
-          email: data.email,
-          name: data.name,
-          plan: data.plan,
-          user_id: data.user_id,
-          picture: data.picture
-        }))
+        localStorage.setItem('auth_token', token)
+        localStorage.setItem('user_data', JSON.stringify(userData))
         
         // Verify it was saved
         console.log('[9] Verification - localStorage after save:')
@@ -230,12 +222,8 @@ export default function LoginPage() {
           try {
             console.log('Saving auth data to Electron...')
             await (window as any).electron.ipcRenderer.invoke('save-auth', {
-              token: data.token,
-              email: data.email,
-              name: data.name,
-              plan: data.plan,
-              user_id: data.user_id,
-              picture: data.picture
+              token: token,
+              ...userData
             })
             console.log('Auth data saved, navigating to app...')
             
