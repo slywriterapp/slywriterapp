@@ -463,6 +463,13 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
             user.premium_until = None
             db.commit()
 
+    # Generate referral code if user doesn't have one (for existing users)
+    if not user.referral_code:
+        import secrets
+        user.referral_code = secrets.token_urlsafe(8)
+        db.commit()
+        logger.info(f"Generated referral code for existing user: {auth.email}")
+
     # Get user limits
     limits = get_user_limits(user)
 
@@ -598,6 +605,13 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
         if reset_occurred:
             logger.info(f"Weekly reset applied for user: {email}")
 
+        # Generate referral code if user doesn't have one (for existing users)
+        if not user.referral_code:
+            import secrets
+            user.referral_code = secrets.token_urlsafe(8)
+            db.commit()
+            logger.info(f"Generated referral code for existing user: {email}")
+
         # Get user limits
         limits = get_user_limits(user)
         logger.info(f"User limits calculated: {limits}")
@@ -610,6 +624,13 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
             "usage": user.words_used_this_week,
             "humanizer_usage": user.humanizer_used_this_week,
             "ai_gen_usage": user.ai_gen_used_this_week,
+            "referrals": {
+                "code": user.referral_code,
+                "count": user.referral_count,
+                "tier_claimed": user.referral_tier_claimed,
+                "bonus_words": user.referral_bonus
+            },
+            "premium_until": user.premium_until.isoformat() if user.premium_until else None,
             **limits
         }
 
@@ -664,6 +685,13 @@ async def get_user_endpoint(user_id: str, db: Session = Depends(get_db)):
         "usage": user.words_used_this_week,
         "humanizer_usage": user.humanizer_used_this_week,
         "ai_gen_usage": user.ai_gen_used_this_week,
+        "referrals": {
+            "code": user.referral_code,
+            "count": user.referral_count,
+            "tier_claimed": user.referral_tier_claimed,
+            "bonus_words": user.referral_bonus
+        },
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
         **limits
     }
 
