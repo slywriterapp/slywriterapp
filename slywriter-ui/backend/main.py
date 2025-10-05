@@ -21,6 +21,7 @@ import hmac
 import hashlib
 import jwt
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -876,7 +877,7 @@ async def get_global_stats(db: Session = Depends(get_db)):
     """Get global platform statistics"""
     # Calculate total words from all users
     total_words = db.query(User).with_entities(
-        db.func.sum(User.total_words_typed)
+        func.sum(User.total_words_typed)
     ).scalar() or 0
 
     # Count total users
