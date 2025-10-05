@@ -262,3 +262,142 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_user_by_email(db: Session, email: str):
+    """Get user by email"""
+    return db.query(User).filter(User.email == email).first()
+
+def create_user(db: Session, email: str, plan: str = "Free"):
+    """Create new user"""
+    from datetime import datetime, timedelta
+    import secrets
+
+    # Generate unique referral code
+    referral_code = secrets.token_urlsafe(8)
+
+    # Set week start to NOW (user's signup time) - not Monday
+    week_start = datetime.utcnow()
+
+    user = User(
+        email=email,
+        plan=plan,
+        referral_code=referral_code,
+        week_start_date=week_start,
+        created_at=datetime.utcnow(),
+        last_login=datetime.utcnow()
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def check_weekly_reset(db: Session, user: User):
+    """Check if user's weekly limits should reset - based on signup date, not Monday"""
+    from datetime import datetime, timedelta
+
+    if not user.week_start_date:
+        # No week start date - set it to now
+        user.week_start_date = datetime.utcnow()
+        db.commit()
+        return False
+
+    days_since_week_start = (datetime.utcnow() - user.week_start_date).days
+
+    if days_since_week_start >= 7:
+        # Reset weekly counters - add exactly 7 days to maintain same day of week
+        user.week_start_date = user.week_start_date + timedelta(days=7)
+        user.words_used_this_week = 0
+        user.ai_gen_used_this_week = 0
+        user.humanizer_used_this_week = 0
+        # NOTE: referral_bonus is NOT reset - it's permanent bonus words
+
+        db.commit()
+        return True
+
+    return False
+
+def get_user_limits(user: User):
+    """Calculate user's limits - bonus words consumed first, then weekly allowance"""
+    PLAN_LIMITS = {
+        "Free": {"words": 500, "ai_gen": 3, "humanizer": 0},
+        "Pro": {"words": 5000, "ai_gen": -1, "humanizer": 3},
+        "Premium": {"words": -1, "ai_gen": -1, "humanizer": -1}
+    }
+
+    limits = PLAN_LIMITS.get(user.plan, PLAN_LIMITS["Free"])
+
+    # Calculate words
+    base_words = limits["words"]
+    bonus_words = user.referral_bonus or 0
+
+    if base_words == -1:
+        # Unlimited plan
+        total_words_available = -1
+        words_remaining = "Unlimited"
+        word_limit_display = "Unlimited"
+    else:
+        # Total available = bonus (consumed first) + (base - used_this_week)
+        weekly_remaining = max(0, base_words - user.words_used_this_week)
+        total_words_available = bonus_words + weekly_remaining
+        words_remaining = total_words_available
+
+        if bonus_words > 0:
+            word_limit_display = f"{bonus_words:,} bonus + {weekly_remaining:,}/{base_words:,} weekly = {total_words_available:,} total"
+        else:
+            word_limit_display = f"{weekly_remaining:,}/{base_words:,} words this week"
+
+    return {
+        "word_limit": base_words,
+        "word_limit_display": word_limit_display,
+        "words_used": user.words_used_this_week,
+        "words_remaining": words_remaining,
+        "total_words_available": total_words_available,
+        "base_word_limit": base_words,
+        "bonus_words": bonus_words,
+        "ai_gen_limit": limits["ai_gen"],
+        "ai_gen_limit_display": "Unlimited" if limits["ai_gen"] == -1 else f"{limits['ai_gen']} uses/week",
+        "ai_gen_uses": user.ai_gen_used_this_week,
+        "ai_gen_remaining": "Unlimited" if limits["ai_gen"] == -1 else max(0, limits["ai_gen"] - user.ai_gen_used_this_week),
+        "humanizer_limit": limits["humanizer"],
+        "humanizer_limit_display": "Unlimited" if limits["humanizer"] == -1 else f"{limits['humanizer']} uses/week",
+        "humanizer_uses": user.humanizer_used_this_week,
+        "humanizer_remaining": "Unlimited" if limits["humanizer"] == -1 else max(0, limits["humanizer"] - user.humanizer_used_this_week),
+        "week_start_date": user.week_start_date.isoformat() if user.week_start_date else None
+    }
+
+def track_word_usage(db: Session, user: User, words: int):
+    """Track word usage - consumes bonus words first, then weekly allowance"""
+    user.total_words_typed += words
+    if user.referral_bonus and user.referral_bonus > 0:
+        if words <= user.referral_bonus:
+            user.referral_bonus -= words
+        else:
+            remaining_words = words - user.referral_bonus
+            user.referral_bonus = 0
+            user.words_used_this_week += remaining_words
+    else:
+        user.words_used_this_week += words
+    db.commit()
+    return user
+
+def track_ai_generation(db: Session, user: User):
+    """Track AI generation usage"""
+    user.ai_gen_used_this_week += 1
+    user.total_ai_generations += 1
+    db.commit()
+    return user
+
+def track_humanizer_usage(db: Session, user: User):
+    """Track humanizer usage"""
+    user.humanizer_used_this_week += 1
+    user.total_humanizer_uses += 1
+    db.commit()
+    return user
+
+def create_typing_session(db: Session, user_id: int, session_data: dict):
+    """Create a typing session record"""
+    session = TypingSession(user_id=user_id, **session_data)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
