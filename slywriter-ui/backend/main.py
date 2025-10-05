@@ -455,13 +455,14 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
     # Check for weekly reset
     check_weekly_reset(db, user)
 
-    # Check if premium from referrals has expired
+    # Check if Pro/Premium from referrals has expired
     if user.premium_until and user.premium_until < datetime.utcnow():
-        # Premium expired, revert to Free if no active Stripe subscription
+        # Pro/Premium expired, revert to Free if no active Stripe subscription
         if not user.subscription_status or user.subscription_status != "active":
             user.plan = "Free"
             user.premium_until = None
             db.commit()
+            logger.info(f"Pro/Premium from referrals expired for user: {auth.email}")
 
     # Generate referral code if user doesn't have one (for existing users)
     if not user.referral_code:
@@ -791,14 +792,14 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
     TIER_REQUIREMENTS = [
         {"tier": 1, "referrals": 1, "reward": "1000 words"},
         {"tier": 2, "referrals": 2, "reward": "2500 words"},
-        {"tier": 3, "referrals": 3, "reward": "1 week Premium"},
+        {"tier": 3, "referrals": 3, "reward": "1 week Pro"},
         {"tier": 4, "referrals": 5, "reward": "5000 words"},
-        {"tier": 5, "referrals": 7, "reward": "2 weeks Premium"},
+        {"tier": 5, "referrals": 7, "reward": "2 weeks Pro"},
         {"tier": 6, "referrals": 10, "reward": "10000 words"},
-        {"tier": 7, "referrals": 15, "reward": "1 month Premium"},
+        {"tier": 7, "referrals": 15, "reward": "1 month Pro"},
         {"tier": 8, "referrals": 20, "reward": "25000 words"},
-        {"tier": 9, "referrals": 30, "reward": "2 months Premium"},
-        {"tier": 10, "referrals": 50, "reward": "6 months Premium"},
+        {"tier": 9, "referrals": 30, "reward": "2 months Pro"},
+        {"tier": 10, "referrals": 50, "reward": "6 months Pro"},
     ]
 
     tier_data = next((t for t in TIER_REQUIREMENTS if t["tier"] == request.tier), None)
@@ -827,7 +828,7 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
             words = int(match.group(1))
             user.referral_bonus += words
             result_message = f"Added {words:,} bonus words"
-    elif "Premium" in reward_text:
+    elif "Pro" in reward_text:
         # Extract duration
         import re
         match = re.search(r'(\d+)\s*(week|month)', reward_text)
@@ -836,15 +837,15 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
             unit = match.group(2)
             days = amount * 7 if unit == "week" else amount * 30
 
-            # Calculate new premium_until date
+            # Calculate new premium_until date (Pro plan expiration)
             current_end = user.premium_until if user.premium_until and user.premium_until > datetime.utcnow() else datetime.utcnow()
             user.premium_until = current_end + timedelta(days=days)
 
-            # Update plan to Premium if not already
-            if user.plan != "Premium":
-                user.plan = "Premium"
+            # Update plan to Pro if not already
+            if user.plan != "Pro" and user.plan != "Premium":
+                user.plan = "Pro"
 
-            result_message = f"Premium extended to {user.premium_until.strftime('%Y-%m-%d')}"
+            result_message = f"Pro plan extended to {user.premium_until.strftime('%Y-%m-%d')}"
     else:
         result_message = "Unknown reward type"
 

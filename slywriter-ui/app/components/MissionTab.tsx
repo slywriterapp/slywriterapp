@@ -52,14 +52,14 @@ export default function MissionTab() {
   const battlePassTiers: BattlePassTier[] = [
     { tier: 1, referrals: 1, reward: 'Extra 1,000 words', icon: StarIcon, color: 'from-gray-400 to-gray-500', unlocked: false, claimed: false },
     { tier: 2, referrals: 2, reward: 'Extra 2,500 words', icon: ZapIcon, color: 'from-gray-400 to-gray-500', unlocked: false, claimed: false },
-    { tier: 3, referrals: 3, reward: '1 week free Premium', icon: GiftIcon, color: 'from-green-400 to-green-500', unlocked: false, claimed: false },
+    { tier: 3, referrals: 3, reward: '1 week free Pro', icon: GiftIcon, color: 'from-green-400 to-green-500', unlocked: false, claimed: false },
     { tier: 4, referrals: 5, reward: 'Extra 5,000 words', icon: SparklesIcon, color: 'from-green-400 to-green-500', unlocked: false, claimed: false },
-    { tier: 5, referrals: 7, reward: '2 weeks free Premium', icon: HeartIcon, color: 'from-blue-400 to-blue-500', unlocked: false, claimed: false },
+    { tier: 5, referrals: 7, reward: '2 weeks free Pro', icon: HeartIcon, color: 'from-blue-400 to-blue-500', unlocked: false, claimed: false },
     { tier: 6, referrals: 10, reward: 'Extra 10,000 words', icon: BrainIcon, color: 'from-blue-400 to-blue-500', unlocked: false, claimed: false },
-    { tier: 7, referrals: 15, reward: '1 month free Premium', icon: CrownIcon, color: 'from-purple-400 to-purple-500', unlocked: false, claimed: false },
+    { tier: 7, referrals: 15, reward: '1 month free Pro', icon: CrownIcon, color: 'from-purple-400 to-purple-500', unlocked: false, claimed: false },
     { tier: 8, referrals: 20, reward: 'Extra 25,000 words', icon: RocketIcon, color: 'from-yellow-400 to-orange-500', unlocked: false, claimed: false },
-    { tier: 9, referrals: 30, reward: '2 months free Premium', icon: AwardIcon, color: 'from-pink-400 to-red-500', unlocked: false, claimed: false },
-    { tier: 10, referrals: 50, reward: '6 months free Premium', icon: TrophyIcon, color: 'from-yellow-300 to-yellow-500', unlocked: false, claimed: false },
+    { tier: 9, referrals: 30, reward: '2 months free Pro', icon: AwardIcon, color: 'from-pink-400 to-red-500', unlocked: false, claimed: false },
+    { tier: 10, referrals: 50, reward: '6 months free Pro', icon: TrophyIcon, color: 'from-yellow-300 to-yellow-500', unlocked: false, claimed: false },
   ]
   
   // Update unlocked tiers based on referrals
