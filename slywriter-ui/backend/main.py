@@ -1404,6 +1404,112 @@ async def create_lesson(request: CreateLessonRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+# Error telemetry endpoint
+class ErrorTelemetryRequest(BaseModel):
+    error: str
+    stack: Optional[str] = None
+    user_id: Optional[str] = None
+
+@app.post("/api/telemetry/error")
+async def log_error(request: ErrorTelemetryRequest):
+    """Log frontend errors"""
+    try:
+        logger.error(f"Frontend error from user {request.user_id}: {request.error}")
+        if request.stack:
+            logger.error(f"Stack trace: {request.stack}")
+        return {"success": True, "message": "Error logged"}
+    except Exception as e:
+        logger.error(f"Error logging telemetry: {e}")
+        return {"success": False, "message": str(e)}
+
+# Learning lessons storage (in-memory for now)
+lessons_db = {}
+
+@app.get("/api/learning/get-lessons")
+async def get_lessons(user_id: str):
+    """Get saved lessons for a user"""
+    user_lessons = lessons_db.get(user_id, [])
+    return {"success": True, "lessons": user_lessons}
+
+@app.post("/api/learning/save-lesson")
+async def save_lesson(user_id: str, lesson: dict):
+    """Save a lesson for a user"""
+    if user_id not in lessons_db:
+        lessons_db[user_id] = []
+    lessons_db[user_id].append(lesson)
+    return {"success": True, "message": "Lesson saved"}
+
+# Admin telemetry endpoints
+@app.get("/api/admin/telemetry/stats")
+async def get_telemetry_stats(db: Session = Depends(get_db)):
+    """Get telemetry statistics for admin dashboard"""
+    try:
+        total_users = db.query(User).count()
+        total_words = db.query(User).with_entities(func.sum(User.total_words_typed)).scalar() or 0
+        total_sessions = db.query(TypingSession).count()
+        
+        return {
+            "success": True,
+            "stats": {
+                "total_users": total_users,
+                "total_words": total_words,
+                "total_sessions": total_sessions,
+                "active_users_24h": 0  # TODO: implement
+            }
+        }
+    except Exception as e:
+        logger.error(f"Telemetry stats error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/telemetry")
+async def get_telemetry_entries(limit: int = 50, db: Session = Depends(get_db)):
+    """Get recent telemetry entries"""
+    try:
+        sessions = db.query(TypingSession).order_by(TypingSession.id.desc()).limit(limit).all()
+        
+        entries = []
+        for session in sessions:
+            entries.append({
+                "id": session.id,
+                "user_id": session.user_id,
+                "words_typed": session.words_typed,
+                "created_at": session.created_at.isoformat() if session.created_at else None
+            })
+        
+        return {
+            "success": True,
+            "entries": entries
+        }
+    except Exception as e:
+        logger.error(f"Telemetry entries error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/admin/telemetry/export")
+async def export_telemetry(db: Session = Depends(get_db)):
+    """Export telemetry data"""
+    try:
+        sessions = db.query(TypingSession).all()
+        
+        data = []
+        for session in sessions:
+            data.append({
+                "id": session.id,
+                "user_id": session.user_id,
+                "words_typed": session.words_typed,
+                "created_at": session.created_at.isoformat() if session.created_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": data,
+            "count": len(data)
+        }
+    except Exception as e:
+        logger.error(f"Telemetry export error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
