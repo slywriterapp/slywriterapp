@@ -446,7 +446,7 @@ function SlyWriterApp() {
     { id: 'ai-hub', label: 'AI Writer', icon: BrainIcon, color: 'from-blue-500 to-indigo-500', description: 'Generate essays' },
     { id: 'learning', label: 'Smart Learn', icon: BookOpenIcon, color: 'from-emerald-600 to-teal-600', description: 'AI explains topics' },
     { id: 'statistics', label: 'Analytics', icon: BarChart3Icon, color: 'from-slate-600 to-slate-700', description: 'Track usage' },
-    { id: 'mission', label: 'Mission', icon: AwardIcon, color: 'from-amber-600 to-orange-600', description: 'Our cause & rewards', badge: 'NEW' },
+    { id: 'mission', label: 'Referrals', icon: AwardIcon, color: 'from-amber-600 to-orange-600', description: 'Our cause & rewards', badge: 'NEW' },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, color: 'from-indigo-400 to-purple-400', description: 'Customize' },
   ]
 
@@ -678,7 +678,7 @@ function SlyWriterApp() {
                 exit={{ opacity: 0, y: -20 }}
                 className="h-full overflow-y-auto p-8"
               >
-                <HumanizerTab />
+                <HumanizerTab onNavigateToDashboard={() => setShowDashboard(true)} />
               </motion.div>
             )}
             

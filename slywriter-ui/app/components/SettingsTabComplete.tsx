@@ -201,36 +201,6 @@ function GeneralSettings({ settings, setSettings, appVersion }: any) {
     <div className="space-y-6">
       <h3 className="text-xl font-semibold text-white mb-4">General Settings</h3>
       
-      {/* Theme */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-        <div>
-          <div className="text-sm font-medium text-white">Theme</div>
-          <div className="text-xs text-gray-400">Choose your interface theme</div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSettings({...settings, theme: 'light'})}
-            className={`p-2 rounded-lg transition-all ${
-              settings.theme === 'light' 
-                ? 'bg-yellow-500/20 text-yellow-400' 
-                : 'bg-gray-700 bg-gray-800 text-gray-400'
-            }`}
-          >
-            <SunIcon className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setSettings({...settings, theme: 'dark'})}
-            className={`p-2 rounded-lg transition-all ${
-              settings.theme === 'dark' 
-                ? 'bg-purple-500/20 bg-purple-500/10 text-purple-400' 
-                : 'bg-gray-700 bg-gray-800 text-gray-400'
-            }`}
-          >
-            <MoonIcon className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-      
       {/* Auto Save */}
       <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
         <div>

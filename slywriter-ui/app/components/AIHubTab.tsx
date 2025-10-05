@@ -1020,30 +1020,6 @@ export default function AIHubTab() {
         </div>
       </motion.div>
       
-      {/* Debug Button - TEMPORARY */}
-      <button
-        onClick={() => {
-          console.log('[AIHub] DEBUG: Button clicked!')
-          console.log('[AIHub] Current showReviewModal state before:', showReviewModal)
-          console.log('[AIHub] Current reviewText before:', reviewText)
-          
-          const testText = 'This is a test review text to verify the modal is working correctly. If you can see this, the modal is rendering properly.'
-          setReviewText(testText)
-          setShowReviewModal(true)
-          
-          console.log('[AIHub] Called setReviewText with:', testText)
-          console.log('[AIHub] Called setShowReviewModal(true)')
-          
-          // Force a re-check after state update
-          setTimeout(() => {
-            console.log('[AIHub] After timeout - showReviewModal state:', showReviewModal)
-          }, 100)
-        }}
-        className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium"
-      >
-        🔧 DEBUG: Test Review Modal
-      </button>
-      
       {/* Tips Section */}
       <motion.div
         initial={{ opacity: 0 }}

@@ -268,6 +268,46 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
       action: 'Setup Profile'
     },
     {
+      id: 'referral',
+      title: 'Got a Referral Code?',
+      subtitle: 'Get Bonus Words!',
+      content: (
+        <div className="space-y-4">
+          <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-lg p-6 border border-purple-500/30">
+            <h4 className="font-medium text-white mb-2">Enter Referral Code (Optional)</h4>
+            <p className="text-sm text-gray-400 mb-4">
+              If a friend referred you, enter their code to get bonus words and unlock rewards!
+            </p>
+            <input
+              type="text"
+              placeholder="Enter referral code..."
+              className="w-full bg-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={(e) => {
+                const code = e.target.value.trim()
+                if (code) {
+                  localStorage.setItem('pending-referral-code', code)
+                }
+              }}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              💡 You'll get 500 bonus words when you redeem a valid code
+            </p>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+            <GiftIcon className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="text-green-300 font-medium">Share & Earn</p>
+              <p className="text-gray-400 mt-1">
+                After signing up, you'll get your own referral code to share with friends!
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+      action: 'Continue'
+    },
+    {
       id: 'calibrate',
       title: 'Quick Setup',
       subtitle: 'Calibrate Your Typing Style',
@@ -307,7 +347,7 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
               ))}
             </div>
           </div>
-          
+
           <div className="flex items-start gap-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
             <SparklesIcon className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm">

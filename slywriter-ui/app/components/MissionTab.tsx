@@ -216,11 +216,65 @@ export default function MissionTab() {
               </motion.button>
             </div>
           </div>
-          <div className="text-2xl font-mono font-bold text-white">{referralCode}</div>
-          <p className="text-xs text-gray-500 mt-2">
-            Share this code with friends. They get 10% off, you unlock rewards, and $0.10 goes to charity!
-          </p>
+          <div className="text-2xl font-mono font-bold text-white">{referralCode || 'Loading...'}</div>
+          {referralCode && (
+            <p className="text-xs text-gray-500 mt-2">
+              Share this code with friends. They get 10% off, you unlock rewards, and $0.10 goes to charity!
+            </p>
+          )}
         </div>
+
+        {/* Redeem Referral Code */}
+        {totalReferrals === 0 && (
+          <div className="bg-gradient-to-br from-green-900/30 to-blue-900/30 rounded-xl p-4 mb-6 border border-green-500/30">
+            <h4 className="text-sm font-semibold text-white mb-2">Have a Referral Code?</h4>
+            <p className="text-xs text-gray-400 mb-3">Enter a friend's code to get bonus words!</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                id="redeem-referral-input"
+                placeholder="Enter code..."
+                className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                onClick={async () => {
+                  const input = document.getElementById('redeem-referral-input') as HTMLInputElement
+                  const code = input?.value.trim()
+                  if (!code) {
+                    toast.error('Please enter a referral code')
+                    return
+                  }
+
+                  try {
+                    const token = localStorage.getItem('token')
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/redeem-referral`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ code })
+                    })
+
+                    const data = await response.json()
+                    if (response.ok) {
+                      toast.success(`✨ Redeemed! You got ${data.bonus_words} bonus words!`)
+                      if (input) input.value = ''
+                    } else {
+                      toast.error(data.detail || 'Invalid referral code')
+                    }
+                  } catch (error) {
+                    console.error('Failed to redeem referral code:', error)
+                    toast.error('Failed to redeem code')
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                Redeem
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Battle Pass */}

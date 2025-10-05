@@ -17,7 +17,11 @@ const API_URL = typeof window !== 'undefined' && window.location.hostname === 'l
   ? 'http://localhost:5000'
   : RENDER_API_URL
 
-export default function HumanizerTab() {
+interface HumanizerTabProps {
+  onNavigateToDashboard?: () => void
+}
+
+export default function HumanizerTab({ onNavigateToDashboard }: HumanizerTabProps = {}) {
   const { user, usageLimits, canUseHumanizer, trackHumanizerUsage } = useAuth()
   const [inputText, setInputText] = useState('')
   const [outputText, setOutputText] = useState('')
@@ -216,7 +220,19 @@ export default function HumanizerTab() {
           >
             <p className="text-xs text-red-300 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              {plan === 'Free' ? 'Upgrade to Pro to use the humanizer' : 'Out of humanizer uses this week'}
+              {plan === 'Free' ? (
+                <>
+                  <button
+                    onClick={() => onNavigateToDashboard?.()}
+                    className="underline hover:text-red-200"
+                  >
+                    Upgrade to Pro
+                  </button>
+                  {' '}to use the humanizer
+                </>
+              ) : (
+                'Out of humanizer uses this week'
+              )}
             </p>
           </motion.div>
         )}
