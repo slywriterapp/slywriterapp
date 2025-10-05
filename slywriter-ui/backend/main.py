@@ -1507,6 +1507,131 @@ async def export_telemetry(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+
+# Beta Telemetry endpoint
+class BetaTelemetryData(BaseModel):
+    userId: str
+    sessionId: str
+    systemInfo: dict
+    actions: list
+    errors: list
+    featureUsage: list
+    performanceMetrics: list
+    sessionDuration: int
+    lastActivity: int
+    timestamp: str
+
+beta_telemetry_storage = []
+
+@app.post("/api/beta-telemetry")
+async def receive_beta_telemetry(data: BetaTelemetryData):
+    """Receive beta testing telemetry data from frontend"""
+    try:
+        telemetry_entry = {
+            "userId": data.userId,
+            "sessionId": data.sessionId,
+            "systemInfo": data.systemInfo,
+            "actions_count": len(data.actions),
+            "errors_count": len(data.errors),
+            "features_used": len(data.featureUsage),
+            "performance_metrics_count": len(data.performanceMetrics),
+            "sessionDuration": data.sessionDuration,
+            "timestamp": data.timestamp,
+            "received_at": datetime.now().isoformat()
+        }
+        beta_telemetry_storage.append(telemetry_entry)
+        if len(beta_telemetry_storage) > 1000:
+            beta_telemetry_storage.pop(0)
+        for error in data.errors:
+            if error.get('severity') in ['critical', 'high']:
+                logger.error(f"Beta telemetry critical error from {data.userId}: {error.get('error')}")
+        return {"success": True, "message": "Telemetry received"}
+    except Exception as e:
+        logger.error(f"Beta telemetry error: {e}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/user-dashboard")
+async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
+    """Get user dashboard data"""
+    try:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+        token = auth_header.replace('Bearer ', '')
+        user = db.query(User).filter(User.auth_token == token).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        words_used = user.total_words_typed or 0
+        plan_name = "free"
+        words_limit = 500
+        if user.stripe_subscription_id:
+            if user.plan == "premium":
+                plan_name = "premium"
+                words_limit = 999999999
+            elif user.plan == "pro":
+                plan_name = "pro"
+                words_limit = 5000
+        words_remaining = max(0, words_limit - words_used)
+        usage_percentage = min(100, (words_used / words_limit * 100) if words_limit > 0 else 0)
+        today = datetime.now()
+        days_until_sunday = (6 - today.weekday()) % 7
+        reset_date = (today + timedelta(days=days_until_sunday)).isoformat()
+        referral_code = user.referral_code or f"SLY{user.id}"
+        referrals_successful = db.query(User).filter(User.referred_by == referral_code).count()
+        bonus_words = referrals_successful * 500
+        total_sessions = db.query(TypingSession).filter(TypingSession.user_id == user.id).count()
+        dashboard_data = {
+            "user": {
+                "name": user.name or user.email.split('@')[0],
+                "email": user.email,
+                "user_id": str(user.id),
+                "joined": user.created_at.isoformat() if user.created_at else datetime.now().isoformat(),
+                "verified": user.verified or False
+            },
+            "plan": {
+                "name": plan_name,
+                "words_limit": words_limit,
+                "words_used": words_used,
+                "words_remaining": words_remaining,
+                "usage_percentage": round(usage_percentage, 1),
+                "reset_date": reset_date,
+                "features": {
+                    "ai_generation": plan_name in ["pro", "premium"],
+                    "humanizer": plan_name == "premium",
+                    "premium_typing": plan_name in ["pro", "premium"],
+                    "learning_hub": plan_name in ["pro", "premium"],
+                    "missions": plan_name in ["pro", "premium"],
+                    "unlimited_profiles": plan_name == "premium",
+                    "priority_support": plan_name == "premium",
+                    "advanced_analytics": plan_name in ["pro", "premium"]
+                }
+            },
+            "referrals": {
+                "code": referral_code,
+                "successful": referrals_successful,
+                "pending": 0,
+                "bonus_words": bonus_words,
+                "share_link": f"https://slywriter.app/signup?ref={referral_code}"
+            },
+            "stats": {
+                "total_generations": user.ai_generations_count or 0,
+                "total_typing_sessions": total_sessions,
+                "favorite_profile": "Standard",
+                "avg_wpm": user.avg_wpm or 45
+            }
+        }
+        return {
+            "success": True,
+            "dashboard": dashboard_data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
