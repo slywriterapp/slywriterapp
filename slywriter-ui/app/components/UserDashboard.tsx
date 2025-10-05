@@ -58,7 +58,7 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'plan' | 'referrals' | 'stats'>('overview')
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || ${RENDER_API_URL}'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || RENDER_API_URL
 
   useEffect(() => {
     fetchDashboard()
