@@ -108,7 +108,7 @@ export default function SettingsTabComplete() {
   const renderSection = () => {
     switch (activeSection) {
       case 'general':
-        return <GeneralSettings settings={settings} setSettings={setSettings} />
+        return <GeneralSettings settings={settings} setSettings={setSettings} appVersion={appVersion} />
       case 'hotkeys':
         return <HotkeySettings />
       case 'overlay':
@@ -196,7 +196,7 @@ export default function SettingsTabComplete() {
 }
 
 // General Settings Component
-function GeneralSettings({ settings, setSettings }: any) {
+function GeneralSettings({ settings, setSettings, appVersion }: any) {
   return (
     <div className="space-y-6">
       <h3 className="text-xl font-semibold text-white mb-4">General Settings</h3>
