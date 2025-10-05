@@ -544,7 +544,8 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
         if not user:
             user = create_user(db, email, plan="Free")
             is_new_user = True
-            logger.info(f"Created new user via Google: {email}")        else:
+            logger.info(f"Created new user via Google: {email}")
+        else:
             user.last_login = datetime.utcnow()
 
         # Update profile picture if available
