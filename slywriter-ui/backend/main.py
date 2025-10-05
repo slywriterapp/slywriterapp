@@ -13,8 +13,6 @@ import random
 import time
 import json
 import threading
-import pyautogui
-import keyboard
 from datetime import datetime, timedelta
 import logging
 import os
