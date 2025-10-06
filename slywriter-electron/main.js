@@ -191,12 +191,14 @@ async function startTypingServer() {
       }
     } catch (error) {
       console.error('Failed to setup bundled Python:', error)
+      const errorMsg = error.message.replace(/'/g, "\\'")
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(`
-          console.error('⚠️ Failed to setup Python: ${error.message}');
-          console.log('Will attempt to use system Python as fallback...');
+          console.error('⚠️ Failed to setup bundled Python: ${errorMsg}');
+          console.log('⏳ Will attempt to use system Python as fallback...');
         `)
       }
+      pythonPath = null // Ensure fallback to system Python
     }
   }
 

@@ -9,19 +9,67 @@ const PYTHON_URL = 'https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed
 const PYTHON_DIR = path.join(__dirname, 'python-embed')
 const PYTHON_EXE = path.join(PYTHON_DIR, 'python.exe')
 
-async function downloadFile(url, dest) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest)
-    https.get(url, (response) => {
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close(resolve)
+async function downloadFile(url, dest, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Downloading ${url} (attempt ${attempt}/${retries})...`)
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest)
+
+        const request = https.get(url, (response) => {
+          // Handle redirects
+          if (response.statusCode === 301 || response.statusCode === 302) {
+            console.log(`Following redirect to: ${response.headers.location}`)
+            https.get(response.headers.location, (redirectResponse) => {
+              redirectResponse.pipe(file)
+              file.on('finish', () => {
+                file.close(resolve)
+              })
+            }).on('error', (err) => {
+              fs.unlink(dest, () => {})
+              reject(err)
+            })
+            return
+          }
+
+          if (response.statusCode !== 200) {
+            fs.unlink(dest, () => {})
+            reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`))
+            return
+          }
+
+          response.pipe(file)
+          file.on('finish', () => {
+            file.close(resolve)
+          })
+        }).on('error', (err) => {
+          fs.unlink(dest, () => {})
+          reject(err)
+        })
+
+        // Timeout after 60 seconds
+        request.setTimeout(60000, () => {
+          request.abort()
+          fs.unlink(dest, () => {})
+          reject(new Error('Download timeout'))
+        })
       })
-    }).on('error', (err) => {
-      fs.unlink(dest, () => {})
-      reject(err)
-    })
-  })
+
+      // Verify file exists and has content
+      if (fs.existsSync(dest) && fs.statSync(dest).size > 0) {
+        console.log(`✅ Downloaded successfully: ${path.basename(dest)}`)
+        return
+      } else {
+        throw new Error('Downloaded file is empty or missing')
+      }
+    } catch (err) {
+      console.error(`❌ Download attempt ${attempt} failed:`, err.message)
+      if (attempt === retries) {
+        throw new Error(`Failed to download after ${retries} attempts: ${err.message}`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2s before retry
+    }
+  }
 }
 
 async function setupPython(onProgress) {
@@ -81,15 +129,31 @@ async function setupPython(onProgress) {
     }
     if (onProgress) onProgress('Installing pip...', 70)
 
-    // Install pip with error handling
-    try {
-      await runCommand(PYTHON_EXE, [getPipPath], PYTHON_DIR)
-    } catch (e) {
-      console.error('Pip installation failed, but continuing...', e.message)
+    // Install pip with retries
+    let pipInstalled = false
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Installing pip (attempt ${attempt}/3)...`)
+        await runCommand(PYTHON_EXE, [getPipPath], PYTHON_DIR)
+        pipInstalled = true
+        console.log('✅ Pip installed successfully')
+        break
+      } catch (e) {
+        console.error(`❌ Pip installation attempt ${attempt} failed:`, e.message)
+        if (attempt === 3) {
+          throw new Error('Failed to install pip after 3 attempts. Please check your internet connection.')
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2s before retry
+      }
     }
+
+    if (!pipInstalled) {
+      throw new Error('Could not install pip - aborting setup')
+    }
+
     if (onProgress) onProgress('Installing dependencies...', 80)
 
-    // Install required packages
+    // Install required packages with verification
     const packages = [
       'fastapi',
       'uvicorn[standard]',
@@ -102,12 +166,39 @@ async function setupPython(onProgress) {
       'pillow'
     ]
 
+    const failedPackages = []
     for (const pkg of packages) {
+      const pkgName = pkg.split('[')[0] // Handle uvicorn[standard]
+      console.log(`Installing ${pkg}...`)
+
       try {
-        await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', pkg], PYTHON_DIR)
+        await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', '--no-cache-dir', pkg], PYTHON_DIR)
+
+        // Verify it installed
+        const verifyResult = await runCommand(PYTHON_EXE, ['-m', 'pip', 'show', pkgName], PYTHON_DIR)
+        if (verifyResult.includes(`Name: ${pkgName}`)) {
+          console.log(`✅ ${pkg} installed successfully`)
+        } else {
+          console.error(`❌ ${pkg} installation verification failed`)
+          failedPackages.push(pkg)
+        }
       } catch (e) {
-        console.error(`Failed to install ${pkg}:`, e.message)
+        console.error(`❌ Failed to install ${pkg}:`, e.message)
+        failedPackages.push(pkg)
       }
+    }
+
+    // Check critical packages
+    const criticalPackages = ['fastapi', 'uvicorn']
+    const missingCritical = criticalPackages.filter(p => failedPackages.some(f => f.startsWith(p)))
+
+    if (missingCritical.length > 0) {
+      throw new Error(`Critical packages failed to install: ${missingCritical.join(', ')}. The app will not work without these.`)
+    }
+
+    if (failedPackages.length > 0) {
+      console.warn(`⚠️ Some packages failed to install: ${failedPackages.join(', ')}`)
+      console.warn('The app may have limited functionality')
     }
 
     if (onProgress) onProgress('Python setup complete!', 100)
