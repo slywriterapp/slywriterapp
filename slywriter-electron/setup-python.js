@@ -6,8 +6,18 @@ const AdmZip = require('adm-zip')
 
 // Python embeddable package URL (Windows x64)
 const PYTHON_URL = 'https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed-amd64.zip'
-const PYTHON_DIR = path.join(__dirname, 'python-embed')
-const PYTHON_EXE = path.join(PYTHON_DIR, 'python.exe')
+
+// Will be set by init() function
+let PYTHON_DIR = null
+let PYTHON_EXE = null
+
+// Initialize Python paths with writable directory
+function init(userDataPath) {
+  PYTHON_DIR = path.join(userDataPath, 'python-embed')
+  PYTHON_EXE = path.join(PYTHON_DIR, 'python.exe')
+  console.log('[setup-python] Initialized with PYTHON_DIR:', PYTHON_DIR)
+  console.log('[setup-python] PYTHON_EXE:', PYTHON_EXE)
+}
 
 async function downloadFile(url, dest, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -234,4 +244,9 @@ function runCommand(command, args, cwd) {
   })
 }
 
-module.exports = { setupPython, PYTHON_EXE, PYTHON_DIR }
+module.exports = {
+  init,
+  setupPython,
+  get PYTHON_EXE() { return PYTHON_EXE },
+  get PYTHON_DIR() { return PYTHON_DIR }
+}

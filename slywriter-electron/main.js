@@ -110,12 +110,10 @@ let typingServerProcess = null
 const isDev = process.argv.includes('--dev')
 
 // Import Python setup
-let setupPython, PYTHON_EXE, PYTHON_DIR
+let pythonSetup = null
 try {
-  const pythonSetup = require('./setup-python')
-  setupPython = pythonSetup.setupPython
-  PYTHON_EXE = pythonSetup.PYTHON_EXE
-  PYTHON_DIR = pythonSetup.PYTHON_DIR
+  pythonSetup = require('./setup-python')
+  console.log('Python setup module loaded successfully')
 } catch (e) {
   console.log('Python setup module not found, will use system Python')
 }
@@ -167,12 +165,14 @@ async function startTypingServer() {
   let serverStarted = false
 
   // Setup bundled Python if available
-  if (setupPython) {
+  if (pythonSetup) {
     try {
+      // Initialize Python paths with writable directory
+      pythonSetup.init(app.getPath('userData'))
       console.log('Setting up bundled Python...')
       sendSplashProgress('Setting up Python environment...')
 
-      pythonPath = await setupPython((message, progress) => {
+      pythonPath = await pythonSetup.setupPython((message, progress) => {
         console.log(`Setup progress: ${message} (${progress}%)`)
         sendSplashProgress(message)
 
