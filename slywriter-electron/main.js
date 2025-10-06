@@ -130,9 +130,11 @@ async function startTypingServer() {
     ? path.join(process.resourcesPath, 'backend_api.py')  // Production: resources folder
     : path.join(__dirname, '..', 'backend_api.py')  // Development: parent directory
 
-  console.log('Typing server path:', typingServerPath)
-  console.log('Current directory:', __dirname)
-  console.log('isPackaged:', isPackaged)
+  console.log('📍 Typing server path:', typingServerPath)
+  console.log('📁 Current directory:', __dirname)
+  console.log('📦 isPackaged:', isPackaged)
+  console.log('✅ Backend file exists:', fs.existsSync(typingServerPath))
+  sendSplashProgress(`Locating backend: ${path.basename(typingServerPath)}`)
 
   // Check if the file exists
   if (!fs.existsSync(typingServerPath)) {
@@ -184,7 +186,8 @@ async function startTypingServer() {
         }
       })
 
-      console.log('Bundled Python ready at:', pythonPath)
+      console.log('✅ Bundled Python ready at:', pythonPath)
+      console.log('📍 Verifying Python executable exists:', fs.existsSync(pythonPath))
       sendSplashProgress('✅ Python environment ready')
 
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -214,7 +217,14 @@ async function startTypingServer() {
   }
 
   // If bundled Python is available, use it
+  console.log('🔍 Checking bundled Python:')
+  console.log('   pythonPath:', pythonPath)
+  console.log('   exists:', pythonPath ? fs.existsSync(pythonPath) : 'N/A')
+  sendSplashProgress(`Checking Python at: ${pythonPath || 'null'}`)
+
   if (pythonPath && fs.existsSync(pythonPath)) {
+    console.log('✅ Using bundled Python to start backend server')
+    sendSplashProgress('✅ Found bundled Python, starting server...')
     try {
       sendSplashProgress('Starting backend server...')
 
@@ -540,23 +550,18 @@ function createWindow() {
     mainWindow.loadURL(startUrl)
   }
 
-  // Show window when ready
+  // DON'T show window automatically - let splash screen control when to show
+  // The splash screen will close after setup completes, which triggers showing main window
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show()
-    // Open DevTools in development mode or when needed
+    console.log('[Window] Main window ready (not showing yet - waiting for setup)')
+    // Open DevTools in development mode
     if (isDev) {
       mainWindow.webContents.openDevTools()
     }
   })
 
-  // Fallback: show window after 5 seconds even if page hasn't loaded
-  // This prevents the app from being invisible if the server is slow/down
-  setTimeout(() => {
-    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      console.log('[Window] Showing window after timeout (page may not have loaded)')
-      mainWindow.show()
-    }
-  }, 5000)
+  // NO automatic timeout - splash screen controls visibility
+  // If setup fails, user can click "Close" button on splash to proceed anyway
   
   // Add error handling for failed page loads
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
