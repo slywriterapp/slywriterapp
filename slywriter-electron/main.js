@@ -758,18 +758,23 @@ function createOverlay() {
 
   // Send current hotkeys to overlay when it's ready
   overlayWindow.webContents.on('did-finish-load', () => {
-    console.log('[MAIN] Overlay finished loading, sending test message...')
+    console.log('[MAIN] Overlay finished loading, starting continuous test...')
 
-    // SELF TEST - Send a test message to verify IPC works
-    setTimeout(() => {
-      console.log('[MAIN] Sending test update-display message')
-      overlayWindow.webContents.send('update-display', {
-        type: 'test',
-        status: 'TEST MESSAGE FROM MAIN.JS',
-        progress: 50,
-        wpm: 999
-      })
-    }, 1000)
+    // CONTINUOUS TEST - Send a test message every 2 seconds to prove main→overlay works
+    let testCount = 0
+    setInterval(() => {
+      testCount++
+      console.log(`[MAIN] Sending test message #${testCount}`)
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.webContents.send('update-display', {
+          type: 'test',
+          status: `TEST #${testCount} FROM MAIN`,
+          progress: (testCount * 10) % 100,
+          wpm: 999,
+          charsTyped: testCount * 5
+        })
+      }
+    }, 2000)
 
     // Load saved hotkeys and send to overlay
     try {

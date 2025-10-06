@@ -583,38 +583,23 @@
     
     // Event counter for debugging
     let eventCount = 0
-    let receivedRealEvent = false
-
-    // SELF TEST - Update debug panel every 2 seconds to prove it works
-    const selfTestTimer = setInterval(() => {
-      if (!receivedRealEvent) {
-        eventCount++
-        const debugCount = document.getElementById('debug-count')
-        if (debugCount) {
-          debugCount.textContent = `Events: ${eventCount} (self-test)`
-          debugCount.style.color = '#ef4444' // Red to show it's self-test
-        }
-      }
-    }, 2000)
 
     // Listen for updates
     ipcRenderer.on('update-display', (event, data) => {
-      console.log('[OVERLAY] Received update-display event:', data)
+      console.log('[OVERLAY] ✅ Received update-display event:', data)
 
-      // Stop self-test once we receive real messages
-      receivedRealEvent = true
-      clearInterval(selfTestTimer)
-
-      // Update debug info (REAL EVENT)
+      // Update debug info
       eventCount++
       const debugType = document.getElementById('debug-type')
       const debugStatus = document.getElementById('debug-status')
       const debugCount = document.getElementById('debug-count')
+
       if (debugType) debugType.textContent = `Type: ${data.type || 'unknown'}`
-      if (debugStatus) debugStatus.textContent = `Status: ${(data.status || '-').substring(0, 25)}`
+      if (debugStatus) debugStatus.textContent = `Status: ${(data.status || '-').substring(0, 30)}`
       if (debugCount) {
-        debugCount.textContent = `Events: ${eventCount} (REAL)`
-        debugCount.style.color = '#10b981' // Green for real events
+        debugCount.textContent = `Events: ${eventCount}`
+        // Green for test messages, cyan for real typing
+        debugCount.style.color = data.type === 'test' ? '#10b981' : '#06b6d4'
       }
 
       if (data.type === 'countdown') {
