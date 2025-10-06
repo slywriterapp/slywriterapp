@@ -593,8 +593,13 @@
         // Update pulse indicator based on status
         pulse.className = 'pulse-indicator'
         
+        // Log received status for debugging
+        console.log('[OVERLAY] Received status:', currentStatus)
+
         // Check for different status states
-        if (currentStatus.toLowerCase().includes('typing') || currentStatus.toLowerCase().includes('starting')) {
+        const statusLower = currentStatus.toLowerCase()
+
+        if (statusLower.includes('typing') || statusLower.includes('starting')) {
           pulse.classList.add('active')
           status.textContent = currentStatus
           status.style.color = '' // Reset to default color
@@ -602,10 +607,10 @@
             startTime = Date.now()
             timerInterval = setInterval(updateTimer, 1000)
           }
-        } else if (currentStatus.includes('AI') || currentStatus.includes('🤖') || 
-                   currentStatus.includes('Generating') || currentStatus.includes('filler') ||
-                   currentStatus.includes('Thinking') || currentStatus.includes('💭') ||
-                   currentStatus.includes('Regretting') || currentStatus.includes('❌') ||
+        } else if (currentStatus.includes('AI') || currentStatus.includes('🤖') ||
+                   currentStatus.includes('Filler') || currentStatus.includes('filler') ||
+                   currentStatus.includes('Generating') || currentStatus.includes('Thinking') ||
+                   currentStatus.includes('💭') || currentStatus.includes('Regretting') ||
                    currentStatus.includes('Requesting') || currentStatus.includes('🔄')) {
           // AI Filler specific statuses - keep timer running, show special status
           pulse.classList.add('active')
@@ -615,39 +620,61 @@
             startTime = Date.now()
             timerInterval = setInterval(updateTimer, 1000)
           }
-        } else if (currentStatus.toLowerCase().includes('paused')) {
+        } else if (statusLower.includes('zone') || statusLower.includes('zoning') || currentStatus.includes('😴')) {
+          // Zone out - keep timer running, show status
+          pulse.classList.add('active')
+          status.textContent = currentStatus
+          status.style.color = '#fbbf24' // Yellow color for zoning out
+          if (!startTime) {
+            startTime = Date.now()
+            timerInterval = setInterval(updateTimer, 1000)
+          }
+        } else if (statusLower.includes('pause') || currentStatus.includes('⏸️')) {
           pulse.classList.add('paused')
-          status.textContent = 'Paused'
-          status.style.color = '' // Reset to default color
+          status.textContent = currentStatus
+          status.style.color = '#f59e0b' // Orange for paused
           // Keep timer but don't update
           if (timerInterval) {
             clearInterval(timerInterval)
             timerInterval = null
           }
-        } else if (currentStatus.toLowerCase().includes('stopped')) {
+        } else if (statusLower.includes('error') || currentStatus.includes('❌')) {
           pulse.classList.add('idle')
-          status.textContent = 'Stopped'
+          status.textContent = currentStatus
+          status.style.color = '#ef4444' // Red for errors
+          if (timerInterval) {
+            clearInterval(timerInterval)
+            timerInterval = null
+            startTime = null
+          }
+        } else if (statusLower.includes('stopped') || statusLower.includes('stop')) {
+          pulse.classList.add('idle')
+          status.textContent = currentStatus
           status.style.color = '' // Reset to default color
           if (timerInterval) {
             clearInterval(timerInterval)
             timerInterval = null
             startTime = null
           }
-        } else if (currentStatus.toLowerCase().includes('complete') || 
-                   currentStatus.toLowerCase().includes('finished') ||
-                   progressValue >= 100) {
+        } else if (statusLower.includes('complete') || statusLower.includes('finished') ||
+                   currentStatus.includes('✅') || progressValue >= 100) {
           pulse.classList.add('idle')
-          status.textContent = 'Complete! ✓'
-          status.style.color = '' // Reset to default color
+          status.textContent = currentStatus
+          status.style.color = '#10b981' // Green for complete
           if (timerInterval) {
             clearInterval(timerInterval)
             timerInterval = null
             startTime = null
           }
         } else {
-          pulse.classList.add('idle')
+          // Default: keep timer running for any other status during typing
+          pulse.classList.add('active')
           status.textContent = currentStatus
           status.style.color = '' // Reset to default color
+          if (!startTime) {
+            startTime = Date.now()
+            timerInterval = setInterval(updateTimer, 1000)
+          }
         }
         
         // Update progress (only if not null)
