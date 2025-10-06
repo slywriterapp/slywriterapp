@@ -11,247 +11,283 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
             height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            position: relative;
+            color: white;
             -webkit-user-select: none;
             user-select: none;
         }
 
-        /* Animated background particles */
-        .particles {
-            position: absolute;
-            top: 0;
-            left: 0;
+        .container {
             width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            animation: float 15s infinite linear;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translateY(100vh) translateX(0);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100vh) translateX(100px);
-                opacity: 0;
-            }
-        }
-
-        /* Main content */
-        .content {
-            position: relative;
-            z-index: 10;
+            max-width: 500px;
+            padding: 40px;
             text-align: center;
         }
 
-        .logo-container {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 30px;
-            position: relative;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
         .logo {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-radius: 24px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-            padding: 10px;
-        }
-
-        .logo-image {
-            width: 80px;
-            height: 90px;
-            object-fit: contain;
-        }
-
-        .app-name {
-            font-size: 36px;
-            font-weight: 700;
+            font-size: 40px;
+            font-weight: bold;
             color: white;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
         }
 
-        .tagline {
-            font-size: 16px;
-            color: rgba(255, 255, 255, 0.9);
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .version {
+            font-size: 14px;
+            color: #888;
             margin-bottom: 40px;
-            font-weight: 400;
         }
 
-        /* Loading bar */
-        .loading-container {
-            width: 280px;
+        .status {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 20px;
+            min-height: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .status.error {
+            color: #ff6b6b;
+            font-weight: 500;
+        }
+
+        .status.success {
+            color: #51cf66;
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
             height: 4px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 2px;
             overflow: hidden;
-            position: relative;
+            margin-bottom: 30px;
         }
 
-        .loading-bar {
+        .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #ffffff 0%, #e0e7ff 100%);
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             border-radius: 2px;
-            animation: loading 3s ease-out forwards;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
         }
 
-        @keyframes loading {
-            0% {
-                width: 0%;
-            }
-            20% {
-                width: 30%;
-            }
-            50% {
-                width: 60%;
-            }
-            80% {
-                width: 90%;
-            }
-            100% {
-                width: 100%;
-            }
-        }
-
-        .loading-text {
+        .logs-container {
+            display: none;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
             margin-top: 20px;
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.8);
-            animation: fadeIn 0.5s ease-out;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .logs-container.visible {
+            display: block;
         }
 
-        /* Version in corner */
-        .version {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
+        .log-entry {
             font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            z-index: 10;
+            color: #ccc;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin-bottom: 4px;
+            line-height: 1.4;
         }
 
-        /* Glow effect */
-        .glow {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-            animation: rotate 20s linear infinite;
-            z-index: 0;
+        .log-entry.error {
+            color: #ff6b6b;
         }
 
-        @keyframes rotate {
-            from {
-                transform: translate(-50%, -50%) rotate(0deg);
-            }
-            to {
-                transform: translate(-50%, -50%) rotate(360deg);
-            }
+        .log-entry.success {
+            color: #51cf66;
+        }
+
+        .button-container {
+            display: none;
+            margin-top: 20px;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .button-container.visible {
+            display: flex;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-logs-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .copy-logs-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .copy-logs-btn:active {
+            transform: translateY(0);
+        }
+
+        .retry-btn {
+            background: #51cf66;
+            color: white;
+        }
+
+        .retry-btn:hover {
+            background: #40c057;
+        }
+
+        .close-btn {
+            background: #495057;
+            color: white;
+        }
+
+        .close-btn:hover {
+            background: #343a40;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        .logs-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
 <body>
-    <div class="particles" id="particles"></div>
-    <div class="glow"></div>
+    <div class="container">
+        <div class="logo">S</div>
+        <h1>SlyWriter</h1>
+        <div class="version" id="versionText">v...</div>
 
-    <div class="content">
-        <div class="logo-container">
-            <div class="logo">
-                <img src="assets/icons/Darklogo_final.jpg" alt="SlyWriter" class="logo-image">
-            </div>
+        <div class="spinner" id="spinner"></div>
+        <div class="status" id="statusText">Initializing...</div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
         </div>
 
-        <h1 class="app-name">SlyWriter</h1>
-        <p class="tagline">AI Types For You + Undetectable</p>
+        <div class="logs-container" id="logsContainer"></div>
 
-        <div class="loading-container">
-            <div class="loading-bar"></div>
+        <div class="button-container" id="buttonContainer">
+            <button class="copy-logs-btn" id="copyLogsBtn">Copy Logs</button>
+            <button class="close-btn" id="closeBtn">Close</button>
         </div>
-
-        <div class="loading-text" id="loadingText">Initializing...</div>
     </div>
 
-    <div class="version">v2.1.7</div>
-
     <script>
-        // Create floating particles
-        const particlesContainer = document.getElementById('particles');
-        for (let i = 0; i < 50; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDelay = Math.random() * 15 + 's';
-            particle.style.animationDuration = (15 + Math.random() * 10) + 's';
-            particlesContainer.appendChild(particle);
+        const statusText = document.getElementById('statusText');
+        const progressFill = document.getElementById('progressFill');
+        const logsContainer = document.getElementById('logsContainer');
+        const buttonContainer = document.getElementById('buttonContainer');
+        const copyLogsBtn = document.getElementById('copyLogsBtn');
+        const closeBtn = document.getElementById('closeBtn');
+        const spinner = document.getElementById('spinner');
+        const versionText = document.getElementById('versionText');
+
+        let logs = [];
+        let hasError = false;
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logs.push(logEntry);
+
+            const logDiv = document.createElement('div');
+            logDiv.className = `log-entry ${type}`;
+            logDiv.textContent = logEntry;
+            logsContainer.appendChild(logDiv);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
         }
 
-        const loadingText = document.getElementById('loadingText');
+        // Listen for version from main process
+        if (window.electronAPI && window.electronAPI.onAppVersion) {
+            window.electronAPI.onAppVersion((version) => {
+                versionText.textContent = `v${version}`;
+                addLog(`Application version: ${version}`);
+            });
+        }
 
-        // Listen for progress updates from main process
+        // Listen for progress updates
         if (window.electronAPI && window.electronAPI.onSetupProgress) {
             window.electronAPI.onSetupProgress((message) => {
                 console.log('Setup progress:', message);
-                loadingText.style.opacity = '0';
-                setTimeout(() => {
-                    loadingText.textContent = message;
-                    loadingText.style.opacity = '1';
-                }, 200);
+                statusText.textContent = message;
+                statusText.className = 'status';
+                addLog(message, 'info');
+                logsContainer.classList.add('visible');
+
+                // Update progress bar based on message
+                let progress = 0;
+                if (message.includes('Initializing')) progress = 5;
+                else if (message.includes('Setting up Python')) progress = 10;
+                else if (message.includes('Downloading')) progress = 30;
+                else if (message.includes('Extracting')) progress = 50;
+                else if (message.includes('Installing pip')) progress = 60;
+                else if (message.includes('Installing')) progress = 70;
+                else if (message.includes('Starting backend')) progress = 85;
+                else if (message.includes('ready')) progress = 95;
+
+                progressFill.style.width = progress + '%';
             });
         }
 
@@ -259,7 +295,13 @@
         if (window.electronAPI && window.electronAPI.onSetupComplete) {
             window.electronAPI.onSetupComplete(() => {
                 console.log('Setup complete');
-                loadingText.textContent = 'Ready!';
+                statusText.textContent = '✓ Setup complete!';
+                statusText.className = 'status success';
+                progressFill.style.width = '100%';
+                spinner.style.display = 'none';
+                addLog('Setup completed successfully', 'success');
+
+                // Close splash after 1 second
                 setTimeout(() => {
                     if (window.electronAPI && window.electronAPI.closeSplash) {
                         window.electronAPI.closeSplash();
@@ -272,10 +314,44 @@
         if (window.electronAPI && window.electronAPI.onSetupError) {
             window.electronAPI.onSetupError((error) => {
                 console.error('Setup error:', error);
-                loadingText.textContent = '❌ Setup failed: ' + error;
-                loadingText.style.color = '#ff6b6b';
+                hasError = true;
+                statusText.textContent = '✗ Setup failed: ' + error;
+                statusText.className = 'status error';
+                spinner.style.display = 'none';
+                addLog(`ERROR: ${error}`, 'error');
+
+                // Show logs and buttons
+                logsContainer.classList.add('visible');
+                buttonContainer.classList.add('visible');
             });
         }
+
+        // Copy logs to clipboard
+        copyLogsBtn.addEventListener('click', () => {
+            const logsText = logs.join('\n');
+            navigator.clipboard.writeText(logsText).then(() => {
+                copyLogsBtn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    copyLogsBtn.textContent = 'Copy Logs';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy logs:', err);
+                copyLogsBtn.textContent = '✗ Failed';
+                setTimeout(() => {
+                    copyLogsBtn.textContent = 'Copy Logs';
+                }, 2000);
+            });
+        });
+
+        // Close button
+        closeBtn.addEventListener('click', () => {
+            if (window.electronAPI && window.electronAPI.closeSplash) {
+                window.electronAPI.closeSplash();
+            }
+        });
+
+        // Initial log
+        addLog('SlyWriter starting...');
     </script>
 </body>
 </html>

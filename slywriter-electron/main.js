@@ -406,10 +406,10 @@ let splashWindow = null
 function createSplashScreen() {
   splashWindow = new BrowserWindow({
     width: 500,
-    height: 350,
+    height: 600,  // Taller to fit logs
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false,  // NOT always on top - it was annoying
     resizable: false,
     center: true,
     webPreferences: {
@@ -421,8 +421,13 @@ function createSplashScreen() {
 
   splashWindow.loadFile('splash.html')
 
+  // Send app version once window is ready
+  splashWindow.webContents.on('did-finish-load', () => {
+    splashWindow.webContents.send('app-version', APP_VERSION)
+  })
+
   // Listen for close-splash message from renderer
-  ipcMain.on('close-splash', () => {
+  ipcMain.once('close-splash', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.destroy()
       splashWindow = null

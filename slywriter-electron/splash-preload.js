@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeSplash: () => ipcRenderer.send('close-splash'),
   onSetupProgress: (callback) => ipcRenderer.on('setup-progress', (event, message) => callback(message)),
   onSetupComplete: (callback) => ipcRenderer.on('setup-complete', () => callback()),
-  onSetupError: (callback) => ipcRenderer.on('setup-error', (event, error) => callback(error))
+  onSetupError: (callback) => ipcRenderer.on('setup-error', (event, error) => callback(error)),
+  onAppVersion: (callback) => ipcRenderer.on('app-version', (event, version) => callback(version))
 })
