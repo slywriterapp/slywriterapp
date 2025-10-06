@@ -420,18 +420,21 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
-          
+          console.log('[TYPING TAB] WebSocket event received:', data.type, data)
+
           switch (data.type) {
         case 'countdown':
           setCountdown(data.data.count)
           setStatus(`Starting in ${data.data.count}...`)
-          
+
           // Send to Electron overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-            (window as any).electron.ipcRenderer.send('typing-status', {
+            const countdownData = {
               type: 'countdown',
               value: data.data.count
-            })
+            }
+            console.log('[TYPING TAB] Sending countdown to overlay:', countdownData)
+            ;(window as any).electron.ipcRenderer.send('typing-status', countdownData)
           }
           break
           
@@ -446,13 +449,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             }
             // Send initial stats
             if ((window as any).electron.ipcRenderer) {
-              (window as any).electron.ipcRenderer.send('typing-status', {
-              type: 'typing',
-              progress: 0,
-              wpm: 0,
-              charsTyped: 0,
-              status: '⌨️ Typing...'
-            })
+              const typingStartedData = {
+                type: 'typing',
+                progress: 0,
+                wpm: 0,
+                charsTyped: 0,
+                status: '⌨️ Typing...'
+              }
+              console.log('[TYPING TAB] Sending typing_started to overlay:', typingStartedData)
+              ;(window as any).electron.ipcRenderer.send('typing-status', typingStartedData)
             }
           }
           break
@@ -504,13 +509,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           
           // Send to Electron overlay if available
           if (typeof window !== 'undefined' && window.electron?.ipcRenderer) {
-            window.electron.ipcRenderer.send('typing-status', {
+            const progressData = {
               type: 'typing',
               status: data.data.status || '⌨️ Typing...',
               progress: progressValue,
               wpm: data.data.wpm || 0,
               charsTyped: data.data.chars_typed || 0
-            })
+            }
+            console.log('[TYPING TAB] Sending progress to overlay:', progressData)
+            window.electron.ipcRenderer.send('typing-status', progressData)
           }
           break
           
@@ -536,13 +543,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
 
           // Send to Electron overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-            (window as any).electron.ipcRenderer.send('typing-status', {
+            const pauseData = {
               type: 'typing',
               status: data.data.status || '⏸️ Paused',
               progress: progress,
               wpm: wpm,
               charsTyped: charsTyped
-            })
+            }
+            console.log('[TYPING TAB] Sending pause to overlay:', pauseData)
+            ;(window as any).electron.ipcRenderer.send('typing-status', pauseData)
           }
           break
           
@@ -553,13 +562,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
 
           // Send to Electron overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-            (window as any).electron.ipcRenderer.send('typing-status', {
+            const zoneOutData = {
               type: 'typing',
               status: data.data.status || '😴 Zoning out...',
               progress: progress,
               wpm: wpm,
               charsTyped: charsTyped
-            })
+            }
+            console.log('[TYPING TAB] Sending zone_out to overlay:', zoneOutData)
+            ;(window as any).electron.ipcRenderer.send('typing-status', zoneOutData)
           }
           break
           
@@ -573,13 +584,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
 
           // Send to Electron overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-            (window as any).electron.ipcRenderer.send('typing-status', {
+            const aiFillerData = {
               type: 'typing',
               status: '🤖 AI Filler...',
               progress: progress,
               wpm: wpm,
               charsTyped: charsTyped
-            })
+            }
+            console.log('[TYPING TAB] Sending ai_filler to overlay:', aiFillerData)
+            ;(window as any).electron.ipcRenderer.send('typing-status', aiFillerData)
           }
           break
           
@@ -593,7 +606,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           
           // Send final stats to overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-            (window as any).electron.ipcRenderer.send('typing-status', {
+            const completeData = {
               type: 'complete',
               progress: 100,
               wpm: wpm,
@@ -601,7 +614,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               charsTyped: charsTyped,
               totalChars: totalChars,
               status: '✅ Finished!'
-            })
+            }
+            console.log('[TYPING TAB] Sending complete to overlay:', completeData)
+            ;(window as any).electron.ipcRenderer.send('typing-status', completeData)
           }
           
           // Reset typing state after a short delay
@@ -639,12 +654,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
 
               // Send to Electron overlay
               if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
-                (window as any).electron.ipcRenderer.send('typing-status', {
+                const errorData = {
                   type: 'complete',
                   status: '❌ Error: ' + (data.data.message || 'Unknown error'),
                   progress: progress,
                   wpm: wpm
-                })
+                }
+                console.log('[TYPING TAB] Sending error to overlay:', errorData)
+                ;(window as any).electron.ipcRenderer.send('typing-status', errorData)
               }
               break
               

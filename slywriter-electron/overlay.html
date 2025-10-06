@@ -576,6 +576,7 @@
     
     // Listen for updates
     ipcRenderer.on('update-display', (event, data) => {
+      console.log('[OVERLAY] Received update-display event:', data)
       if (data.type === 'countdown') {
         countdownOverlay.classList.remove('hidden')
         countdownNumber.textContent = data.value

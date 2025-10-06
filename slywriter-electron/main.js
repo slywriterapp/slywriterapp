@@ -758,8 +758,12 @@ function createOverlay() {
   
   // Handle typing status updates for Electron overlay
   ipcMain.on('typing-status', (event, data) => {
+    console.log('[MAIN] Received typing-status from renderer:', data)
     if (overlayWindow && !overlayWindow.isDestroyed()) {
+      console.log('[MAIN] Forwarding to overlay window as update-display')
       overlayWindow.webContents.send('update-display', data)
+    } else {
+      console.log('[MAIN] Overlay window is null or destroyed, cannot forward')
     }
   })
   
