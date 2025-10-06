@@ -411,6 +411,13 @@
         <div id="ai-status" style="display: none;">🤖 AI: Ready</div>
         <div id="profile-status" style="display: none;">👤 Profile: Medium</div>
       </div>
+
+      <!-- Debug info -->
+      <div id="debug-info" style="margin-top: 6px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-size: 8px; color: rgba(255, 255, 255, 0.6); font-family: monospace;">
+        <div id="debug-type">Type: -</div>
+        <div id="debug-status">Status: -</div>
+        <div id="debug-count">Events: 0</div>
+      </div>
     </div>
   </div>
   
@@ -574,9 +581,22 @@
     // Request initial status when overlay loads
     ipcRenderer.send('overlay-request-status')
     
+    // Event counter for debugging
+    let eventCount = 0
+
     // Listen for updates
     ipcRenderer.on('update-display', (event, data) => {
       console.log('[OVERLAY] Received update-display event:', data)
+
+      // Update debug info
+      eventCount++
+      const debugType = document.getElementById('debug-type')
+      const debugStatus = document.getElementById('debug-status')
+      const debugCount = document.getElementById('debug-count')
+      if (debugType) debugType.textContent = `Type: ${data.type || 'unknown'}`
+      if (debugStatus) debugStatus.textContent = `Status: ${(data.status || '-').substring(0, 25)}`
+      if (debugCount) debugCount.textContent = `Events: ${eventCount}`
+
       if (data.type === 'countdown') {
         countdownOverlay.classList.remove('hidden')
         countdownNumber.textContent = data.value
