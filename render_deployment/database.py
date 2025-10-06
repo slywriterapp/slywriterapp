@@ -322,11 +322,17 @@ def check_weekly_reset(db: Session, user: User):
         db.commit()
         return False
 
-    days_since_week_start = (datetime.utcnow() - user.week_start_date).days
+    # Calculate time difference in seconds, then convert to days
+    # This avoids timezone and .days truncation issues
+    time_diff = datetime.utcnow() - user.week_start_date
+    total_seconds = time_diff.total_seconds()
+    days_since_week_start = total_seconds / 86400  # 86400 seconds = 1 day
 
     if days_since_week_start >= 7:
         # Reset weekly counters - add exactly 7 days to maintain same day of week
-        user.week_start_date = user.week_start_date + timedelta(days=7)
+        # If multiple weeks have passed, catch up to current week
+        weeks_passed = int(days_since_week_start // 7)
+        user.week_start_date = user.week_start_date + timedelta(days=7 * weeks_passed)
         user.words_used_this_week = 0
         user.ai_gen_used_this_week = 0
         user.humanizer_used_this_week = 0

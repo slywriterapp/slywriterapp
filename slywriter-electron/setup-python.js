@@ -26,11 +26,21 @@ async function downloadFile(url, dest) {
 
 async function setupPython(onProgress) {
   try {
-    // Check if Python is already set up
+    // Check if Python AND dependencies are already set up
     if (fs.existsSync(PYTHON_EXE)) {
-      console.log('Python already installed')
-      if (onProgress) onProgress('Python already installed', 100)
-      return PYTHON_EXE
+      console.log('Python executable found, verifying dependencies...')
+
+      // Check if fastapi is installed (critical dependency)
+      try {
+        const result = await runCommand(PYTHON_EXE, ['-m', 'pip', 'show', 'fastapi'], path.dirname(PYTHON_EXE))
+        if (result.includes('Name: fastapi')) {
+          console.log('Python already installed with dependencies')
+          if (onProgress) onProgress('Python already installed', 100)
+          return PYTHON_EXE
+        }
+      } catch (e) {
+        console.log('Dependencies not found, will reinstall...')
+      }
     }
 
     console.log('Setting up Python...')
@@ -53,6 +63,17 @@ async function setupPython(onProgress) {
     zip.extractAllTo(PYTHON_DIR, true)
     if (onProgress) onProgress('Python extracted', 60)
 
+    // Fix python._pth to allow pip to work in embedded Python
+    const pthFile = path.join(PYTHON_DIR, 'python311._pth')
+    if (fs.existsSync(pthFile)) {
+      let content = fs.readFileSync(pthFile, 'utf8')
+      // Uncomment "import site" line to enable pip
+      content = content.replace('#import site', 'import site')
+      // Add Scripts directory to path
+      content += '\nScripts\n'
+      fs.writeFileSync(pthFile, content)
+    }
+
     // Download get-pip.py
     const getPipPath = path.join(PYTHON_DIR, 'get-pip.py')
     if (!fs.existsSync(getPipPath)) {
@@ -60,8 +81,12 @@ async function setupPython(onProgress) {
     }
     if (onProgress) onProgress('Installing pip...', 70)
 
-    // Install pip
-    await runCommand(PYTHON_EXE, [getPipPath], PYTHON_DIR)
+    // Install pip with error handling
+    try {
+      await runCommand(PYTHON_EXE, [getPipPath], PYTHON_DIR)
+    } catch (e) {
+      console.error('Pip installation failed, but continuing...', e.message)
+    }
     if (onProgress) onProgress('Installing dependencies...', 80)
 
     // Install required packages

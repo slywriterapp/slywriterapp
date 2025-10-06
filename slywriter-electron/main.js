@@ -240,9 +240,19 @@ async function startTypingServer() {
       typingServerProcess.on('exit', (code) => {
         console.log(`Typing server exited with code ${code}`)
         typingServerProcess = null
+        // If it exits quickly, it probably failed
+        if (!serverStarted) {
+          console.error('Bundled Python server failed to start - will try system Python')
+        }
       })
 
-      serverStarted = true // Assume success if process started
+      // Wait to see if it actually starts before marking as started
+      setTimeout(() => {
+        if (typingServerProcess && !typingServerProcess.killed) {
+          serverStarted = true
+          console.log('Bundled Python server confirmed running')
+        }
+      }, 2000)
 
     } catch (error) {
       console.error('Failed to start with bundled Python:', error.message)

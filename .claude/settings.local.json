@@ -73,7 +73,8 @@
       "Bash(perl:*)",
       "WebFetch(domain:slywriterapp.onrender.com)",
       "Bash(npm audit:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": [],
