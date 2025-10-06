@@ -755,18 +755,7 @@ function createOverlay() {
       }
     }
   })
-  
-  // Handle typing status updates for Electron overlay
-  ipcMain.on('typing-status', (event, data) => {
-    console.log('[MAIN] Received typing-status from renderer:', data)
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      console.log('[MAIN] Forwarding to overlay window as update-display')
-      overlayWindow.webContents.send('update-display', data)
-    } else {
-      console.log('[MAIN] Overlay window is null or destroyed, cannot forward')
-    }
-  })
-  
+
   // Send current hotkeys to overlay when it's ready
   overlayWindow.webContents.on('did-finish-load', () => {
     // Load saved hotkeys and send to overlay
@@ -2198,6 +2187,18 @@ app.on('will-quit', (event) => {
 })
 
 // IPC handlers for communication with renderer
+
+// Handle typing status updates for Electron overlay
+ipcMain.on('typing-status', (event, data) => {
+  console.log('[MAIN] Received typing-status from renderer:', data)
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    console.log('[MAIN] Forwarding to overlay window as update-display')
+    overlayWindow.webContents.send('update-display', data)
+  } else {
+    console.log('[MAIN] Overlay window is null or destroyed, cannot forward')
+  }
+})
+
 ipcMain.handle('get-clipboard', async () => {
   const { clipboard } = require('electron')
   return clipboard.readText()
