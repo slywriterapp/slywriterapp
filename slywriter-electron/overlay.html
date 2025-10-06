@@ -584,18 +584,31 @@
     // Event counter for debugging
     let eventCount = 0
 
+    // SELF TEST - Update debug panel every 2 seconds to prove it works
+    setInterval(() => {
+      eventCount++
+      const debugCount = document.getElementById('debug-count')
+      if (debugCount) {
+        debugCount.textContent = `Events: ${eventCount} (self-test)`
+        debugCount.style.color = '#ef4444' // Red to show it's self-test
+      }
+    }, 2000)
+
     // Listen for updates
     ipcRenderer.on('update-display', (event, data) => {
       console.log('[OVERLAY] Received update-display event:', data)
 
-      // Update debug info
+      // Update debug info (REAL EVENT - override self-test)
       eventCount++
       const debugType = document.getElementById('debug-type')
       const debugStatus = document.getElementById('debug-status')
       const debugCount = document.getElementById('debug-count')
       if (debugType) debugType.textContent = `Type: ${data.type || 'unknown'}`
       if (debugStatus) debugStatus.textContent = `Status: ${(data.status || '-').substring(0, 25)}`
-      if (debugCount) debugCount.textContent = `Events: ${eventCount}`
+      if (debugCount) {
+        debugCount.textContent = `Events: ${eventCount} (REAL)`
+        debugCount.style.color = '#10b981' // Green for real events
+      }
 
       if (data.type === 'countdown') {
         countdownOverlay.classList.remove('hidden')

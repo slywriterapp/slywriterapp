@@ -758,6 +758,19 @@ function createOverlay() {
 
   // Send current hotkeys to overlay when it's ready
   overlayWindow.webContents.on('did-finish-load', () => {
+    console.log('[MAIN] Overlay finished loading, sending test message...')
+
+    // SELF TEST - Send a test message to verify IPC works
+    setTimeout(() => {
+      console.log('[MAIN] Sending test update-display message')
+      overlayWindow.webContents.send('update-display', {
+        type: 'test',
+        status: 'TEST MESSAGE FROM MAIN.JS',
+        progress: 50,
+        wpm: 999
+      })
+    }, 1000)
+
     // Load saved hotkeys and send to overlay
     try {
       const hotkeyPath = path.join(app.getPath('userData'), 'hotkeys.json')
