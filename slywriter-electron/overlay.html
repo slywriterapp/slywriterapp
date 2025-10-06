@@ -583,14 +583,17 @@
     
     // Event counter for debugging
     let eventCount = 0
+    let receivedRealEvent = false
 
     // SELF TEST - Update debug panel every 2 seconds to prove it works
-    setInterval(() => {
-      eventCount++
-      const debugCount = document.getElementById('debug-count')
-      if (debugCount) {
-        debugCount.textContent = `Events: ${eventCount} (self-test)`
-        debugCount.style.color = '#ef4444' // Red to show it's self-test
+    const selfTestTimer = setInterval(() => {
+      if (!receivedRealEvent) {
+        eventCount++
+        const debugCount = document.getElementById('debug-count')
+        if (debugCount) {
+          debugCount.textContent = `Events: ${eventCount} (self-test)`
+          debugCount.style.color = '#ef4444' // Red to show it's self-test
+        }
       }
     }, 2000)
 
@@ -598,7 +601,11 @@
     ipcRenderer.on('update-display', (event, data) => {
       console.log('[OVERLAY] Received update-display event:', data)
 
-      // Update debug info (REAL EVENT - override self-test)
+      // Stop self-test once we receive real messages
+      receivedRealEvent = true
+      clearInterval(selfTestTimer)
+
+      // Update debug info (REAL EVENT)
       eventCount++
       const debugType = document.getElementById('debug-type')
       const debugStatus = document.getElementById('debug-status')
