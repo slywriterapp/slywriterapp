@@ -1427,13 +1427,13 @@ async def log_error(request: ErrorTelemetryRequest):
 lessons_db = {}
 
 @app.get("/api/learning/get-lessons")
-async def get_lessons(user_id: str):
+async def get_lessons(user_id: str = "default"):
     """Get saved lessons for a user"""
     user_lessons = lessons_db.get(user_id, [])
     return {"success": True, "lessons": user_lessons}
 
 @app.post("/api/learning/save-lesson")
-async def save_lesson(user_id: str, lesson: dict):
+async def save_lesson(lesson: dict, user_id: str = "default"):
     """Save a lesson for a user"""
     if user_id not in lessons_db:
         lessons_db[user_id] = []

@@ -734,20 +734,22 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               if (data.data) {
                 const statusData = data.data
                 setStatus(statusData.status || '⌨️ Typing in progress')
-                
+
                 if (statusData.progress !== undefined) {
                   setProgress(Math.min(100, Math.max(0, statusData.progress)))
                 }
-                
+
                 // Send to Electron overlay
                 if (window.electron?.ipcRenderer) {
-                  window.electron.ipcRenderer.send('typing-status', {
+                  const statusUpdateData = {
                     type: 'typing',
                     status: statusData.status || '⌨️ Typing in progress',
                     progress: statusData.progress,
                     wpm: statusData.wpm || wpm,
                     charsTyped: statusData.chars_typed
-                  })
+                  }
+                  console.log('[TYPING TAB] Sending status update to overlay:', statusUpdateData)
+                  window.electron.ipcRenderer.send('typing-status', statusUpdateData)
                 }
                 
                 // Log AI filler events for debugging
