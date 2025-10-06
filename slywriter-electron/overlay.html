@@ -425,7 +425,15 @@
     console.log('[OVERLAY] Script starting...')
     const ipcRenderer = window.electron?.ipcRenderer
     console.log('[OVERLAY] ipcRenderer loaded:', !!ipcRenderer)
-    
+
+    // CRITICAL: Guard against missing ipcRenderer
+    if (!ipcRenderer) {
+      console.error('[OVERLAY] ERROR: ipcRenderer not available! Overlay will not function.')
+      document.getElementById('debug-status').textContent = 'ERROR: IPC not available'
+      document.getElementById('debug-status').style.color = '#ef4444'
+      throw new Error('ipcRenderer not available')
+    }
+
     // Elements
     const countdownOverlay = document.getElementById('countdown-overlay')
     const countdownNumber = document.getElementById('countdown-number')
@@ -526,7 +534,7 @@
     })
     
     // Listen for hotkey updates
-    ipcRenderer.on('update-hotkeys-overlay', (event, hotkeys) => {
+    ipcRenderer.on('update-hotkeys-overlay', (hotkeys) => {
       console.log('[OVERLAY] Received hotkey updates:', hotkeys)
       
       // Update hotkey display
@@ -585,7 +593,7 @@
     let eventCount = 0
 
     // Listen for updates
-    ipcRenderer.on('update-display', (event, data) => {
+    ipcRenderer.on('update-display', (data) => {
       console.log('[OVERLAY] ✅ Received update-display event:', data)
 
       // Update debug info
