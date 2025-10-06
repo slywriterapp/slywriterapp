@@ -170,33 +170,44 @@ async function startTypingServer() {
   if (setupPython) {
     try {
       console.log('Setting up bundled Python...')
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript(`
-          console.log('🔧 Setting up Python environment... This may take a moment on first run.');
-        `)
-      }
+      sendSplashProgress('Setting up Python environment...')
+
       pythonPath = await setupPython((message, progress) => {
         console.log(`Setup progress: ${message} (${progress}%)`)
+        sendSplashProgress(message)
+
+        // Also log to main window console if it exists
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.executeJavaScript(`
             console.log('📦 ${message}');
-          `)
+          `).catch(() => {})
         }
       })
+
       console.log('Bundled Python ready at:', pythonPath)
+      sendSplashProgress('✅ Python environment ready')
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(`
           console.log('✅ Python environment ready');
-        `)
+        `).catch(() => {})
       }
     } catch (error) {
       console.error('Failed to setup bundled Python:', error)
       const errorMsg = error.message.replace(/'/g, "\\'")
+
+      // Show error in splash window
+      sendSplashError(errorMsg)
+
+      // Wait 3 seconds to let user see the error before attempting fallback
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      sendSplashProgress('Attempting system Python fallback...')
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(`
           console.error('⚠️ Failed to setup bundled Python: ${errorMsg}');
           console.log('⏳ Will attempt to use system Python as fallback...');
-        `)
+        `).catch(() => {})
       }
       pythonPath = null // Ensure fallback to system Python
     }
@@ -205,6 +216,8 @@ async function startTypingServer() {
   // If bundled Python is available, use it
   if (pythonPath && fs.existsSync(pythonPath)) {
     try {
+      sendSplashProgress('Starting backend server...')
+
       typingServerProcess = spawn(pythonPath, [typingServerPath], {
         cwd: path.dirname(typingServerPath),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -226,17 +239,21 @@ async function startTypingServer() {
         if (message.includes('Uvicorn running on') || message.includes('8000') || message.includes('Started server')) {
           serverStarted = true
           console.log('Typing server started successfully on port 8000 (bundled Python)')
+          sendSplashProgress('✅ Backend server ready!')
+          sendSplashComplete()
+
           // Notify the renderer process that server is ready
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.executeJavaScript(`
               console.log('✅ Typing server started successfully (bundled Python)');
-            `)
+            `).catch(() => {})
           }
         }
       })
 
       typingServerProcess.on('error', (error) => {
         console.error('Failed to start typing server with bundled Python:', error.message)
+        sendSplashError(`Backend server failed: ${error.message}`)
       })
 
       typingServerProcess.on('exit', (code) => {
@@ -245,14 +262,19 @@ async function startTypingServer() {
         // If it exits quickly, it probably failed
         if (!serverStarted) {
           console.error('Bundled Python server failed to start - will try system Python')
+          sendSplashProgress('Backend failed, trying system Python...')
         }
       })
 
       // Wait to see if it actually starts before marking as started
       setTimeout(() => {
         if (typingServerProcess && !typingServerProcess.killed) {
-          serverStarted = true
-          console.log('Bundled Python server confirmed running')
+          if (!serverStarted) {
+            serverStarted = true
+            console.log('Bundled Python server confirmed running')
+            sendSplashProgress('✅ Backend server ready!')
+            sendSplashComplete()
+          }
         }
       }, 2000)
 
@@ -264,6 +286,7 @@ async function startTypingServer() {
   // If bundled Python didn't work, try system Python as fallback
   if (!serverStarted) {
     console.log('Bundled Python not available, trying system Python...')
+    sendSplashProgress('Trying system Python...')
     const pythonCommands = ['python', 'python3', 'py']
 
     for (const pythonCmd of pythonCommands) {
@@ -290,10 +313,13 @@ async function startTypingServer() {
           if (message.includes('Uvicorn running on') || message.includes('8000')) {
             serverStarted = true
             console.log('Typing server started successfully on port 8000 (system Python)')
+            sendSplashProgress('✅ Backend ready (system Python)')
+            sendSplashComplete()
+
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.executeJavaScript(`
                 console.log('✅ Typing server started successfully (system Python)');
-              `)
+              `).catch(() => {})
             }
           }
         })
@@ -309,8 +335,10 @@ async function startTypingServer() {
 
         // Give it a moment to see if it starts
         setTimeout(() => {
-          if (typingServerProcess && !typingServerProcess.killed) {
+          if (typingServerProcess && !typingServerProcess.killed && !serverStarted) {
             serverStarted = true
+            sendSplashProgress('✅ Backend ready (system Python)')
+            sendSplashComplete()
           }
         }, 1000)
 
@@ -327,6 +355,8 @@ async function startTypingServer() {
       console.error('This is expected on first run. Python will be downloaded automatically.')
       console.error('If this persists, install Python manually from python.org')
 
+      sendSplashError('Backend server failed to start. Python or dependencies may be missing.')
+
       // Notify user in the renderer
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.executeJavaScript(`
@@ -337,7 +367,7 @@ async function startTypingServer() {
           console.log('  1. Install Python from https://python.org');
           console.log('  2. Run: pip install fastapi uvicorn keyboard openai python-dotenv');
           console.log('  3. Restart SlyWriter');
-        `)
+        `).catch(() => {})
       }
     }
   }, 3000)
@@ -391,8 +421,8 @@ function createSplashScreen() {
 
   splashWindow.loadFile('splash.html')
 
-  // Destroy splash window after 3 seconds
-  setTimeout(() => {
+  // Listen for close-splash message from renderer
+  ipcMain.on('close-splash', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.destroy()
       splashWindow = null
@@ -401,7 +431,26 @@ function createSplashScreen() {
         mainWindow.show()
       }
     }
-  }, 3000)
+  })
+}
+
+// Helper function to send progress to splash window
+function sendSplashProgress(message) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('setup-progress', message)
+  }
+}
+
+function sendSplashComplete() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('setup-complete')
+  }
+}
+
+function sendSplashError(error) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('setup-error', error)
+  }
 }
 
 function createWindow() {
@@ -1195,7 +1244,16 @@ app.whenReady().then(async () => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
 
-  // Start the typing server
+  // Show splash screen FIRST
+  createSplashScreen()
+
+  // Create windows (but don't show them yet - splash is showing)
+  createWindow()
+  createOverlay()
+  createTray()
+
+  // Start the typing server (with visible progress in splash)
+  sendSplashProgress('Initializing...')
   startTypingServer()
 
   // ============== LICENSE VERIFICATION ON STARTUP ==============
@@ -1223,13 +1281,6 @@ app.whenReady().then(async () => {
     global.licenseData = licenseData
   }
   // ============================================================
-
-  // Show splash screen first
-  createSplashScreen()
-
-  createWindow()
-  createOverlay()
-  createTray()
 
   // Initialize auto-updater
   setupAutoUpdater()

@@ -241,39 +241,41 @@
             particlesContainer.appendChild(particle);
         }
 
-        // Update loading text
-        const messages = [
-            'Initializing...',
-            'Loading components...',
-            'Starting AI engine...',
-            'Ready!'
-        ];
-
-        let messageIndex = 0;
         const loadingText = document.getElementById('loadingText');
 
-        const updateMessage = () => {
-            if (messageIndex < messages.length) {
+        // Listen for progress updates from main process
+        if (window.electronAPI && window.electronAPI.onSetupProgress) {
+            window.electronAPI.onSetupProgress((message) => {
+                console.log('Setup progress:', message);
                 loadingText.style.opacity = '0';
                 setTimeout(() => {
-                    loadingText.textContent = messages[messageIndex];
+                    loadingText.textContent = message;
                     loadingText.style.opacity = '1';
-                    messageIndex++;
                 }, 200);
-            }
-        };
+            });
+        }
 
-        // Update messages during loading
-        setTimeout(() => updateMessage(), 800);
-        setTimeout(() => updateMessage(), 1600);
-        setTimeout(() => updateMessage(), 2400);
+        // Listen for setup complete
+        if (window.electronAPI && window.electronAPI.onSetupComplete) {
+            window.electronAPI.onSetupComplete(() => {
+                console.log('Setup complete');
+                loadingText.textContent = 'Ready!';
+                setTimeout(() => {
+                    if (window.electronAPI && window.electronAPI.closeSplash) {
+                        window.electronAPI.closeSplash();
+                    }
+                }, 1000);
+            });
+        }
 
-        // Close splash screen after 3 seconds
-        setTimeout(() => {
-            if (window.electronAPI && window.electronAPI.closeSplash) {
-                window.electronAPI.closeSplash();
-            }
-        }, 3000);
+        // Listen for setup errors
+        if (window.electronAPI && window.electronAPI.onSetupError) {
+            window.electronAPI.onSetupError((error) => {
+                console.error('Setup error:', error);
+                loadingText.textContent = '❌ Setup failed: ' + error;
+                loadingText.style.color = '#ff6b6b';
+            });
+        }
     </script>
 </body>
 </html>
