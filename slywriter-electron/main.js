@@ -230,22 +230,21 @@ async function startTypingServer() {
       sendSplashProgress('Starting backend server...')
 
       const backendDir = path.dirname(typingServerPath)
-      console.log('🐍 Setting PYTHONPATH to:', backendDir)
-      sendSplashProgress(`PYTHONPATH: ${backendDir}`)
+      console.log('🐍 Backend directory:', backendDir)
+      sendSplashProgress(`Backend dir: ${backendDir}`)
 
-      // Check if typing_engine.py exists in the same directory
-      const typingEnginePath = path.join(backendDir, 'typing_engine.py')
-      console.log('🔍 Looking for typing_engine.py at:', typingEnginePath)
-      console.log('📄 typing_engine.py exists:', fs.existsSync(typingEnginePath))
-      sendSplashProgress(`typing_engine.py exists: ${fs.existsSync(typingEnginePath)}`)
+      // Embedded Python ignores PYTHONPATH - use Python -c to add to sys.path
+      const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); exec(open(r'${typingServerPath}').read())`
 
-      typingServerProcess = spawn(pythonPath, [typingServerPath], {
+      console.log('🐍 Running Python with explicit sys.path injection')
+      sendSplashProgress('Injecting sys.path for modules...')
+
+      typingServerProcess = spawn(pythonPath, ['-c', pythonCode], {
         cwd: backendDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         env: {
           ...process.env,
-          PYTHONPATH: backendDir, // Add resources directory to Python module search path
           SLYWRITER_CONFIG_DIR: app.getPath('userData')
         }
       })
@@ -338,13 +337,15 @@ async function startTypingServer() {
 
       try {
         const backendDir = path.dirname(typingServerPath)
-        typingServerProcess = spawn(pythonCmd, [typingServerPath], {
+        // Use Python -c to add to sys.path (works with all Python versions)
+        const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); exec(open(r'${typingServerPath}').read())`
+
+        typingServerProcess = spawn(pythonCmd, ['-c', pythonCode], {
           cwd: backendDir,
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
           env: {
             ...process.env,
-            PYTHONPATH: backendDir, // Add resources directory to Python module search path
             SLYWRITER_CONFIG_DIR: app.getPath('userData')
           }
         })
