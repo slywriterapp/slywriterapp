@@ -84,21 +84,62 @@ async function downloadFile(url, dest, retries = 3) {
 
 async function setupPython(onProgress) {
   try {
-    // Check if Python AND dependencies are already set up
+    // Check if Python exists
     if (fs.existsSync(PYTHON_EXE)) {
-      console.log('Python executable found, verifying dependencies...')
+      console.log('Python executable found, checking for missing packages...')
 
-      // Check if fastapi is installed (critical dependency)
-      try {
-        const result = await runCommand(PYTHON_EXE, ['-m', 'pip', 'show', 'fastapi'], path.dirname(PYTHON_EXE))
-        if (result.includes('Name: fastapi')) {
-          console.log('Python already installed with dependencies')
-          if (onProgress) onProgress('Python already installed', 100)
-          return PYTHON_EXE
+      // Required packages
+      const requiredPackages = ['fastapi', 'clipboard', 'requests', 'pydantic']
+      const missingPackages = []
+
+      // Check each required package
+      for (const pkg of requiredPackages) {
+        try {
+          const result = await runCommand(PYTHON_EXE, ['-m', 'pip', 'show', pkg], path.dirname(PYTHON_EXE))
+          if (!result.includes(`Name: ${pkg}`)) {
+            missingPackages.push(pkg)
+          }
+        } catch (e) {
+          missingPackages.push(pkg)
         }
-      } catch (e) {
-        console.log('Dependencies not found, will reinstall...')
       }
+
+      // Install missing packages
+      if (missingPackages.length > 0) {
+        console.log(`Installing missing packages: ${missingPackages.join(', ')}`)
+        if (onProgress) onProgress(`Installing ${missingPackages.length} missing packages...`, 50)
+
+        const allPackages = [
+          'fastapi',
+          'uvicorn[standard]',
+          'python-multipart',
+          'keyboard',
+          'pyautogui',
+          'openai',
+          'python-dotenv',
+          'pyperclip',
+          'clipboard',
+          'requests',
+          'pillow',
+          'pydantic'
+        ]
+
+        for (const pkg of allPackages) {
+          try {
+            console.log(`Installing ${pkg}...`)
+            await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', '--no-cache-dir', pkg], PYTHON_DIR)
+          } catch (e) {
+            console.error(`Failed to install ${pkg}:`, e.message)
+          }
+        }
+
+        if (onProgress) onProgress('All packages installed', 100)
+      } else {
+        console.log('All required packages already installed')
+        if (onProgress) onProgress('Python already installed', 100)
+      }
+
+      return PYTHON_EXE
     }
 
     console.log('Setting up Python...')
