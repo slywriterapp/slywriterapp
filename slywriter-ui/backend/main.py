@@ -369,6 +369,16 @@ async def type_text_worker(
 # API ENDPOINTS - WEB APP
 # ============================================================================
 
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"status": "ok", "service": "SlyWriter API", "version": "2.0.0"}
+
+@app.get("/healthz")
+async def healthz():
+    """Health check endpoint for Render"""
+    return {"status": "healthy", "service": "SlyWriter API"}
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
