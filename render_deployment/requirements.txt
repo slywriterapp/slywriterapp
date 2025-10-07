@@ -46,3 +46,14 @@ pytest-asyncio==0.21.1
 
 # Production server
 gunicorn==21.2.0
+
+# Payment Processing
+stripe==11.4.0
+
+# Database ORM
+sqlalchemy==2.0.36
+alembic==1.14.0
+
+# Desktop App Features (gracefully degrades if not available)
+pyperclip>=1.8.2
+requests==2.31.0
