@@ -230,6 +230,15 @@ async function startTypingServer() {
       sendSplashProgress('Starting backend server...')
 
       const backendDir = path.dirname(typingServerPath)
+      console.log('🐍 Setting PYTHONPATH to:', backendDir)
+      sendSplashProgress(`PYTHONPATH: ${backendDir}`)
+
+      // Check if typing_engine.py exists in the same directory
+      const typingEnginePath = path.join(backendDir, 'typing_engine.py')
+      console.log('🔍 Looking for typing_engine.py at:', typingEnginePath)
+      console.log('📄 typing_engine.py exists:', fs.existsSync(typingEnginePath))
+      sendSplashProgress(`typing_engine.py exists: ${fs.existsSync(typingEnginePath)}`)
+
       typingServerProcess = spawn(pythonPath, [typingServerPath], {
         cwd: backendDir,
         stdio: ['ignore', 'pipe', 'pipe'],
