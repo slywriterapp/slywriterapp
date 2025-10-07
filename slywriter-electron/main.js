@@ -244,7 +244,14 @@ async function startTypingServer() {
 
       typingServerProcess.stderr.on('data', (data) => {
         const message = data.toString()
-        console.log(`Typing server: ${message}`)
+        console.log(`Typing server stderr: ${message}`)
+
+        // Log errors to splash screen for debugging
+        if (message.includes('Error') || message.includes('error') || message.includes('Exception') || message.includes('Traceback')) {
+          console.error(`⚠️ Backend error: ${message}`)
+          sendSplashProgress(`Backend error: ${message.substring(0, 100)}`)
+        }
+
         // Check if server started successfully
         if (message.includes('Uvicorn running on') || message.includes('8000') || message.includes('Started server')) {
           serverStarted = true
@@ -285,18 +292,33 @@ async function startTypingServer() {
             sendSplashProgress('✅ Backend server ready!')
             sendSplashComplete()
           }
+        } else if (!serverStarted) {
+          // Bundled Python failed, try system Python fallback
+          console.log('Bundled Python failed to start, trying system Python...')
+          sendSplashProgress('Trying system Python...')
+          trySystemPython()
         }
-      }, 2000)
+      }, 3000) // Wait 3 seconds for bundled Python to start
 
     } catch (error) {
       console.error('Failed to start with bundled Python:', error.message)
+      sendSplashProgress('Failed to spawn bundled Python, trying system Python...')
+      setTimeout(trySystemPython, 500)
     }
-  }
-
-  // If bundled Python didn't work, try system Python as fallback
-  if (!serverStarted) {
+  } else {
+    // No bundled Python available, try system Python immediately
     console.log('Bundled Python not available, trying system Python...')
     sendSplashProgress('Trying system Python...')
+    trySystemPython()
+  }
+
+  // System Python fallback function
+  function trySystemPython() {
+    if (serverStarted) {
+      console.log('Server already started, skipping system Python fallback')
+      return
+    }
+
     const pythonCommands = ['python', 'python3', 'py']
 
     for (const pythonCmd of pythonCommands) {
@@ -381,6 +403,7 @@ async function startTypingServer() {
       }
     }
   }, 3000)
+  } // End of trySystemPython
 }
 
 // Stop the typing server
