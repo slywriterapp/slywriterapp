@@ -89,7 +89,7 @@ async function setupPython(onProgress) {
       console.log('Python executable found, checking for missing packages...')
 
       // Required packages
-      const requiredPackages = ['fastapi', 'clipboard', 'requests', 'pydantic']
+      const requiredPackages = ['fastapi', 'clipboard', 'requests', 'pydantic', 'google-auth-oauthlib']
       const missingPackages = []
 
       // Check each required package
@@ -121,7 +121,12 @@ async function setupPython(onProgress) {
           'clipboard',
           'requests',
           'pillow',
-          'pydantic'
+          'pydantic',
+          'google-auth-oauthlib',
+          'google-auth',
+          'google-api-python-client',
+          'PyJWT',
+          'bcrypt'
         ]
 
         for (const pkg of allPackages) {
@@ -217,7 +222,12 @@ async function setupPython(onProgress) {
       'clipboard',
       'requests',
       'pillow',
-      'pydantic'
+      'pydantic',
+      'google-auth-oauthlib',
+      'google-auth',
+      'google-api-python-client',
+      'PyJWT',
+      'bcrypt'
     ]
 
     const failedPackages = []
@@ -243,7 +253,7 @@ async function setupPython(onProgress) {
     }
 
     // Check critical packages
-    const criticalPackages = ['fastapi', 'uvicorn']
+    const criticalPackages = ['fastapi', 'uvicorn', 'google-auth-oauthlib']
     const missingCritical = criticalPackages.filter(p => failedPackages.some(f => f.startsWith(p)))
 
     if (missingCritical.length > 0) {
