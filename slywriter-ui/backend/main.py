@@ -1,9 +1,10 @@
 """
-SlyWriter Backend Server
+SlyWriter Backend Server - MERGED VERSION
 FastAPI server that handles all typing automation and backend functionality
+Includes both web app endpoints and desktop app endpoints
 """
 
-from fastapi import FastAPI, WebSocket, HTTPException, Depends, BackgroundTasks, Request
+from fastapi import FastAPI, WebSocket, HTTPException, Depends, BackgroundTasks, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 try:
     import pyautogui
     import keyboard
+    import pyperclip
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
@@ -47,6 +49,16 @@ from database import (
     track_humanizer_usage, create_typing_session
 )
 
+# Desktop App: Import license manager (optional for desktop functionality)
+try:
+    from license_manager import get_license_manager
+    LICENSE_MANAGER_AVAILABLE = True
+except ImportError:
+    logger.warning("license_manager.py not found - license features disabled")
+    LICENSE_MANAGER_AVAILABLE = False
+    def get_license_manager(*args, **kwargs):
+        return None
+
 # Initialize Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -55,12 +67,30 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "675434683795-shrls6suu68dj0cuvqct28gf3o6u3jav.apps.googleusercontent.com")
 
+# Desktop App: Admin authentication
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+def verify_admin(authorization: str = Header(None)):
+    """Verify admin access using Authorization header"""
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=500, detail="Admin authentication not configured")
+
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+    token = authorization.replace("Bearer ", "")
+    if token != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid admin credentials")
+
+    return True
+
 app = FastAPI(title="SlyWriter Backend", version="2.0.0")
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "*",  # Allow all for desktop compatibility
         "http://localhost:3000",
         "http://localhost:3001",
         "https://slywriter.ai",
@@ -112,7 +142,9 @@ class TypingEngine:
         self.websocket_clients = []
         self.wpm = 0
         self.status = "Ready"
-        
+        # Desktop App: Config directory for license and user data
+        self.config_dir = os.environ.get('SLYWRITER_CONFIG_DIR', os.path.dirname(__file__))
+
     def reset(self):
         self.is_typing = False
         self.is_paused = False
@@ -171,6 +203,18 @@ class HotkeyRequest(BaseModel):
     action: str
     hotkey: str
 
+# Desktop App: Additional Pydantic models
+class ConfigUpdate(BaseModel):
+    settings: Dict[str, Any]
+
+class HotkeyUpdate(BaseModel):
+    key: str
+    value: str
+
+class LicenseVerifyRequest(BaseModel):
+    license_key: str
+    force: bool = False
+
 # Profile management (kept in-memory for now, can be moved to DB later)
 profiles_db = {}
 
@@ -194,7 +238,7 @@ def generate_typo(char: str) -> str:
         'u': 'yihj', 'v': 'cfgb', 'w': 'qase', 'x': 'zsdc',
         'y': 'tugh', 'z': 'asx'
     }
-    
+
     if char.lower() in keyboard_neighbors:
         neighbors = keyboard_neighbors[char.lower()]
         typo = random.choice(neighbors)
@@ -215,7 +259,7 @@ async def type_text_worker(
     typing_engine.chars_typed = 0
     typing_engine.start_time = time.time()
     typing_engine.status = "Starting in 5 seconds..."
-    
+
     # Broadcast initial status
     await manager.broadcast({
         "type": "status",
@@ -226,7 +270,7 @@ async def type_text_worker(
             "wpm": 0
         }
     })
-    
+
     # 5-second countdown
     for i in range(5, 0, -1):
         if typing_engine.stop_flag.is_set():
@@ -237,15 +281,15 @@ async def type_text_worker(
             "data": {"status": typing_engine.status}
         })
         await asyncio.sleep(1)
-    
+
     typing_engine.status = "Typing..."
     sentence_count = 0
-    
+
     for i, char in enumerate(text):
         # Check stop flag
         if typing_engine.stop_flag.is_set():
             break
-            
+
         # Check pause flag
         while typing_engine.pause_flag.is_set():
             typing_engine.status = "Paused"
@@ -256,10 +300,10 @@ async def type_text_worker(
             await asyncio.sleep(0.1)
             if typing_engine.stop_flag.is_set():
                 break
-        
+
         if typing_engine.stop_flag.is_set():
             break
-            
+
         # Type the character (unless in preview mode)
         if not preview_mode and GUI_AVAILABLE:
             # Random typo
@@ -272,13 +316,13 @@ async def type_text_worker(
                 pyautogui.write(char)
             else:
                 pyautogui.write(char)
-        
+
         typing_engine.chars_typed += 1
-        
+
         # Calculate WPM
         elapsed = time.time() - typing_engine.start_time
         typing_engine.wpm = calculate_wpm(typing_engine.chars_typed, elapsed)
-        
+
         # Send progress update
         await manager.broadcast({
             "type": "status",
@@ -290,10 +334,10 @@ async def type_text_worker(
                 "progress": (typing_engine.chars_typed / typing_engine.total_chars) * 100
             }
         })
-        
+
         # Variable delay between characters
         delay = random.uniform(min_delay, max_delay)
-        
+
         # Add longer pause at sentence ends
         if char in '.!?':
             sentence_count += 1
@@ -304,9 +348,9 @@ async def type_text_worker(
                     "type": "status",
                     "data": {"status": typing_engine.status}
                 })
-        
+
         await asyncio.sleep(delay)
-    
+
     # Typing complete
     typing_engine.is_typing = False
     typing_engine.status = "Complete!"
@@ -321,7 +365,10 @@ async def type_text_worker(
         }
     })
 
-# API Routes
+# ============================================================================
+# API ENDPOINTS - WEB APP
+# ============================================================================
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
@@ -332,10 +379,10 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
     """Start typing with specified parameters"""
     if typing_engine.is_typing:
         raise HTTPException(status_code=400, detail="Already typing")
-    
+
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided")
-    
+
     # Reset engine state
     typing_engine.reset()
     typing_engine.is_typing = True
@@ -358,7 +405,7 @@ async def pause_typing():
     """Pause or resume typing"""
     if not typing_engine.is_typing:
         raise HTTPException(status_code=400, detail="Not currently typing")
-    
+
     if typing_engine.is_paused:
         typing_engine.pause_flag.clear()
         typing_engine.is_paused = False
@@ -373,11 +420,11 @@ async def stop_typing():
     """Stop typing"""
     if not typing_engine.is_typing:
         return {"status": "not_typing", "message": "Not currently typing"}
-    
+
     typing_engine.stop_flag.set()
     typing_engine.is_typing = False
     typing_engine.is_paused = False
-    
+
     # Broadcast stop status
     await manager.broadcast({
         "type": "status",
@@ -388,7 +435,7 @@ async def stop_typing():
             "wpm": typing_engine.wpm
         }
     })
-    
+
     return {"status": "stopped", "message": "Typing stopped"}
 
 @app.get("/api/typing/status")
@@ -415,7 +462,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "type": "connected",
             "data": {"message": "Connected to SlyWriter backend"}
         })
-        
+
         # Keep connection alive
         while True:
             data = await websocket.receive_text()
@@ -516,15 +563,15 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
     try:
         data = await request.json()
         credential = data.get("credential")
-        
+
         if not credential:
             raise HTTPException(status_code=400, detail="No credential provided")
-        
+
         # Verify the Google ID token
         try:
             idinfo = id_token.verify_oauth2_token(
-                credential, 
-                google_requests.Request(), 
+                credential,
+                google_requests.Request(),
                 GOOGLE_CLIENT_ID
             )            # Get email and profile picture from token
             email = idinfo.get("email")
@@ -533,11 +580,11 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
 
             # Extract profile picture URL if available
             profile_picture = idinfo.get("picture")
-                
+
         except ValueError as e:
             logger.error(f"Invalid Google token: {e}")
             raise HTTPException(status_code=401, detail="Invalid Google token")
-        
+
         # Get or create user
         user = get_user_by_email(db, email)
         is_new_user = False
@@ -553,19 +600,19 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             user.profile_picture = profile_picture
 
         db.commit()
-        
+
         # Check for weekly reset
         check_weekly_reset(db, user)
-        
+
         # Generate referral code if needed
         if not user.referral_code:
             import secrets
             user.referral_code = secrets.token_urlsafe(8)
             db.commit()
-        
+
         # Get user limits
         limits = get_user_limits(user)
-        
+
         # Build user response
         user_data = {
             "id": user.id,
@@ -583,7 +630,7 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             "premium_until": user.premium_until.isoformat() if user.premium_until else None,
             **limits
         }
-        
+
         return {
             "success": True,
             "is_new_user": is_new_user,
@@ -591,7 +638,7 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             "token": f"token_{user.id}",
             "access_token": f"token_{user.id}"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1229,7 +1276,7 @@ async def generate_ai_text(request: AIGenerateRequest):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1238,9 +1285,9 @@ async def generate_ai_text(request: AIGenerateRequest):
             ],
             max_tokens=request.max_tokens
         )
-        
+
         generated_text = response.choices[0].message.content
-        
+
         return {
             "success": True,
             "text": generated_text,
@@ -1267,9 +1314,9 @@ async def humanize_text(request: AIHumanizeRequest):
             ],
             max_tokens=1000
         )
-        
+
         humanized_text = response.choices[0].message.content
-        
+
         return {
             "success": True,
             "original": request.text,
@@ -1285,7 +1332,7 @@ async def generate_filler(length: int = 100):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1294,7 +1341,7 @@ async def generate_filler(length: int = 100):
             ],
             max_tokens=length * 2
         )
-        
+
         return {
             "success": True,
             "text": response.choices[0].message.content
@@ -1309,15 +1356,15 @@ async def explain_topic(request: AIExplainRequest):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         detail_prompts = {
             "simple": "Explain this in very simple terms suitable for a beginner:",
             "medium": "Provide a clear explanation of:",
             "detailed": "Provide a comprehensive, detailed explanation of:"
         }
-        
+
         prompt = f"{detail_prompts.get(request.detail_level, detail_prompts['medium'])} {request.topic}"
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1326,7 +1373,7 @@ async def explain_topic(request: AIExplainRequest):
             ],
             max_tokens=800
         )
-        
+
         return {
             "success": True,
             "topic": request.topic,
@@ -1342,9 +1389,9 @@ async def generate_study_questions(request: StudyQuestionsRequest):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         prompt = f"Generate {request.num_questions} study questions about: {request.topic}. Format each question on a new line starting with a number."
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1353,10 +1400,10 @@ async def generate_study_questions(request: StudyQuestionsRequest):
             ],
             max_tokens=500
         )
-        
+
         questions_text = response.choices[0].message.content
         questions = [q.strip() for q in questions_text.split('\n') if q.strip()]
-        
+
         return {
             "success": True,
             "topic": request.topic,
@@ -1378,15 +1425,15 @@ async def create_lesson(request: CreateLessonRequest):
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         difficulty_prompts = {
             "easy": "Create a beginner-friendly lesson about",
             "medium": "Create an intermediate lesson about",
             "hard": "Create an advanced, detailed lesson about"
         }
-        
+
         prompt = f"{difficulty_prompts.get(request.difficulty, difficulty_prompts['medium'])} {request.topic}. Include: 1) Overview, 2) Key concepts, 3) Examples, 4) Practice exercises"
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1395,7 +1442,7 @@ async def create_lesson(request: CreateLessonRequest):
             ],
             max_tokens=1500
         )
-        
+
         return {
             "success": True,
             "topic": request.topic,
@@ -1451,7 +1498,7 @@ async def get_telemetry_stats(db: Session = Depends(get_db)):
         total_users = db.query(User).count()
         total_words = db.query(User).with_entities(func.sum(User.total_words_typed)).scalar() or 0
         total_sessions = db.query(TypingSession).count()
-        
+
         return {
             "success": True,
             "stats": {
@@ -1470,7 +1517,7 @@ async def get_telemetry_entries(limit: int = 50, db: Session = Depends(get_db)):
     """Get recent telemetry entries"""
     try:
         sessions = db.query(TypingSession).order_by(TypingSession.id.desc()).limit(limit).all()
-        
+
         entries = []
         for session in sessions:
             entries.append({
@@ -1479,7 +1526,7 @@ async def get_telemetry_entries(limit: int = 50, db: Session = Depends(get_db)):
                 "words_typed": session.words_typed,
                 "created_at": session.created_at.isoformat() if session.created_at else None
             })
-        
+
         return {
             "success": True,
             "entries": entries
@@ -1493,7 +1540,7 @@ async def export_telemetry(db: Session = Depends(get_db)):
     """Export telemetry data"""
     try:
         sessions = db.query(TypingSession).all()
-        
+
         data = []
         for session in sessions:
             data.append({
@@ -1502,7 +1549,7 @@ async def export_telemetry(db: Session = Depends(get_db)):
                 "words_typed": session.words_typed,
                 "created_at": session.created_at.isoformat() if session.created_at else None
             })
-        
+
         return {
             "success": True,
             "data": data,
@@ -1661,6 +1708,306 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Dashboard error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# DESKTOP APP ENDPOINTS - Merged from backend_api.py
+# ============================================================================
+
+@app.post("/api/auth/logout")
+async def logout():
+    """Desktop App: Logout current user"""
+    # This is a simple endpoint for desktop app compatibility
+    # In the web version, logout is handled client-side
+    return {"success": True}
+
+@app.post("/api/auth/register")
+async def register(auth: UserAuthRequest, db: Session = Depends(get_db)):
+    """Desktop App: Register new user"""
+    if not auth.email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    # Check if user already exists
+    existing_user = get_user_by_email(db, auth.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User already exists")
+
+    # Create new user
+    user = create_user(db, auth.email, plan="Free")
+
+    # Generate referral code
+    import secrets
+    user.referral_code = secrets.token_urlsafe(8)
+    db.commit()
+
+    # Get user limits
+    limits = get_user_limits(user)
+
+    # Build user response
+    user_data = {
+        "id": user.id,
+        "email": user.email,
+        "plan": user.plan,
+        "usage": user.words_used_this_week,
+        "referrals": {
+            "code": user.referral_code,
+            "count": user.referral_count,
+            "tier_claimed": user.referral_tier_claimed,
+            "bonus_words": user.referral_bonus
+        },
+        **limits
+    }
+
+    return {
+        "success": True,
+        "user": user_data,
+        "token": f"token_{user.id}"
+    }
+
+@app.post("/api/auth/google")
+async def google_auth_desktop():
+    """Desktop App: Google OAuth endpoint (different from /auth/google/login)"""
+    # This endpoint is for desktop app's Google OAuth flow
+    # Returns a redirect or authentication flow initiation
+    # Note: This is a simplified version - desktop app handles the actual OAuth flow
+    return {
+        "success": True,
+        "message": "Desktop Google OAuth - handled by client",
+        "auth_url": "https://accounts.google.com/o/oauth2/auth"
+    }
+
+@app.get("/api/auth/status")
+async def auth_status_desktop():
+    """Desktop App: Get current authentication status"""
+    # This is a simplified version for desktop app
+    # In production, this would check session/token validity
+    return {
+        "authenticated": False,
+        "message": "Desktop app authentication status check"
+    }
+
+@app.get("/api/config")
+async def get_config_desktop():
+    """Desktop App: Get current configuration"""
+    # Return default config for desktop app
+    return {
+        "settings": {
+            "hotkeys": hotkeys_db,
+            "theme": "dark"
+        }
+    }
+
+@app.post("/api/config")
+async def update_config_desktop(config_update: ConfigUpdate):
+    """Desktop App: Update configuration"""
+    # In production, this would save to user's config file
+    # For now, just acknowledge the update
+    return {"success": True, "config": config_update.settings}
+
+@app.post("/api/config/hotkey")
+async def update_hotkey_desktop(hotkey: HotkeyUpdate):
+    """Desktop App: Update a specific hotkey"""
+    hotkeys_db[hotkey.key] = hotkey.value
+    return {"success": True, "hotkeys": hotkeys_db}
+
+@app.post("/api/profiles/generate-from-wpm")
+async def generate_profile_from_wpm(request: dict):
+    """Desktop App: Generate a custom profile based on WPM"""
+    wpm = request.get("wpm", 85)
+
+    # Calculate delays based on WPM
+    # 60000 ms per minute / (wpm * 5 characters per word) = ms per character
+    avg_delay = 60000 / (wpm * 5)
+    min_delay = int(avg_delay * 0.8)
+    max_delay = int(avg_delay * 1.2)
+
+    return {
+        "success": True,
+        "profile": {
+            "name": "Custom",
+            "wpm": wpm,
+            "description": f"Custom profile for {wpm} WPM",
+            "is_builtin": False,
+            "settings": {
+                "min_delay": min_delay,
+                "max_delay": max_delay,
+                "typos_enabled": wpm < 150,
+                "typo_chance": max(0, min(5, 5 - (wpm // 30))),
+                "pause_frequency": min(10, max(3, wpm // 20)),
+                "ai_filler_enabled": False,
+                "micro_hesitations": wpm < 100,
+                "zone_out_breaks": False,
+                "burst_variability": max(5, min(20, 20 - (wpm // 15)))
+            }
+        }
+    }
+
+@app.post("/api/copy-highlighted")
+async def copy_highlighted():
+    """Desktop App: Copy highlighted text to clipboard using keyboard simulation (for hotkey)"""
+    if not GUI_AVAILABLE:
+        raise HTTPException(status_code=501, detail="GUI automation not available in this environment")
+
+    try:
+        # Save current clipboard
+        original = pyperclip.paste()
+
+        # For hotkey, we DON'T need Alt+Tab since focus is already correct
+        # Just ensure no keys are stuck
+        keyboard.release('ctrl')
+        keyboard.release('alt')
+        keyboard.release('shift')
+
+        # Small delay
+        time.sleep(0.05)
+
+        # Now do the copy
+        keyboard.press_and_release('ctrl+c')
+
+        # Wait for clipboard to update
+        time.sleep(0.15)
+
+        # Get the new clipboard content
+        new_content = pyperclip.paste()
+
+        logger.info(f"[COPY-HOTKEY] Content changed: {new_content != original}")
+
+        return {
+            "success": True,
+            "copied": new_content != original,
+            "text": new_content if new_content != original else ""
+        }
+    except Exception as e:
+        logger.error(f"Copy highlighted error: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/copy-highlighted-overlay")
+async def copy_highlighted_overlay():
+    """Desktop App: Copy highlighted text for overlay button (needs Alt+Tab to restore focus)"""
+    if not GUI_AVAILABLE:
+        raise HTTPException(status_code=501, detail="GUI automation not available in this environment")
+
+    try:
+        # Save current clipboard
+        original = pyperclip.paste()
+
+        # For overlay button, we need Alt+Tab to restore focus to previous window
+        keyboard.press_and_release('alt+tab')
+        time.sleep(0.5)  # Wait for window switch
+
+        # Ensure no keys are stuck
+        keyboard.release('ctrl')
+        keyboard.release('alt')
+        keyboard.release('shift')
+
+        # Small delay
+        time.sleep(0.1)
+
+        # Now do the copy - more deliberate for overlay
+        keyboard.press('ctrl')
+        time.sleep(0.05)
+        keyboard.press('c')
+        time.sleep(0.05)
+        keyboard.release('c')
+        keyboard.release('ctrl')
+
+        # Wait longer for clipboard to update
+        time.sleep(0.3)
+
+        # Get the new clipboard content
+        new_content = pyperclip.paste()
+
+        logger.info(f"[COPY-OVERLAY] Content changed: {new_content != original}")
+
+        return {
+            "success": True,
+            "copied": new_content != original,
+            "text": new_content if new_content != original else ""
+        }
+    except Exception as e:
+        logger.error(f"Copy highlighted overlay error: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/typing/update_wpm")
+async def update_typing_wpm(request: dict):
+    """Desktop App: Update WPM during typing session"""
+    session_id = request.get("session_id")
+    wpm = request.get("wpm", 70)
+
+    # Update the typing speed if session is active or paused
+    if typing_engine.is_typing:
+        typing_engine.wpm = wpm
+        return {"success": True, "wpm": wpm}
+
+    return {"success": False, "error": "No active typing session"}
+
+@app.post("/api/typing/pause/{session_id}")
+async def pause_typing_by_session(session_id: str):
+    """Desktop App: Pause typing by session ID"""
+    return await pause_typing()
+
+@app.post("/api/typing/resume/{session_id}")
+async def resume_typing_by_session(session_id: str):
+    """Desktop App: Resume typing by session ID"""
+    # Resume typing by clearing pause flag
+    if typing_engine.is_typing and typing_engine.is_paused:
+        typing_engine.pause_flag.clear()
+        typing_engine.is_paused = False
+        return {"success": True, "message": "Typing resumed"}
+    return {"success": False, "error": "Not currently paused"}
+
+@app.post("/api/typing/stop/{session_id}")
+async def stop_typing_by_session(session_id: str):
+    """Desktop App: Stop typing by session ID"""
+    return await stop_typing()
+
+@app.get("/api/usage")
+async def get_usage_desktop():
+    """Desktop App: Get usage statistics"""
+    # This is a simplified version for desktop app
+    # In production, this would fetch from user's account
+    return {
+        "words_used": 0,
+        "words_limit": 10000,
+        "is_premium": False,
+        "reset_time": "Weekly on Sunday"
+    }
+
+# Desktop App: License verification endpoints
+@app.post("/api/license/verify")
+async def verify_license_endpoint(request: LicenseVerifyRequest):
+    """Desktop App: Verify license with server and check version"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"valid": False, "error": "license_system_unavailable"}
+
+    license_manager = get_license_manager(config_dir=typing_engine.config_dir)
+    result = license_manager.verify_license(request.license_key, force=request.force)
+
+    return result
+
+@app.get("/api/license/status")
+async def get_license_status():
+    """Desktop App: Get current license status"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"valid": False, "error": "license_system_unavailable"}
+
+    license_manager = get_license_manager(config_dir=typing_engine.config_dir)
+    if not license_manager or not license_manager.license_data:
+        return {"valid": False, "error": "not_verified"}
+
+    return license_manager.license_data
+
+@app.get("/api/license/features")
+async def get_enabled_features():
+    """Desktop App: Get list of enabled features for current license"""
+    if not LICENSE_MANAGER_AVAILABLE:
+        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
+
+    license_manager = get_license_manager(config_dir=typing_engine.config_dir)
+    if not license_manager or not license_manager.license_data:
+        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
+
+    return license_manager.license_data.get('features_enabled', {})
 
 
 if __name__ == "__main__":

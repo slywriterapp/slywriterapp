@@ -198,7 +198,22 @@ async function startTypingServer() {
       }
     } catch (error) {
       console.error('Failed to setup bundled Python:', error)
-      const errorMsg = error.message.replace(/'/g, "\\'")
+
+      // Create user-friendly error message
+      let errorMsg = 'Python setup failed:\n'
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT') || error.message.includes('network')) {
+        errorMsg += '• Network connection issue\n'
+        errorMsg += '• Check your internet connection and try again'
+      } else if (error.message.includes('EACCES') || error.message.includes('permission')) {
+        errorMsg += '• Permission denied\n'
+        errorMsg += '• Try running SlyWriter as Administrator'
+      } else if (error.message.includes('ENOSPC') || error.message.includes('space')) {
+        errorMsg += '• Insufficient disk space\n'
+        errorMsg += '• Free up at least 500MB and retry'
+      } else {
+        errorMsg += `• ${error.message}\n`
+        errorMsg += '\nAttempting to use system Python as fallback...'
+      }
 
       // Show error in splash window
       sendSplashError(errorMsg)
@@ -281,7 +296,23 @@ async function startTypingServer() {
 
       typingServerProcess.on('error', (error) => {
         console.error('Failed to start typing server with bundled Python:', error.message)
-        sendSplashError(`Backend server failed: ${error.message}`)
+        let errorMsg = 'Failed to start backend server:\n'
+
+        // Provide specific guidance based on error type
+        if (error.code === 'ENOENT') {
+          errorMsg += '• Python executable not found\n'
+          errorMsg += '• This may happen if Python setup was interrupted\n\n'
+          errorMsg += 'Click "Retry Setup" to download Python again.'
+        } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+          errorMsg += '• Permission denied\n'
+          errorMsg += '• Try running SlyWriter as Administrator\n'
+          errorMsg += '• Or check your antivirus settings'
+        } else {
+          errorMsg += `• ${error.message}\n\n`
+          errorMsg += 'Try clicking "Retry Setup" or check the troubleshooting guide.'
+        }
+
+        sendSplashError(errorMsg)
       })
 
       typingServerProcess.on('exit', (code) => {
@@ -401,7 +432,17 @@ async function startTypingServer() {
         console.error('This is expected on first run. Python will be downloaded automatically.')
         console.error('If this persists, install Python manually from python.org')
 
-        sendSplashError('Backend server failed to start. Python or dependencies may be missing.')
+        const fallbackError = 'Backend server failed to start.\n\n' +
+                             'Possible causes:\n' +
+                             '• First time setup - Python is downloading (this is normal)\n' +
+                             '• Firewall blocking Python download\n' +
+                             '• Internet connection issue\n' +
+                             '• Missing dependencies\n\n' +
+                             'Next steps:\n' +
+                             '1. Click "Retry Setup" to try again\n' +
+                             '2. Check your firewall/antivirus settings\n' +
+                             '3. See the troubleshooting guide (link in app footer)'
+        sendSplashError(fallbackError)
 
         // Notify user in the renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -418,6 +459,25 @@ async function startTypingServer() {
       }
     }, 3000)
   } // End of trySystemPython
+
+  // Global timeout: If backend hasn't started in 90 seconds, show error
+  setTimeout(() => {
+    if (!serverStarted) {
+      console.error('[Setup] Backend startup timed out after 90 seconds')
+      const timeoutError = 'Backend server startup timed out. This may be due to:\n' +
+                          '• Slow internet connection (downloading Python/packages)\n' +
+                          '• Firewall blocking the download\n' +
+                          '• Port 8000 already in use by another application\n\n' +
+                          'Please click "Retry Setup" or check your firewall settings.'
+      sendSplashError(timeoutError)
+
+      // Kill any lingering process
+      if (typingServerProcess && !typingServerProcess.killed) {
+        typingServerProcess.kill()
+        typingServerProcess = null
+      }
+    }
+  }, 90000) // 90 second timeout
 }
 
 // Stop the typing server
@@ -482,6 +542,30 @@ function createSplashScreen() {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.show()
       }
+    }
+  })
+
+  // Listen for retry-setup message from renderer
+  ipcMain.on('retry-setup', async () => {
+    console.log('[Setup] Retry requested by user')
+    sendSplashProgress('Retrying setup...')
+
+    // Kill existing typing server process if running
+    if (typingServerProcess && !typingServerProcess.killed) {
+      console.log('[Setup] Killing existing typing server process')
+      typingServerProcess.kill()
+      typingServerProcess = null
+      // Wait a moment for process to fully terminate
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+
+    // Retry Python setup and backend start
+    try {
+      await startTypingServer()
+    } catch (error) {
+      console.error('[Setup] Retry failed:', error)
+      const errorMsg = error.message || 'Retry failed. Please check your internet connection and firewall settings.'
+      sendSplashError(errorMsg)
     }
   })
 }

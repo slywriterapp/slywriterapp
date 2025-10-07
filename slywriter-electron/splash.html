@@ -228,6 +228,7 @@
         <div class="logs-container" id="logsContainer"></div>
 
         <div class="button-container" id="buttonContainer">
+            <button class="retry-btn" id="retryBtn">↻ Retry Setup</button>
             <button class="copy-logs-btn" id="copyLogsBtn">Copy Logs</button>
             <button class="close-btn" id="closeBtn">Close</button>
         </div>
@@ -238,6 +239,7 @@
         const progressFill = document.getElementById('progressFill');
         const logsContainer = document.getElementById('logsContainer');
         const buttonContainer = document.getElementById('buttonContainer');
+        const retryBtn = document.getElementById('retryBtn');
         const copyLogsBtn = document.getElementById('copyLogsBtn');
         const closeBtn = document.getElementById('closeBtn');
         const spinner = document.getElementById('spinner');
@@ -325,6 +327,26 @@
                 buttonContainer.classList.add('visible');
             });
         }
+
+        // Retry setup button
+        retryBtn.addEventListener('click', () => {
+            if (window.electronAPI && window.electronAPI.retrySetup) {
+                // Reset UI
+                hasError = false;
+                logs = [];
+                logsContainer.innerHTML = '';
+                logsContainer.classList.remove('visible');
+                buttonContainer.classList.remove('visible');
+                spinner.style.display = 'block';
+                statusText.textContent = 'Retrying setup...';
+                statusText.className = 'status';
+                progressFill.style.width = '0%';
+                addLog('Retrying setup...');
+
+                // Trigger retry
+                window.electronAPI.retrySetup();
+            }
+        });
 
         // Copy logs to clipboard
         copyLogsBtn.addEventListener('click', () => {

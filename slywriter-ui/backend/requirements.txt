@@ -36,3 +36,6 @@ pytest-asyncio==0.21.1
 
 # CORS and Security
 fastapi-cors==0.0.6
+
+# Desktop App Features (Optional - gracefully degrades if not available)
+pyperclip>=1.8.2  # For clipboard/copy-highlighted endpoints
