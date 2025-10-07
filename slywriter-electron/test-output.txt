@@ -1,0 +1,85 @@
+
+> slywriter-desktop@2.3.9 start
+> electron .
+
+
+Python setup module loaded successfully
+Starting Electron app...
+Loading login page
+Starting typing server...
+📍 Typing server path: C:\Typing Project\backend_api.py
+📁 Current directory: C:\Typing Project\slywriter-electron
+📦 isPackaged: false
+✅ Backend file exists: true
+[setup-python] Initialized with PYTHON_DIR: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed
+[setup-python] PYTHON_EXE: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed\python.exe
+Setting up bundled Python...
+Setting up Python...
+Setup progress: Downloading Python... (10%)
+Downloading https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed-amd64.zip (attempt 1/3)...
+[MAIN] Overlay loaded successfully
+[MAIN] Sent hotkeys to overlay: {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+[Window] Main window ready (not showing yet - waiting for setup)
+Page loaded successfully!
+✅ Downloaded successfully: python.zip
+Setup progress: Extracting Python... (40%)
+Setup progress: Python extracted (60%)
+Downloading https://bootstrap.pypa.io/get-pip.py (attempt 1/3)...
+✅ Downloaded successfully: get-pip.py
+Setup progress: Installing pip... (70%)
+Installing pip (attempt 1/3)...
+[App] Verifying license before starting...
+[License] Verifying license...
+[License] No license key found - prompting for login
+[License] Handling license error: no_license
+[License] No license found - will show login page
+Loaded saved hotkeys: {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+Registering global hotkeys... {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+F12 registered: false
+Registering AI generation hotkey: ctrl+alt+g -> CommandOrControl+Alt+G
+🔥 [ELECTRON] AI Generation hotkey (CommandOrControl+Alt+G) registered: true
+Start hotkey (CommandOrControl+T) registered: true
+Stop hotkey (CommandOrControl+Alt+Q) registered: true
+Pause hotkey (CommandOrControl+Alt+P) registered: true
+[MAIN] Overlay hotkey (CommandOrControl+Alt+O) registered: true
+[AUTO-UPDATE] ========================================
+[AUTO-UPDATE] Initial update check starting...
+[AUTO-UPDATE] Timestamp: 2025-10-07T00:31:48.484Z
+[AUTO-UPDATE] Initiating update check...
+Skip checkForUpdates because application is not packed and dev update config is not forced
+checkForUpdatesAndNotify called, downloadPromise is null
+[AUTO-UPDATE] Check result: null
+[AUTO-UPDATE] ========================================
+❌ Pip installation attempt 1 failed: Command failed with code 143: Collecting pip
+  Using cached pip-25.2-py3-none-any.whl.metadata (4.7 kB)
+Collecting setuptools
+  Using cached setuptools-80.9.0-py3-none-any.whl.metadata (6.6 kB)
+Collecting wheel
+  Using cached wheel-0.45.1-py3-none-any.whl.metadata (2.3 kB)
+Using cached pip-25.2-py3-none-any.whl (1.8 MB)
+Using cached setuptools-80.9.0-py3-none-any.whl (1.2 MB)
+Using cached wheel-0.45.1-py3-none-any.whl (72 kB)
+Installing collected packages: wheel, setuptools, pip
+  WARNING: The script wheel.exe is installed in 'C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed\Scripts' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+
+[35024:1006/203150.522:ERROR:network_service_instance_impl.cc(601)] Network service crashed, restarting service.
+[35024:1006/203150.595:ERROR:gpu_process_host.cc(993)] GPU process exited unexpectedly: exit_code=143

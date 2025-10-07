@@ -99,6 +99,7 @@ process.stderr.on('error', (err) => {
 
 let mainWindow
 let overlayWindow
+let overlayIntervalId = null
 let tray
 let nextServer
 let nextPort = 3000
@@ -378,31 +379,30 @@ async function startTypingServer() {
         console.error(`Failed to start with ${pythonCmd}:`, error.message)
       }
     }
-  }
 
-  // Wait a bit to see if any Python command worked
-  setTimeout(() => {
-    if (!serverStarted) {
-      console.error('Could not start typing server - Python may not be installed or dependencies missing')
-      console.error('This is expected on first run. Python will be downloaded automatically.')
-      console.error('If this persists, install Python manually from python.org')
+    // Wait a bit to see if any Python command worked
+    setTimeout(() => {
+      if (!serverStarted) {
+        console.error('Could not start typing server - Python may not be installed or dependencies missing')
+        console.error('This is expected on first run. Python will be downloaded automatically.')
+        console.error('If this persists, install Python manually from python.org')
 
-      sendSplashError('Backend server failed to start. Python or dependencies may be missing.')
+        sendSplashError('Backend server failed to start. Python or dependencies may be missing.')
 
-      // Notify user in the renderer
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript(`
-          console.error('⚠️ Typing server is not running');
-          console.log('📥 Python environment is being set up. This may take a few minutes on first run.');
-          console.log('The app will download Python (~20MB) and install dependencies (~50MB).');
-          console.log('If this doesn\\'t work automatically, you may need to:');
-          console.log('  1. Install Python from https://python.org');
-          console.log('  2. Run: pip install fastapi uvicorn keyboard openai python-dotenv');
-          console.log('  3. Restart SlyWriter');
-        `).catch(() => {})
+        // Notify user in the renderer
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.executeJavaScript(`
+            console.error('⚠️ Typing server is not running');
+            console.log('📥 Python environment is being set up. This may take a few minutes on first run.');
+            console.log('The app will download Python (~20MB) and install dependencies (~50MB).');
+            console.log('If this doesn\\'t work automatically, you may need to:');
+            console.log('  1. Install Python from https://python.org');
+            console.log('  2. Run: pip install fastapi uvicorn keyboard openai python-dotenv');
+            console.log('  3. Restart SlyWriter');
+          `).catch(() => {})
+        }
       }
-    }
-  }, 3000)
+    }, 3000)
   } // End of trySystemPython
 }
 
@@ -677,7 +677,7 @@ function createOverlay() {
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   
   // Periodically reinforce always-on-top to prevent other windows from covering it
-  setInterval(() => {
+  overlayIntervalId = setInterval(() => {
     if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.isVisible()) {
       overlayWindow.setAlwaysOnTop(true, process.platform === 'win32' ? 'pop-up-menu' : 'screen-saver', 1)
     }
@@ -2228,14 +2228,28 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
+  // Clear overlay interval
+  if (overlayIntervalId) {
+    clearInterval(overlayIntervalId)
+    overlayIntervalId = null
+  }
+
+  // Close splash window if it exists
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.destroy()
+    splashWindow = null
+  }
+
   // Close overlay window if it exists
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.destroy()
+    overlayWindow = null
   }
-  
+
   // Destroy tray if it exists
   if (tray && !tray.isDestroyed()) {
     tray.destroy()
+    tray = null
   }
 })
 
