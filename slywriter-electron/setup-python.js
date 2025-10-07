@@ -173,7 +173,10 @@ async function setupPython(onProgress) {
       'openai',
       'python-dotenv',
       'pyperclip',
-      'pillow'
+      'clipboard',
+      'requests',
+      'pillow',
+      'pydantic'
     ]
 
     const failedPackages = []
