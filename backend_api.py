@@ -30,7 +30,8 @@ except ImportError:
         return None
 
 # Load environment variables for OpenAI
-load_dotenv()
+# Use explicit path instead of find_dotenv() to support exec() execution
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env') if '__file__' in globals() else '.env')
 
 # Admin authentication
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
