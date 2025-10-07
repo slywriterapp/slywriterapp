@@ -332,13 +332,14 @@ class BetaTelemetryService {
   private async uploadToCloud(data: any) {
     try {
       await axios.post(`${this.TELEMETRY_API_URL}/api/beta-telemetry`, data, {
-        timeout: 10000,
+        timeout: 3000, // Reduced to 3 seconds - fail fast, don't block UI
         headers: {
           'Content-Type': 'application/json'
         }
       })
     } catch (error) {
-      console.debug('Failed to upload telemetry to cloud, saving locally', error)
+      // Silently fail - telemetry is non-critical
+      console.debug('Telemetry upload failed (non-critical)', error)
       throw error
     }
   }
@@ -362,7 +363,7 @@ class BetaTelemetryService {
     localStorage.setItem('betaTelemetryData', JSON.stringify(allData))
   }
 
-  // Load stored data on init and upload to cloud
+  // Load stored data on init and upload to cloud (non-blocking)
   private loadStoredData() {
     if (typeof window === 'undefined') return
 
@@ -370,8 +371,14 @@ class BetaTelemetryService {
     if (stored) {
       try {
         const data = JSON.parse(stored)
-        // Attempt to upload any stored data to cloud
-        data.forEach((d: any) => this.uploadToCloud(d))
+        // Upload stored data in background - don't block page load
+        setTimeout(() => {
+          data.forEach((d: any) => {
+            this.uploadToCloud(d).catch(() => {
+              // Silently fail - data will retry next session
+            })
+          })
+        }, 5000) // Wait 5 seconds after page load
       } catch (e) {
         console.debug('Failed to load stored telemetry', e)
       }
