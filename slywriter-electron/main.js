@@ -229,12 +229,14 @@ async function startTypingServer() {
     try {
       sendSplashProgress('Starting backend server...')
 
+      const backendDir = path.dirname(typingServerPath)
       typingServerProcess = spawn(pythonPath, [typingServerPath], {
-        cwd: path.dirname(typingServerPath),
+        cwd: backendDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         env: {
           ...process.env,
+          PYTHONPATH: backendDir, // Add resources directory to Python module search path
           SLYWRITER_CONFIG_DIR: app.getPath('userData')
         }
       })
@@ -326,12 +328,14 @@ async function startTypingServer() {
       if (serverStarted) break
 
       try {
+        const backendDir = path.dirname(typingServerPath)
         typingServerProcess = spawn(pythonCmd, [typingServerPath], {
-          cwd: path.dirname(typingServerPath),
+          cwd: backendDir,
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
           env: {
             ...process.env,
+            PYTHONPATH: backendDir, // Add resources directory to Python module search path
             SLYWRITER_CONFIG_DIR: app.getPath('userData')
           }
         })
