@@ -567,22 +567,13 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
         if not credential:
             raise HTTPException(status_code=400, detail="No credential provided")
 
-        # Verify the Google ID token with timeout
+        # Verify the Google ID token
         try:
-            # Use asyncio timeout to prevent hanging on Google verification
-            async def verify_token():
-                return id_token.verify_oauth2_token(
-                    credential,
-                    google_requests.Request(),
-                    GOOGLE_CLIENT_ID
-                )
-
-            # 10 second timeout for Google verification
-            idinfo = await asyncio.wait_for(
-                asyncio.to_thread(verify_token),
-                timeout=10.0
+            idinfo = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                GOOGLE_CLIENT_ID
             )
-
             # Get email and profile picture from token
             email = idinfo.get("email")
             if not email:
@@ -591,9 +582,6 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             # Extract profile picture URL if available
             profile_picture = idinfo.get("picture")
 
-        except asyncio.TimeoutError:
-            logger.error("Google token verification timeout")
-            raise HTTPException(status_code=504, detail="Google verification timeout - please try again")
         except ValueError as e:
             logger.error(f"Invalid Google token: {e}")
             raise HTTPException(status_code=401, detail="Invalid Google token")
