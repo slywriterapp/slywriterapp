@@ -234,7 +234,7 @@ async function startTypingServer() {
       sendSplashProgress(`Backend dir: ${backendDir}`)
 
       // Embedded Python ignores PYTHONPATH - use Python -c to add to sys.path
-      const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); exec(open(r'${typingServerPath}').read())`
+      const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); __file__ = r'${typingServerPath}'; exec(open(r'${typingServerPath}').read())`
 
       console.log('🐍 Running Python with explicit sys.path injection')
       sendSplashProgress('Injecting sys.path for modules...')
@@ -338,7 +338,7 @@ async function startTypingServer() {
       try {
         const backendDir = path.dirname(typingServerPath)
         // Use Python -c to add to sys.path (works with all Python versions)
-        const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); exec(open(r'${typingServerPath}').read())`
+        const pythonCode = `import sys; sys.path.insert(0, r'${backendDir}'); __file__ = r'${typingServerPath}'; exec(open(r'${typingServerPath}').read())`
 
         typingServerProcess = spawn(pythonCmd, ['-c', pythonCode], {
           cwd: backendDir,
