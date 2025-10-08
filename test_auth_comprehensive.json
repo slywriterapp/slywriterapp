@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "name": "Health Check",
+      "method": "GET",
+      "url": "https://slywriterapp.onrender.com/api/health"
+    },
+    {
+      "name": "Auth Status",
+      "method": "GET",
+      "url": "https://slywriterapp.onrender.com/api/auth/status"
+    },
+    {
+      "name": "Config",
+      "method": "GET",
+      "url": "https://slywriterapp.onrender.com/api/config"
+    },
+    {
+      "name": "Google Login (missing credential)",
+      "method": "POST",
+      "url": "https://slywriterapp.onrender.com/auth/google/login",
+      "data": {}
+    }
+  ]
+}

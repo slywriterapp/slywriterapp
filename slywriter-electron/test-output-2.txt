@@ -1,0 +1,82 @@
+
+> slywriter-desktop@2.4.6 start
+> electron .
+
+
+Python setup module loaded successfully
+Starting Electron app...
+Loading login page
+Starting typing server...
+📍 Typing server path: C:\Typing Project\backend_api.py
+📁 Current directory: C:\Typing Project\slywriter-electron
+📦 isPackaged: false
+✅ Backend file exists: true
+[setup-python] Initialized with PYTHON_DIR: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed
+[setup-python] PYTHON_EXE: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed\python.exe
+Setting up bundled Python...
+Python executable found, checking for missing packages...
+[MAIN] Overlay loaded successfully
+[MAIN] Sent hotkeys to overlay: {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+[Window] Main window ready (not showing yet - waiting for setup)
+Page loaded successfully!
+All required packages already installed
+Setup progress: Python already installed (100%)
+✅ Bundled Python ready at: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed\python.exe
+📍 Verifying Python executable exists: true
+🔍 Checking bundled Python:
+   pythonPath: C:\Users\brice\AppData\Roaming\slywriter-desktop\python-embed\python.exe
+   exists: true
+✅ Using bundled Python to start backend server
+🐍 Backend directory: C:\Typing Project
+🐍 Running Python with explicit sys.path injection
+Typing server stderr: INFO:     Started server process [16952]
+INFO:     Waiting for application startup.
+
+Typing server started successfully on port 8000 (bundled Python)
+Typing server stderr: INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+Typing server started successfully on port 8000 (bundled Python)
+[App] Verifying license before starting...
+[License] Verifying license...
+[License] No license key found - prompting for login
+[License] Handling license error: no_license
+[License] No license found - will show login page
+Loaded saved hotkeys: {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+Registering global hotkeys... {
+  start: 'ctrl+t',
+  stop: 'ctrl+alt+q',
+  pause: 'ctrl+alt+p',
+  overlay: 'ctrl+alt+o',
+  ai_generation: 'ctrl+alt+g'
+}
+F12 registered: false
+Registering AI generation hotkey: ctrl+alt+g -> CommandOrControl+Alt+G
+🔥 [ELECTRON] AI Generation hotkey (CommandOrControl+Alt+G) registered: true
+Start hotkey (CommandOrControl+T) registered: true
+Stop hotkey (CommandOrControl+Alt+Q) registered: true
+Pause hotkey (CommandOrControl+Alt+P) registered: true
+[MAIN] Overlay hotkey (CommandOrControl+Alt+O) registered: true
+[AUTO-UPDATE] ========================================
+[AUTO-UPDATE] Initial update check starting...
+[AUTO-UPDATE] Timestamp: 2025-10-07T01:48:55.890Z
+[AUTO-UPDATE] Initiating update check...
+Skip checkForUpdates because application is not packed and dev update config is not forced
+checkForUpdatesAndNotify called, downloadPromise is null
+[AUTO-UPDATE] Check result: null
+[AUTO-UPDATE] ========================================
+Cleaning up all processes...
+Stopping typing server...
+Typing server exited with code 1

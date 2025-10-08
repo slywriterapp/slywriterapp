@@ -90,7 +90,12 @@ app = FastAPI(title="SlyWriter Backend", version="2.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",  # Allow all for desktop compatibility - this should work for everything
+        "*",  # Allow all for desktop compatibility
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://slywriter.ai",
+        "https://www.slywriter.ai",
+        "https://slywriter-ui.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -363,16 +368,6 @@ async def type_text_worker(
 # ============================================================================
 # API ENDPOINTS - WEB APP
 # ============================================================================
-
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {"status": "ok", "service": "SlyWriter API", "version": "2.0.0"}
-
-@app.get("/healthz")
-async def healthz():
-    """Health check endpoint for Render"""
-    return {"status": "healthy", "service": "SlyWriter API"}
 
 @app.get("/api/health")
 async def health_check():
