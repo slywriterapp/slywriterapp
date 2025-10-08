@@ -49,6 +49,9 @@ from database import (
     track_humanizer_usage, create_typing_session
 )
 
+# Import authentication utilities
+from auth import create_access_token
+
 # Desktop App: Import license manager (optional for desktop functionality)
 try:
     from license_manager import get_license_manager
@@ -618,6 +621,9 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
         # Get user limits
         limits = get_user_limits(user)
 
+        # Generate JWT token
+        access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+
         # Build user response
         user_data = {
             "id": user.id,
@@ -640,8 +646,8 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             "success": True,
             "is_new_user": is_new_user,
             "user": user_data,
-            "token": f"token_{user.id}",
-            "access_token": f"token_{user.id}"
+            "token": access_token,
+            "access_token": access_token
         }
 
     except HTTPException:
@@ -1751,6 +1757,9 @@ async def register(auth: UserAuthRequest, db: Session = Depends(get_db)):
     # Get user limits
     limits = get_user_limits(user)
 
+    # Generate JWT token
+    access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+
     # Build user response
     user_data = {
         "id": user.id,
@@ -1769,7 +1778,7 @@ async def register(auth: UserAuthRequest, db: Session = Depends(get_db)):
     return {
         "success": True,
         "user": user_data,
-        "token": f"token_{user.id}"
+        "token": access_token
     }
 
 @app.post("/api/auth/google")
