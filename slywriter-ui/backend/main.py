@@ -647,8 +647,11 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Google login error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Google login error: {type(e).__name__}: {str(e)}")
+        logger.error(f"Full traceback:\n{error_details}")
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e) or 'Unknown error'}")
 
 
 @app.post("/api/stripe/create-checkout")
