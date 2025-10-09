@@ -15,7 +15,8 @@ import secrets
 import string
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+# Use same JWT secret priority as main.py for consistency
+SECRET_KEY = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
