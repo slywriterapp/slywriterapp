@@ -1,0 +1,424 @@
+{
+  "total": 52,
+  "passed": 33,
+  "failed": 0,
+  "skipped": 19,
+  "tests": [
+    {
+      "endpoint": "/",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "API root",
+      "timestamp": "2025-10-08T21:09:10.674381"
+    },
+    {
+      "endpoint": "/healthz",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Health check",
+      "timestamp": "2025-10-08T21:09:11.004431"
+    },
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "API health",
+      "timestamp": "2025-10-08T21:09:11.184676"
+    },
+    {
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Standard login",
+      "timestamp": "2025-10-08T21:09:11.399844"
+    },
+    {
+      "endpoint": "/api/auth/register",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 400,
+      "message": "Register existing user",
+      "timestamp": "2025-10-08T21:09:11.598664"
+    },
+    {
+      "endpoint": "/auth/profile",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get user profile",
+      "timestamp": "2025-10-08T21:09:11.827353"
+    },
+    {
+      "endpoint": "/api/auth/user/12",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get user by ID",
+      "timestamp": "2025-10-08T21:09:12.058229"
+    },
+    {
+      "endpoint": "/api/auth/status",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Auth status check",
+      "timestamp": "2025-10-08T21:09:12.304389"
+    },
+    {
+      "endpoint": "/api/auth/logout",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Logout",
+      "timestamp": "2025-10-08T21:09:12.624391"
+    },
+    {
+      "endpoint": "/api/auth/google",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Desktop Google OAuth",
+      "timestamp": "2025-10-08T21:09:12.795801"
+    },
+    {
+      "endpoint": "/auth/verify-email",
+      "method": "OPTIONS",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Email verification CORS",
+      "timestamp": "2025-10-08T21:09:12.998088"
+    },
+    {
+      "endpoint": "/auth/verify-email",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires email token",
+      "timestamp": "2025-10-08T21:09:12.998107"
+    },
+    {
+      "endpoint": "/api/user-dashboard",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "User dashboard",
+      "timestamp": "2025-10-08T21:09:13.215802"
+    },
+    {
+      "endpoint": "/api/typing/start",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:13.215822"
+    },
+    {
+      "endpoint": "/api/typing/stop",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:13.215827"
+    },
+    {
+      "endpoint": "/api/typing/pause",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:13.215830"
+    },
+    {
+      "endpoint": "/api/typing/status",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Typing status",
+      "timestamp": "2025-10-08T21:09:13.610416"
+    },
+    {
+      "endpoint": "/api/typing/pause/{session_id}",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires active session",
+      "timestamp": "2025-10-08T21:09:13.610438"
+    },
+    {
+      "endpoint": "/api/profiles/save",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Save profile",
+      "timestamp": "2025-10-08T21:09:13.762500"
+    },
+    {
+      "endpoint": "/api/profiles",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get profiles",
+      "timestamp": "2025-10-08T21:09:13.924112"
+    },
+    {
+      "endpoint": "/api/profiles/generate-from-wpm",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Generate from WPM",
+      "timestamp": "2025-10-08T21:09:14.107829"
+    },
+    {
+      "endpoint": "/api/profiles/test_profile",
+      "method": "DELETE",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Delete profile",
+      "timestamp": "2025-10-08T21:09:14.277534"
+    },
+    {
+      "endpoint": "/api/ai/generate",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:14.277558"
+    },
+    {
+      "endpoint": "/api/ai/humanize",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:14.277562"
+    },
+    {
+      "endpoint": "/api/ai/explain",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:14.277565"
+    },
+    {
+      "endpoint": "/api/ai/study-questions",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:14.277569"
+    },
+    {
+      "endpoint": "/generate_filler",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:14.277571"
+    },
+    {
+      "endpoint": "/api/usage/track",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Track word usage",
+      "timestamp": "2025-10-08T21:09:14.458869"
+    },
+    {
+      "endpoint": "/api/usage/track-humanizer",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Track humanizer",
+      "timestamp": "2025-10-08T21:09:14.641645"
+    },
+    {
+      "endpoint": "/api/usage/track-ai-gen",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Track AI generation",
+      "timestamp": "2025-10-08T21:09:15.025304"
+    },
+    {
+      "endpoint": "/api/usage/check-reset",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Check weekly reset",
+      "timestamp": "2025-10-08T21:09:15.221741"
+    },
+    {
+      "endpoint": "/api/usage",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get usage stats",
+      "timestamp": "2025-10-08T21:09:15.559399"
+    },
+    {
+      "endpoint": "/api/referrals/claim-reward",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 400,
+      "message": "Claim reward (no referrals)",
+      "timestamp": "2025-10-08T21:09:15.731028"
+    },
+    {
+      "endpoint": "/api/stripe/create-checkout",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Create checkout",
+      "timestamp": "2025-10-08T21:09:16.301693"
+    },
+    {
+      "endpoint": "/api/stripe/webhook",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires Stripe signature",
+      "timestamp": "2025-10-08T21:09:16.301713"
+    },
+    {
+      "endpoint": "/api/stats/global",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Global stats",
+      "timestamp": "2025-10-08T21:09:16.473486"
+    },
+    {
+      "endpoint": "/api/config",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get config",
+      "timestamp": "2025-10-08T21:09:16.648084"
+    },
+    {
+      "endpoint": "/api/config",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Update config",
+      "timestamp": "2025-10-08T21:09:17.005439"
+    },
+    {
+      "endpoint": "/api/config/hotkey",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Update hotkey",
+      "timestamp": "2025-10-08T21:09:17.201033"
+    },
+    {
+      "endpoint": "/api/hotkeys/register",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Register hotkey",
+      "timestamp": "2025-10-08T21:09:17.363632"
+    },
+    {
+      "endpoint": "/api/hotkeys",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get hotkeys",
+      "timestamp": "2025-10-08T21:09:17.552263"
+    },
+    {
+      "endpoint": "/api/telemetry/error",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Log error",
+      "timestamp": "2025-10-08T21:09:17.744271"
+    },
+    {
+      "endpoint": "/api/admin/telemetry/stats",
+      "method": "GET",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Admin only",
+      "timestamp": "2025-10-08T21:09:17.744287"
+    },
+    {
+      "endpoint": "/api/admin/telemetry",
+      "method": "GET",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Admin only",
+      "timestamp": "2025-10-08T21:09:17.744290"
+    },
+    {
+      "endpoint": "/api/learning/create-lesson",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires OpenAI credits",
+      "timestamp": "2025-10-08T21:09:17.744296"
+    },
+    {
+      "endpoint": "/api/learning/get-lessons",
+      "method": "GET",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Get lessons",
+      "timestamp": "2025-10-08T21:09:17.919434"
+    },
+    {
+      "endpoint": "/api/learning/save-lesson",
+      "method": "POST",
+      "status": "PASS",
+      "response_code": 200,
+      "message": "Save lesson",
+      "timestamp": "2025-10-08T21:09:18.124592"
+    },
+    {
+      "endpoint": "/api/copy-highlighted",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires GUI",
+      "timestamp": "2025-10-08T21:09:18.124613"
+    },
+    {
+      "endpoint": "/api/copy-highlighted-overlay",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Requires GUI",
+      "timestamp": "2025-10-08T21:09:18.124616"
+    },
+    {
+      "endpoint": "/api/license/verify",
+      "method": "POST",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:18.124619"
+    },
+    {
+      "endpoint": "/api/license/status",
+      "method": "GET",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:18.124641"
+    },
+    {
+      "endpoint": "/api/license/features",
+      "method": "GET",
+      "status": "SKIP",
+      "response_code": null,
+      "message": "Desktop app only",
+      "timestamp": "2025-10-08T21:09:18.124644"
+    }
+  ]
+}
