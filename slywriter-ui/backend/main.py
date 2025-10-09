@@ -87,7 +87,7 @@ def verify_admin(authorization: str = Header(None)):
 
     return True
 
-app = FastAPI(title="SlyWriter Backend", version="2.5.4")
+app = FastAPI(title="SlyWriter Backend", version="2.5.5")
 
 # Configure CORS
 app.add_middleware(
@@ -372,17 +372,17 @@ async def type_text_worker(
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"status": "ok", "service": "SlyWriter API", "version": "2.5.4"}
+    return {"status": "ok", "service": "SlyWriter API", "version": "2.5.5"}
 
 @app.get("/healthz")
 async def healthz():
     """Health check endpoint for Render"""
-    return {"status": "healthy", "service": "SlyWriter API", "version": "2.5.4"}
+    return {"status": "healthy", "service": "SlyWriter API", "version": "2.5.5"}
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "version": "2.5.4"}
+    return {"status": "healthy", "version": "2.5.5"}
 
 @app.post("/api/typing/start")
 async def start_typing(request: TypingStartRequest, background_tasks: BackgroundTasks):
@@ -396,13 +396,13 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
     # Calculate WPM from profile or use custom_wpm
     wpm = request.custom_wpm
 
-    print(f"\n{'='*60}")
-    print(f"🚨 WEB BACKEND RECEIVED TYPING REQUEST - v2.5.4")
-    print(f"Profile: {request.profile}")
-    print(f"custom_wpm from request: {wpm}")
-    print(f"Type of custom_wpm: {type(wpm)}")
-    print(f"Is custom_wpm truthy: {bool(wpm)}")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"🔥🔥🔥 WEB BACKEND RECEIVED TYPING REQUEST - v2.5.5 🔥🔥🔥")
+    logger.info(f"🚨 Profile: {request.profile}")
+    logger.info(f"🚨 custom_wpm from request: {wpm}")
+    logger.info(f"🚨 Type of custom_wpm: {type(wpm)}")
+    logger.info(f"🚨 Is custom_wpm truthy: {bool(wpm)}")
+    logger.info(f"{'='*60}\n")
 
     if not wpm:
         # Map profile names to WPM values
@@ -414,9 +414,9 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
             "Custom": 85
         }
         wpm = profile_wpm_map.get(request.profile, 70)
-        print(f"✅ Using profile '{request.profile}' WPM: {wpm}")
+        logger.info(f"✅ Using profile '{request.profile}' WPM: {wpm}")
     else:
-        print(f"✅ Using custom WPM: {wpm}")
+        logger.info(f"✅ Using custom WPM: {wpm}")
 
     # Calculate delays from WPM
     # Formula: avg_delay = 60 seconds / (wpm * 5 chars_per_word) = seconds per character
@@ -425,12 +425,12 @@ async def start_typing(request: TypingStartRequest, background_tasks: Background
     request.min_delay = max(0.01, avg_delay * 0.7)
     request.max_delay = min(2.0, avg_delay * 1.3)
 
-    print(f"\n🔥 CALCULATED DELAYS FOR {wpm} WPM:")
-    print(f"   chars_per_second: {chars_per_second:.2f}")
-    print(f"   avg_delay: {avg_delay:.4f}s")
-    print(f"   min_delay: {request.min_delay:.4f}s")
-    print(f"   max_delay: {request.max_delay:.4f}s")
-    print(f"🔥 SETTING STATE WPM TO: {wpm} 🔥\n")
+    logger.info(f"\n🔥 CALCULATED DELAYS FOR {wpm} WPM:")
+    logger.info(f"   chars_per_second: {chars_per_second:.2f}")
+    logger.info(f"   avg_delay: {avg_delay:.4f}s")
+    logger.info(f"   min_delay: {request.min_delay:.4f}s")
+    logger.info(f"   max_delay: {request.max_delay:.4f}s")
+    logger.info(f"🔥 SETTING STATE WPM TO: {wpm} 🔥\n")
 
     # Reset engine state
     typing_engine.reset()
