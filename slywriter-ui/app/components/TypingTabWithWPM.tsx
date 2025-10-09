@@ -869,7 +869,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       // Calculate the actual WPM to use - either custom or from profile
       const actualWpm = selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)
       const customWpm = actualWpm  // Always send the actual WPM value
-      
+
+      // EXTREMELY VISIBLE DEBUG - User MUST see this
+      console.error('🚨🚨🚨 TYPING START - v2.5.3 🚨🚨🚨')
+      console.error('Selected Profile:', selectedProfile)
+      console.error('Test WPM (from state):', testWpm)
+      console.error('Calculated WPM to send:', customWpm)
+      console.error('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨')
+
       console.log('========== TYPING START DEBUG ==========')
       console.log('[TypingTab] Selected Profile:', selectedProfile)
       console.log('[TypingTab] Test WPM:', testWpm)

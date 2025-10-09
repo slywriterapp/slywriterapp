@@ -254,7 +254,14 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
     if typing_req.min_delay is None or typing_req.max_delay is None:
         # Calculate from profile or custom WPM
         wpm = typing_req.custom_wpm
-        print(f"[DEBUG] custom_wpm from request: {wpm}")
+        print(f"\n{'='*60}")
+        print(f"🚨 BACKEND RECEIVED TYPING REQUEST - v2.5.3")
+        print(f"Profile: {typing_req.profile}")
+        print(f"custom_wpm from request: {wpm}")
+        print(f"Type of custom_wpm: {type(wpm)}")
+        print(f"Is custom_wpm truthy: {bool(wpm)}")
+        print(f"{'='*60}\n")
+
         if not wpm:
             # Get WPM from profile
             profile_wpm_map = {
@@ -266,9 +273,9 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
                 "Lightning": 250
             }
             wpm = profile_wpm_map.get(typing_req.profile, 60)
-            print(f"[DEBUG] Using profile {typing_req.profile} WPM: {wpm}")
+            print(f"[DEBUG] custom_wpm was falsy, using profile {typing_req.profile} WPM: {wpm}")
         else:
-            print(f"[DEBUG] Using custom WPM: {wpm}")
+            print(f"[DEBUG] custom_wpm was truthy, using custom WPM: {wpm}")
         
         # Calculate delays from WPM (60 / (wpm * 5) for average delay)
         avg_delay = 60.0 / (wpm * 5.0)  # 5 chars per word average
@@ -287,10 +294,11 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
     state.typing_progress['progress'] = 0  # Start at 0%
     # Use the calculated WPM value
     state.typing_progress['wpm'] = wpm
-    
+
+    print(f"\n🔥 SETTING STATE WPM TO: {wpm} 🔥")
     print(f"[DEBUG] Starting typing with text length: {len(typing_req.text)} chars")
     print(f"[DEBUG] Text preview: {typing_req.text[:50]}...")
-    print(f"[DEBUG] Profile: {typing_req.profile}, WPM: {state.typing_progress['wpm']}")
+    print(f"[DEBUG] Profile: {typing_req.profile}, State WPM: {state.typing_progress['wpm']}")
     
     # Define callbacks for live updates
     def update_preview(text):
@@ -722,7 +730,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     "chars_typed": state.typing_progress.get('chars_typed', 0),
                     "total_chars": state.typing_progress.get('total_chars', 0)
                 }
-                print(f"[DEBUG WS] Sending progress: {progress_data['progress']:.1f}% ({progress_data['chars_typed']}/{progress_data['total_chars']})")
+                print(f"[DEBUG WS] Sending progress: {progress_data['progress']:.1f}% ({progress_data['chars_typed']}/{progress_data['total_chars']}) WPM: {progress_data['wpm']}")
                 await websocket.send_json({
                     "type": "progress",
                     "data": progress_data
