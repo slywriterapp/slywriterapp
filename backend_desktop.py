@@ -85,7 +85,7 @@ except ImportError:
             return "24:00"
 
 # Initialize FastAPI app
-app = FastAPI(title="SlyWriter API", version="2.5.4")
+app = FastAPI(title="SlyWriter API", version="2.5.6")
 
 # Configure CORS for local development
 app.add_middleware(
@@ -145,7 +145,7 @@ class HotkeyUpdate(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"status": "SlyWriter API Running", "version": "2.5.4"}
+    return {"status": "SlyWriter API Running", "version": "2.5.6"}
 
 @app.get("/api/health")
 async def health_check():
@@ -255,7 +255,7 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
         # Calculate from profile or custom WPM
         wpm = typing_req.custom_wpm
         print(f"\n{'='*60}")
-        print(f"🚨 BACKEND RECEIVED TYPING REQUEST - v2.5.3")
+        print(f"🚨 BACKEND RECEIVED TYPING REQUEST - v2.5.6")
         print(f"Profile: {typing_req.profile}")
         print(f"custom_wpm from request: {wpm}")
         print(f"Type of custom_wpm: {type(wpm)}")

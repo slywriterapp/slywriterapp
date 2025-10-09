@@ -1891,10 +1891,34 @@ app.whenReady().then(async () => {
                         })
                       }
                       
+                      // Get profile AND custom_wpm for AI-generated typing
+                      let aiTypingProfile = 'Medium'
+                      let aiTypingWpm = null
+
+                      try {
+                        aiTypingProfile = await mainWindow.webContents.executeJavaScript(`
+                          localStorage.getItem('slywriter-selected-profile') || 'Medium'
+                        `)
+
+                        const savedWpm = await mainWindow.webContents.executeJavaScript(`
+                          localStorage.getItem('slywriter-custom-wpm')
+                        `)
+
+                        if (savedWpm) {
+                          aiTypingWpm = parseInt(savedWpm)
+                          console.log('🔥 [AI-GEN] Retrieved custom WPM from localStorage:', aiTypingWpm)
+                        }
+                      } catch (err) {
+                        console.log('Error getting AI typing settings, using defaults:', err.message)
+                      }
+
+                      console.log('🔥 [AI-GEN] Starting typing with profile:', aiTypingProfile, 'custom_wpm:', aiTypingWpm)
+
                       // Start typing
                       const typingData = JSON.stringify({
                         text: finalText,
-                        profile: 'Medium',
+                        profile: aiTypingProfile,
+                        custom_wpm: aiTypingWpm,  // Include custom WPM
                         preview_mode: false
                       })
                       
@@ -1909,9 +1933,54 @@ app.whenReady().then(async () => {
                         }
                       }
                       
-                      const typingReq = http.request(typingOptions, (typingRes) => {
+                      const typingReq = http.request(typingOptions, async (typingRes) => {
                         if (typingRes.statusCode === 200) {
                           mainWindow.webContents.send('global-hotkey-success', '✨ AI generated and typing started!')
+
+                          // Track AI generation and typing usage
+                          try {
+                            const wordCount = finalText.split(/\s+/).filter(w => w.length > 0).length
+                            console.log('📊 [AI-GEN] Tracking usage:', wordCount, 'words, humanizer:', humanizerEnabled)
+
+                            await mainWindow.webContents.executeJavaScript(`
+                              (async () => {
+                                try {
+                                  const authState = localStorage.getItem('auth_state');
+                                  if (authState) {
+                                    const auth = JSON.parse(authState);
+                                    const userId = auth.user?.id || auth.user?.uid;
+                                    if (userId) {
+                                      const API_URL = '${isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'}';
+
+                                      // Track AI generation
+                                      await fetch(API_URL + '/api/usage/track-ai-gen?user_id=' + userId, {
+                                        method: 'POST'
+                                      });
+                                      console.log('📊 AI generation tracked for user:', userId);
+
+                                      // Track typing words
+                                      await fetch(API_URL + '/api/usage/track?user_id=' + userId + '&words=${wordCount}', {
+                                        method: 'POST'
+                                      });
+                                      console.log('📊 Typing tracked:', ${wordCount}, 'words');
+
+                                      // Track humanizer if enabled
+                                      ${humanizerEnabled ? `
+                                      await fetch(API_URL + '/api/usage/track-humanizer?user_id=' + userId, {
+                                        method: 'POST'
+                                      });
+                                      console.log('📊 Humanizer tracked');
+                                      ` : ''}
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to track AI usage:', err);
+                                }
+                              })()
+                            `).catch(err => console.log('AI usage tracking error:', err.message))
+                          } catch (trackErr) {
+                            console.log('Could not track AI usage:', trackErr.message)
+                          }
                         } else {
                           mainWindow.webContents.send('global-hotkey-error', 'Failed to start typing')
                         }
@@ -2050,22 +2119,35 @@ app.whenReady().then(async () => {
               return
             }
             
-            // Get profile from localStorage
+            // Get profile AND custom_wpm from localStorage
             let profile = 'Medium'
+            let customWpm = null
+
             try {
               profile = await mainWindow.webContents.executeJavaScript(`
                 localStorage.getItem('slywriter-selected-profile') || 'Medium'
               `)
+
+              // Also get custom WPM setting
+              const savedWpm = await mainWindow.webContents.executeJavaScript(`
+                localStorage.getItem('slywriter-custom-wpm')
+              `)
+
+              if (savedWpm) {
+                customWpm = parseInt(savedWpm)
+                console.log('🔥 [HOTKEY] Retrieved custom WPM from localStorage:', customWpm)
+              }
             } catch (err) {
-              console.log('Error getting profile, using default:', err.message)
+              console.log('Error getting profile/WPM, using default:', err.message)
             }
-            
-            console.log('Making API call with profile:', profile, 'text length:', text.length)
-            
+
+            console.log('🔥 [HOTKEY] Making API call with profile:', profile, 'custom_wpm:', customWpm, 'text length:', text.length)
+
             // Make API call using Node's http module (more reliable than axios in main process)
             const data = JSON.stringify({
               text: text,
               profile: profile,
+              custom_wpm: customWpm,  // Include custom WPM
               preview_mode: false
             })
             
@@ -2100,12 +2182,43 @@ app.whenReady().then(async () => {
                 }
               })
               
-              res.on('end', () => {
+              res.on('end', async () => {
                 console.log('API Response Status:', res.statusCode)
                 console.log('API Response Data:', responseData)
-                
+
                 if (res.statusCode === 200) {
                   mainWindow.webContents.send('global-hotkey-success', 'Typing started!')
+
+                  // Track usage for hotkey typing
+                  try {
+                    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length
+                    console.log('📊 [HOTKEY] Tracking usage:', wordCount, 'words')
+
+                    // Call React's trackTypingUsage through window context
+                    await mainWindow.webContents.executeJavaScript(`
+                      (async () => {
+                        try {
+                          // Get auth state from localStorage
+                          const authState = localStorage.getItem('auth_state');
+                          if (authState) {
+                            const auth = JSON.parse(authState);
+                            const userId = auth.user?.id || auth.user?.uid;
+                            if (userId) {
+                              const API_URL = '${isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'}';
+                              await fetch(API_URL + '/api/usage/track?user_id=' + userId + '&words=${wordCount}', {
+                                method: 'POST'
+                              });
+                              console.log('📊 Usage tracked:', ${wordCount}, 'words for user:', userId);
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Failed to track usage:', err);
+                        }
+                      })()
+                    `).catch(err => console.log('Usage tracking error:', err.message))
+                  } catch (trackErr) {
+                    console.log('Could not track usage:', trackErr.message)
+                  }
                 } else {
                   mainWindow.webContents.send('global-hotkey-error', `API Error: ${res.statusCode}`)
                 }
