@@ -438,6 +438,42 @@ def start_typing_from_input(
             except Exception as e:
                 print(f"Error updating per-session stats: {e}")
 
+        # --- Track usage with backend API ---
+        if _account_tab and hasattr(_account_tab, 'app'):
+            try:
+                import requests
+
+                # Get user ID from logged-in user
+                user_id = None
+                if _account_tab.app.user:
+                    user_id = _account_tab.app.user.get('id')
+
+                if user_id and words_in_session > 0:
+                    # Track usage with backend
+                    response = requests.post(
+                        "https://slywriterapp.onrender.com/api/usage/track",
+                        params={"user_id": user_id, "words": words_in_session},
+                        timeout=5
+                    )
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        print(f"[BACKEND] Tracked {words_in_session} words. Total: {data['usage']}")
+
+                        # Update UI with server's word count
+                        if hasattr(_account_tab, 'refresh_usage'):
+                            _account_tab.refresh_usage()
+                    else:
+                        print(f"[BACKEND] Tracking failed: {response.status_code}")
+                else:
+                    print("[INFO] No user logged in or no words typed - skipping backend tracking")
+
+            except requests.exceptions.RequestException as e:
+                print(f"[WARNING] Backend tracking failed: {e}")
+                # Don't fail the session - just log the error
+            except Exception as e:
+                print(f"[ERROR] Unexpected error tracking usage: {e}")
+
     _typing_thread = threading.Thread(target=_worker, daemon=True)
     _typing_thread.start()
 
