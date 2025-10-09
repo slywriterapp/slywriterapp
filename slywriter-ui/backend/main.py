@@ -1066,11 +1066,30 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
             unit = match.group(2)
             days = amount * 7 if unit == "week" else amount * 30
 
-            # Calculate new premium_until date (Pro plan expiration)
-            current_end = user.premium_until if user.premium_until and user.premium_until > datetime.utcnow() else datetime.utcnow()
-            user.premium_until = current_end + timedelta(days=days)
+            # Calculate new premium_until date (Pro plan expiration from referrals)
+            # IMPORTANT: Stack referral time AFTER Stripe subscription ends
+            now = datetime.utcnow()
 
-            # Update plan to Pro if not already
+            # Start with the latest of:
+            # 1. Current premium_until (if it exists and is in the future)
+            # 2. Stripe subscription end date (if active subscription exists)
+            # 3. Current time
+            start_date = now
+
+            # Check if user has premium_until in the future
+            if user.premium_until and user.premium_until > now:
+                start_date = user.premium_until
+
+            # Check if user has active Stripe subscription - if so, start AFTER it ends
+            if user.stripe_subscription_id and user.subscription_status == "active":
+                if user.subscription_current_period_end and user.subscription_current_period_end > start_date:
+                    start_date = user.subscription_current_period_end
+                    logger.info(f"Referral Pro will start after Stripe subscription ends on {start_date.strftime('%Y-%m-%d')}")
+
+            # Add the referral days to the start date
+            user.premium_until = start_date + timedelta(days=days)
+
+            # Update plan to Pro if not already (unless they have Premium)
             if user.plan != "Pro" and user.plan != "Premium":
                 user.plan = "Pro"
 
