@@ -92,23 +92,41 @@ class PremiumSlyWriter(tk.Tk):
         self.title("SlyWriter")
         self.geometry("1400x900")  # Larger for premium feel
         self.minsize(1200, 800)
-        
+
         # Center window
         self.center_window()
-        
+
         # Configure window with no borders
         self.configure(bg='#0F0F23', highlightthickness=0, bd=0)
-        
+
         # Clean up any potential canvas remnants
         for child in self.winfo_children():
             if isinstance(child, tk.Canvas):
                 child.destroy()
-        
+
         # Set icon
         try:
             self.iconbitmap("slywriter_logo.ico")
         except:
             pass
+
+        # Make title bar black (Windows-specific)
+        try:
+            import ctypes
+            # Get window handle
+            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+            # Set dark mode for title bar (Windows 10/11)
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            value = ctypes.c_int(2)  # Enable dark mode
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value)
+            )
+            print("[UI] Black title bar applied successfully")
+        except Exception as e:
+            print(f"[UI] Could not apply black title bar: {e}")
+
+        # Configure Discord-style scrollbars globally
+        self.setup_custom_scrollbars()
     
     def center_window(self):
         """Center the window on screen"""
@@ -118,7 +136,63 @@ class PremiumSlyWriter(tk.Tk):
         x = (self.winfo_screenwidth() // 2) - (width // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f'{width}x{height}+{x}+{y}')
-    
+
+    def setup_custom_scrollbars(self):
+        """Configure Discord-style minimal scrollbars globally"""
+        try:
+            # Create custom style for scrollbars
+            style = ttk.Style()
+
+            # Discord-style scrollbar configuration
+            # Minimal, rounded, gray scrollbar without arrows
+            style.theme_use('clam')  # Use clam theme as base
+
+            # Vertical Scrollbar styling (Discord-style)
+            style.configure("Discord.Vertical.TScrollbar",
+                          background="#2E3338",      # Dark gray track
+                          troughcolor="#1E1F22",     # Darker background
+                          bordercolor="#1E1F22",     # Match background
+                          arrowcolor="#1E1F22",      # Hide arrows
+                          relief="flat",
+                          borderwidth=0,
+                          width=8)                   # Thin scrollbar
+
+            style.map("Discord.Vertical.TScrollbar",
+                     background=[('active', '#3E4248'),    # Slightly lighter on hover
+                               ('pressed', '#4E5258')])    # Even lighter when pressed
+
+            # Horizontal Scrollbar styling (same style)
+            style.configure("Discord.Horizontal.TScrollbar",
+                          background="#2E3338",
+                          troughcolor="#1E1F22",
+                          bordercolor="#1E1F22",
+                          arrowcolor="#1E1F22",
+                          relief="flat",
+                          borderwidth=0,
+                          height=8)                  # Thin scrollbar
+
+            style.map("Discord.Horizontal.TScrollbar",
+                     background=[('active', '#3E4248'),
+                               ('pressed', '#4E5258')])
+
+            # Apply rounded corners effect by adjusting layout
+            style.layout("Discord.Vertical.TScrollbar",
+                        [('Vertical.Scrollbar.trough',
+                          {'children': [('Vertical.Scrollbar.thumb',
+                                       {'expand': '1', 'sticky': 'nswe'})],
+                           'sticky': 'ns'})])
+
+            style.layout("Discord.Horizontal.TScrollbar",
+                        [('Horizontal.Scrollbar.trough',
+                          {'children': [('Horizontal.Scrollbar.thumb',
+                                       {'expand': '1', 'sticky': 'nswe'})],
+                           'sticky': 'ew'})])
+
+            print("[UI] Discord-style scrollbars configured successfully")
+
+        except Exception as e:
+            print(f"[UI] Could not configure custom scrollbars: {e}")
+
     def load_static_background(self):
         """Load a perfectly smooth static background with no banding artifacts"""
         try:
