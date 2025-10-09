@@ -1690,17 +1690,31 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
         token = auth_header.replace('Bearer ', '')
 
-        # Parse token (format: "token_<user_id>")
-        if not token.startswith('token_'):
-            raise HTTPException(status_code=401, detail="Invalid token format")
-        try:
-            user_id = int(token.replace('token_', ''))
-        except ValueError:
-            raise HTTPException(status_code=401, detail="Invalid token format")
+        # Verify JWT token
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
+        try:
+            # Decode and verify the token
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("sub") or payload.get("email")
+            user_id = payload.get("user_id")
+
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
             raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get user by email or ID
+        user = get_user_by_email(db, email)
+        if not user and user_id:
+            user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
         words_used = user.total_words_typed or 0
         plan_name = "free"
