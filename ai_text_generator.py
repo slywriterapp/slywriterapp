@@ -156,10 +156,13 @@ class AITextGenerator:
                 if result.get('success'):
                     generated_text = result.get('text', '').strip()
                     print(f"[AI GEN] Generated text length: {len(generated_text)} characters")
-                    
+
+                    # Track AI generation usage (CRITICAL!)
+                    self._track_ai_generation_usage()
+
                     # Update word usage tracking
                     self._update_usage_tracking(generated_text)
-                    
+
                     return generated_text
                 else:
                     error_msg = result.get('error', 'Unknown server error')
@@ -193,7 +196,13 @@ class AITextGenerator:
                     if result.get('success'):
                         generated_text = result.get('text', '').strip()
                         print(f"[AI GEN] Retry successful, generated text length: {len(generated_text)} characters")
+
+                        # Track AI generation usage (CRITICAL!)
+                        self._track_ai_generation_usage()
+
+                        # Update word usage tracking
                         self._update_usage_tracking(generated_text)
+
                         return generated_text
                     else:
                         error_msg = result.get('error', 'Unknown server error')
@@ -339,6 +348,9 @@ class AITextGenerator:
             if response.status_code == 200:
                 result = response.json()
                 if result.get('success'):
+                    # Track humanizer usage (CRITICAL!)
+                    self._track_humanizer_usage()
+
                     return result.get('humanized_text')
                 else:
                     error_msg = result.get('error', 'Unknown humanizer error')
@@ -541,35 +553,106 @@ class AITextGenerator:
             self._update_status("Ready")
             self._show_error("Typing Error", f"Error starting typing simulation: {str(e)}")
     
+    def _track_ai_generation_usage(self):
+        """Track AI generation usage with backend (CRITICAL for billing)"""
+        try:
+            # Get user_id from multiple sources
+            user_id = getattr(self.app, 'user_id', None)
+            if not user_id and hasattr(self.app, 'user') and self.app.user:
+                user_id = self.app.user.get('id')
+
+            if not user_id:
+                print("[AI GEN] No user_id found, skipping AI generation tracking")
+                return
+
+            response = requests.post(
+                "https://slywriterapp.onrender.com/api/usage/track-ai-gen",
+                params={"user_id": user_id},
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                print(f"[BACKEND] Tracked AI generation. Total uses: {data.get('usage', 'unknown')}")
+
+                # Update UI if possible
+                if hasattr(self.app, 'account_tab') and hasattr(self.app.account_tab, 'refresh_usage'):
+                    self.app.account_tab.refresh_usage()
+            else:
+                print(f"[BACKEND] AI generation tracking failed: {response.status_code}")
+
+        except Exception as e:
+            print(f"[ERROR] AI generation tracking error: {e}")
+
+    def _track_humanizer_usage(self):
+        """Track humanizer usage with backend (CRITICAL for billing)"""
+        try:
+            # Get user_id from multiple sources
+            user_id = getattr(self.app, 'user_id', None)
+            if not user_id and hasattr(self.app, 'user') and self.app.user:
+                user_id = self.app.user.get('id')
+
+            if not user_id:
+                print("[HUMANIZER] No user_id found, skipping humanizer tracking")
+                return
+
+            response = requests.post(
+                "https://slywriterapp.onrender.com/api/usage/track-humanizer",
+                params={"user_id": user_id},
+                timeout=5
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                print(f"[BACKEND] Tracked humanizer usage. Total uses: {data.get('usage', 'unknown')}")
+
+                # Update UI if possible
+                if hasattr(self.app, 'account_tab') and hasattr(self.app.account_tab, 'refresh_usage'):
+                    self.app.account_tab.refresh_usage()
+            else:
+                print(f"[BACKEND] Humanizer tracking failed: {response.status_code}")
+
+        except Exception as e:
+            print(f"[ERROR] Humanizer tracking error: {e}")
+
     def _update_usage_tracking(self, text):
         """Update word usage tracking"""
         try:
             if not text:
                 print(f"[AI GEN] WARNING: Empty text passed to usage tracking")
                 return
-                
+
             word_count = len(text.split())
             print(f"[AI GEN] Updating usage: {word_count} words for text: '{text[:50]}...'")
-            
+
             # Update local usage tracking (fallback)
             if hasattr(self.app, 'account_tab'):
                 try:
                     self.app.account_tab.update_local_usage(word_count)
                 except:
                     pass
-            
-            # Update server usage tracking
+
+            # Update server usage tracking with CORRECT endpoint
             user_id = getattr(self.app, 'user_id', None)
+            if not user_id and hasattr(self.app, 'user') and self.app.user:
+                user_id = self.app.user.get('id')
+
             if user_id:
                 try:
-                    requests.post(
-                        "https://slywriterapp.onrender.com/update_usage",
-                        json={"user_id": user_id, "words": word_count},
-                        timeout=10
+                    response = requests.post(
+                        "https://slywriterapp.onrender.com/api/usage/track",
+                        params={"user_id": user_id, "words": word_count},
+                        timeout=5
                     )
-                except:
-                    print("[AI GEN] Failed to update server usage - using local fallback")
-                    
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        print(f"[BACKEND] Tracked {word_count} words. Total: {data.get('usage', 'unknown')}")
+                    else:
+                        print(f"[BACKEND] Word tracking failed: {response.status_code}")
+                except Exception as e:
+                    print(f"[AI GEN] Failed to update server usage: {e}")
+
         except Exception as e:
             print(f"[AI GEN] Error updating usage: {e}")
     

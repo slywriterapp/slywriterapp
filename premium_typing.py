@@ -27,6 +27,38 @@ TYPING_BURST_VARIABILITY = 0.08  # up to ±8% speed variation stretch
 
 FILLER_SERVER_URL = "https://slywriterapp.onrender.com/generate_filler"
 
+def _track_ai_filler_usage():
+    """Track AI filler generation usage (CRITICAL for billing)"""
+    try:
+        # Get user_id from account tab
+        import typing_engine
+        user_id = None
+
+        if typing_engine._account_tab and hasattr(typing_engine._account_tab, 'app'):
+            if typing_engine._account_tab.app.user:
+                user_id = typing_engine._account_tab.app.user.get('id')
+            elif hasattr(typing_engine._account_tab.app, 'user_id'):
+                user_id = typing_engine._account_tab.app.user_id
+
+        if not user_id:
+            print("[AI FILLER] No user_id found, skipping AI filler tracking")
+            return
+
+        response = requests.post(
+            "https://slywriterapp.onrender.com/api/usage/track-ai-gen",
+            params={"user_id": user_id},
+            timeout=5
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            print(f"[BACKEND] Tracked AI filler. Total uses: {data.get('usage', 'unknown')}")
+        else:
+            print(f"[BACKEND] AI filler tracking failed: {response.status_code}")
+
+    except Exception as e:
+        print(f"[ERROR] AI filler tracking error: {e}")
+
 def get_license_key():
     """Get license key from local config"""
     try:
@@ -96,29 +128,32 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
                 if status_callback:
                     status_callback(f"✅ AI filler generated")
                 print("[AI Filler] Server response:", filler)
+
+                # Track AI filler generation usage (CRITICAL!)
+                _track_ai_filler_usage()
             else:
                 print(f"[AI Filler] No filler in response or filler is empty: {result}")
                 raise Exception("Empty filler response")
-            
+
             # Process the filler text
             processed_filler = ' '.join(filler.split()[:random.randint(min_words, max_words)])
-            
+
             # Fix capitalization - only capitalize if it's a new sentence
             if processed_filler and preceding_context:
                 # Check if we're at the start of a new sentence (after . ! ?)
                 stripped_context = preceding_context.rstrip()
                 is_new_sentence = stripped_context.endswith('.') or stripped_context.endswith('!') or stripped_context.endswith('?')
-                
+
                 if not is_new_sentence and processed_filler[0].isupper():
                     # Not a new sentence, so don't capitalize
                     processed_filler = processed_filler[0].lower() + processed_filler[1:]
-            
+
             # Fix spacing logic based on context
             if preceding_context and not preceding_context.endswith(' '):
                 # No space at end of context, add one before filler
                 processed_filler = ' ' + processed_filler
             # If context ends with space, don't add another space (current behavior)
-            
+
             return processed_filler
         else:
             raise Exception(response.text)
