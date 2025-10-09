@@ -1,0 +1,281 @@
+{
+	"info": {
+		"name": "SlyWriter Auth Endpoints",
+		"description": "All 9 authentication endpoints for SlyWriter",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Google OAuth Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"credential\": \"PASTE_GOOGLE_ID_TOKEN_HERE\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/auth/google/login",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"auth",
+						"google",
+						"login"
+					]
+				},
+				"description": "Authenticate users via Google Sign-In"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Get User Profile",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwb3N0bWFuLnRlc3RAc2x5d3JpdGVyLmFpIiwidXNlcl9pZCI6MTEsImV4cCI6MTc1OTk3MjU3OCwidHlwZSI6ImFjY2VzcyJ9.Zb-gFeL9inI3JzVxKP2xkNA4yPcHN1dzKPCHgqchcug",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/auth/profile",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"auth",
+						"profile"
+					]
+				},
+				"description": "Get current user's profile using JWT token"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Email Verification",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"PASTE_EMAIL_TOKEN_HERE\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/auth/verify-email",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"auth",
+						"verify-email"
+					]
+				},
+				"description": "Verify email token from magic link"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Register New User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"test@example.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/register",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				},
+				"description": "Register a new user account"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Standard Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"postman.test@slywriter.ai\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/login",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				},
+				"description": "Login with email - Returns JWT token"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Logout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/logout",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"logout"
+					]
+				},
+				"description": "Logout current user"
+			},
+			"response": []
+		},
+		{
+			"name": "7. Get User by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/user/11",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"user",
+						"11"
+					]
+				},
+				"description": "Get user information by ID"
+			},
+			"response": []
+		},
+		{
+			"name": "8. Authentication Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/status",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"status"
+					]
+				},
+				"description": "Check authentication status"
+			},
+			"response": []
+		},
+		{
+			"name": "9. Desktop Google OAuth",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://slywriterapp.onrender.com/api/auth/google",
+					"protocol": "https",
+					"host": [
+						"slywriterapp",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"auth",
+						"google"
+					]
+				},
+				"description": "Desktop app Google OAuth flow"
+			},
+			"response": []
+		}
+	]
+}
