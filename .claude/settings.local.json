@@ -32,7 +32,10 @@
       "Bash(gh run watch:*)",
       "Bash(gh release view:*)",
       "Bash(gh release delete-asset:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": [],
