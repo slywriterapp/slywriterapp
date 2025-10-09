@@ -23,7 +23,16 @@
       "Bash(\"./SlyWriter_Installer/tab_typing_modern_fixed.py\")",
       "Bash(awk:*)",
       "Bash(find:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(gh release create:*)",
+      "Bash(ls:*)",
+      "Bash(gh workflow:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh release delete-asset:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": [],

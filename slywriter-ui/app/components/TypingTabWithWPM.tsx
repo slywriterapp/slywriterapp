@@ -910,10 +910,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       setCharsTyped(0)
       setTotalChars(textToType.length)
       console.log(`Typing started - isTyping set to true, text length: ${textToType.length} chars`)
-      // Don't reset WPM if already set (keep current WPM especially for Custom profile)
-      if (!wpm || wpm === 0) {
-        setWpm(selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm))
-      }
+      // ALWAYS set WPM based on selected profile when starting typing
+      setWpm(selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm))
       setAccuracy(100)
       setTyposMade(0)
       setPausesTaken(0)
