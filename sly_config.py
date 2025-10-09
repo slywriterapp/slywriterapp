@@ -198,9 +198,16 @@ def on_profile_change(app):
     app.cfg["active_profile"] = name
     if name in BUILTIN_PROFILES:
         preset = BUILTIN_PROFILES[name]
+        print(f"[PROFILE] Loading built-in profile: {name}")
+        print(f"[PROFILE] Preset values: min_delay={preset.get('min_delay')}, max_delay={preset.get('max_delay')}")
     else:
         preset = app.cfg["custom_presets"].get(name, BUILTIN_PROFILES["Default"])
+        print(f"[PROFILE] Loading custom profile: {name}")
+        print(f"[PROFILE] Preset values: min_delay={preset.get('min_delay')}, max_delay={preset.get('max_delay')}")
+
+    # Update settings with preset values
     app.cfg["settings"].update(preset)
+    print(f"[PROFILE] After update - settings: min_delay={app.cfg['settings'].get('min_delay')}, max_delay={app.cfg['settings'].get('max_delay')}")
     save_config(app.cfg)
 
     # 3 & 4: push everything into UI in one go
