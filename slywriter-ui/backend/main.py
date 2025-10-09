@@ -817,6 +817,69 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
         logger.error(f"Email verification failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/auth/profile")
+async def get_profile(request: Request, db: Session = Depends(get_db)):
+    """Get current user's profile using JWT token from Authorization header"""
+    try:
+        # Get token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.replace("Bearer ", "")
+
+        # Verify JWT token
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+
+        try:
+            # Decode and verify the token
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("sub") or payload.get("email")
+
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get user by email
+        user = get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check for weekly reset
+        check_weekly_reset(db, user)
+
+        # Get user limits
+        limits = get_user_limits(user)
+
+        return {
+            "id": user.id,
+            "email": user.email,
+            "plan": user.plan,
+            "usage": user.words_used_this_week,
+            "humanizer_usage": user.humanizer_used_this_week,
+            "ai_gen_usage": user.ai_gen_used_this_week,
+            "profile_picture": user.profile_picture if hasattr(user, 'profile_picture') else None,
+            "referrals": {
+                "code": user.referral_code,
+                "count": user.referral_count,
+                "tier_claimed": user.referral_tier_claimed,
+                "bonus_words": user.referral_bonus
+            },
+            "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+            **limits
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/auth/user/{user_id}")
 async def get_user_endpoint(user_id: str, db: Session = Depends(get_db)):
     """Get user information with plan limits"""
