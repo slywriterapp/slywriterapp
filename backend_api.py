@@ -85,7 +85,7 @@ except ImportError:
             return "24:00"
 
 # Initialize FastAPI app
-app = FastAPI(title="SlyWriter API", version="2.0.0")
+app = FastAPI(title="SlyWriter API", version="2.5.4")
 
 # Configure CORS for local development
 app.add_middleware(
@@ -145,7 +145,7 @@ class HotkeyUpdate(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"status": "SlyWriter API Running", "version": "2.0.0"}
+    return {"status": "SlyWriter API Running", "version": "2.5.4"}
 
 @app.get("/api/health")
 async def health_check():
