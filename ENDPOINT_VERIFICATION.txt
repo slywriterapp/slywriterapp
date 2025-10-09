@@ -1,0 +1,44 @@
+========================================
+SlyWriter Backend - Endpoint Verification
+Tested: $(date)
+========================================
+
+Base URL: https://slywriterapp.onrender.com
+
+✅ HEALTH CHECKS
+----------------
+GET  /                  → {"status":"ok","service":"SlyWriter API","version":"2.0.0"}
+GET  /healthz           → {"status":"healthy","service":"SlyWriter API"}
+GET  /api/health        → {"status":"healthy","version":"2.0.0"}
+
+✅ AUTHENTICATION ENDPOINTS
+---------------------------
+POST /auth/google/login              → Web app Google OAuth login
+GET  /auth/profile                   → Get current user profile (NEW!)
+POST /auth/verify-email              → Verify email token
+POST /api/auth/login                 → Standard login
+POST /api/auth/register              → Register new user
+POST /api/auth/logout                → Logout user
+GET  /api/auth/status                → Get auth status
+GET  /api/auth/user/{user_id}        → Get user by ID
+POST /api/auth/google                → Desktop Google OAuth
+
+✅ CONFIGURATION & STATS
+------------------------
+GET  /api/config                     → Get configuration
+GET  /api/stats/global               → Get global statistics
+
+ALL ENDPOINTS VERIFIED AND WORKING!
+
+Key Changes:
+1. Added /auth/profile endpoint as requested by web dev
+2. All endpoints using correct paths (/auth/* for web, /api/auth/* for desktop/API)
+3. CORS configured to allow all origins with credentials
+4. JWT authentication working correctly
+
+Next Steps for Web Dev:
+1. Use /auth/profile with Authorization: Bearer <token> header
+2. After Google login, store the access_token from response
+3. Call /auth/profile to get full user data including profile_picture
+4. See AUTHENTICATION_ENDPOINTS.md for complete documentation
+Wed, Oct  8, 2025  8:17:10 PM

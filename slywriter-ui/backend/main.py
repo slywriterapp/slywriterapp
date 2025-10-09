@@ -541,6 +541,9 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
     # Get user limits
     limits = get_user_limits(user)
 
+    # Generate JWT token
+    access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+
     # Build user response
     user_data = {
         "id": user.id,
@@ -562,7 +565,8 @@ async def login(auth: UserAuthRequest, db: Session = Depends(get_db)):
     return {
         "status": "success",
         "user": user_data,
-        "token": f"token_{user.id}"
+        "token": access_token,
+        "access_token": access_token
     }
 
 @app.post("/auth/google/login")

@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(test_critical_endpoints.bat)"
+      "Bash(test_critical_endpoints.bat)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(curl -s https://slywriterapp.onrender.com/healthz)",
+      "Bash(curl -s https://slywriterapp.onrender.com/auth/profile)",
+      "Bash(curl -s https://slywriterapp.onrender.com/api/auth/status)",
+      "Bash(curl -s -X POST https://slywriterapp.onrender.com/auth/google/login -H \"Content-Type: application/json\" -d \"{}\")",
+      "Bash(curl -s -X POST https://slywriterapp.onrender.com/api/auth/register -H \"Content-Type: application/json\" -d \"{}\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": [],
