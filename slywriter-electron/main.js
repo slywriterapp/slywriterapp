@@ -119,7 +119,7 @@ try {
   console.log('Python setup module not found, will use system Python')
 }
 
-// Start the typing server (backend_api.py)
+// Start the typing server (backend_desktop.py - desktop app backend)
 async function startTypingServer() {
   console.log('Starting typing server...')
 
@@ -128,8 +128,8 @@ async function startTypingServer() {
 
   // Get the path to the typing server
   const typingServerPath = isPackaged
-    ? path.join(process.resourcesPath, 'backend_api.py')  // Production: resources folder
-    : path.join(__dirname, '..', 'backend_api.py')  // Development: parent directory
+    ? path.join(process.resourcesPath, 'backend_desktop.py')  // Production: resources folder
+    : path.join(__dirname, '..', 'backend_desktop.py')  // Development: parent directory
 
   console.log('📍 Typing server path:', typingServerPath)
   console.log('📁 Current directory:', __dirname)
@@ -140,7 +140,7 @@ async function startTypingServer() {
   // Check if the file exists
   if (!fs.existsSync(typingServerPath)) {
     console.error('Backend API file not found at:', typingServerPath)
-    console.error('Looking for backend_api.py in:', process.resourcesPath)
+    console.error('Looking for backend_desktop.py in:', process.resourcesPath)
 
     // List files in resources directory to debug
     if (isPackaged) {

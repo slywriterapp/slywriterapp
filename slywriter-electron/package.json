@@ -57,8 +57,8 @@
         "to": "python-embed"
       },
       {
-        "from": "../backend_api.py",
-        "to": "backend_api.py"
+        "from": "../backend_desktop.py",
+        "to": "backend_desktop.py"
       },
       {
         "from": "../typing_engine.py",
