@@ -362,9 +362,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             burst_variability: 0.2
           }
         },
-        { 
-          name: 'Lightning', 
-          is_builtin: true, 
+        {
+          name: 'Lightning',
+          is_builtin: true,
           settings: {
             min_delay: 20,
             max_delay: 40,
@@ -377,9 +377,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             burst_variability: 0.25
           }
         },
-        { 
-          name: 'Custom', 
-          is_builtin: true, 
+        {
+          name: 'Custom',
+          is_builtin: true,
           settings: {
             min_delay: 60,
             max_delay: 100,
@@ -791,7 +791,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   useHotkeys('ctrl+up', () => {
     if (!isTyping) {
       const currentWpm = selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)
-      const newWpm = Math.min(200, currentWpm + 10)
+      const newWpm = Math.min(500, currentWpm + 10)
       setSelectedProfile('Custom')
       setTestWpm(newWpm)
       toast.success(`Speed increased to ${newWpm} WPM`)
@@ -870,14 +870,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       const actualWpm = selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)
       const customWpm = actualWpm  // Always send the actual WPM value
       
-      console.log('[TypingTab] Starting typing with WPM settings:', {
-        selectedProfile,
-        testWpm,
-        actualWpm,
-        customWpm,
-        profileDefault: getProfileWpm(selectedProfile)
-      })
-      
+      console.log('========== TYPING START DEBUG ==========')
+      console.log('[TypingTab] Selected Profile:', selectedProfile)
+      console.log('[TypingTab] Test WPM:', testWpm)
+      console.log('[TypingTab] Profile Default WPM:', getProfileWpm(selectedProfile))
+      console.log('[TypingTab] Actual WPM (will be sent):', actualWpm)
+      console.log('[TypingTab] Custom WPM parameter:', customWpm)
+
       // Get profile settings from localStorage
       const typingSpeed = localStorage.getItem('typingSpeed') || '5'
       const pauseFrequency = localStorage.getItem('pauseFrequency') || '5'
@@ -896,11 +895,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         pause_frequency: parseInt(pauseFrequency) // Use profile pause frequency
       }
       
-      console.log('[TypingTab] Sending typing request with data:', requestData)
-      
+      console.log('[TypingTab] Request Data:', JSON.stringify(requestData, null, 2))
+      console.log('========================================')
+
       const response = await axios.post(API_ENDPOINTS.TYPING_START, requestData)
-      
-      console.log('[TypingTab] Typing started, response:', response.data)
+
+      console.log('[TypingTab] Typing started successfully')
+      console.log('[TypingTab] Response:', response.data)
       
       setSessionId(response.data.session_id)
       setIsTyping(true)
@@ -1453,7 +1454,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                       whileTap={{ scale: 0.9 }}
                       onClick={async () => {
                         const currentWpm = selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)
-                        const newWpm = Math.min(200, currentWpm + 10)
+                        const newWpm = Math.min(500, currentWpm + 10)
                         setSelectedProfile('Custom')
                         setTestWpm(newWpm)
                         toast(`Speed: ${newWpm} WPM`, { icon: '⬆️' })
@@ -1676,7 +1677,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                   {profile.name === 'Medium' && '~70 WPM'}
                   {profile.name === 'Fast' && '~100 WPM'}
                   {profile.name === 'Lightning' && '~250 WPM ⚡'}
-                  {profile.name === 'Custom' && (testWpm ? `${testWpm} WPM` : 'Calibrate First')}
+                  {profile.name === 'Custom' && (testWpm ? `${testWpm} WPM` : 'Up to 500 WPM')}
                 </div>
                 
                 {selectedProfile === profile.name && (
@@ -2283,6 +2284,6 @@ function getProfileWpm(profileName?: string, customWpm?: number): number {
     'Custom': 85,  // Default for custom if no test taken
     'Essay': 45
   }
-  
+
   return wpmMap[profileName || 'Medium'] || 100
 }

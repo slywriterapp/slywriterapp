@@ -493,7 +493,7 @@ async def get_profiles():
         {
             "name": "Custom",
             "wpm": 85,
-            "description": "Your custom speed",
+            "description": "Your custom speed (up to 500 WPM)",
             "is_builtin": False,
             "settings": {
                 "min_delay": 70,
