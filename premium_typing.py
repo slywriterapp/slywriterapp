@@ -27,37 +27,9 @@ TYPING_BURST_VARIABILITY = 0.08  # up to ±8% speed variation stretch
 
 FILLER_SERVER_URL = "https://slywriterapp.onrender.com/generate_filler"
 
-def _track_ai_filler_usage():
-    """Track AI filler generation usage (CRITICAL for billing)"""
-    try:
-        # Get user_id from account tab
-        import typing_engine
-        user_id = None
-
-        if typing_engine._account_tab and hasattr(typing_engine._account_tab, 'app'):
-            if typing_engine._account_tab.app.user:
-                user_id = typing_engine._account_tab.app.user.get('id')
-            elif hasattr(typing_engine._account_tab.app, 'user_id'):
-                user_id = typing_engine._account_tab.app.user_id
-
-        if not user_id:
-            print("[AI FILLER] No user_id found, skipping AI filler tracking")
-            return
-
-        response = requests.post(
-            "https://slywriterapp.onrender.com/api/usage/track-ai-gen",
-            params={"user_id": user_id},
-            timeout=5
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            print(f"[BACKEND] Tracked AI filler. Total uses: {data.get('usage', 'unknown')}")
-        else:
-            print(f"[BACKEND] AI filler tracking failed: {response.status_code}")
-
-    except Exception as e:
-        print(f"[ERROR] AI filler tracking error: {e}")
+# NOTE: AI filler tracking was REMOVED - Premium typing includes unlimited AI filler
+# AI filler is part of the premium typing experience and should NOT count toward AI gen limits
+# Only user-initiated AI generation (Ctrl+Alt+G) should be tracked
 
 def get_license_key():
     """Get license key from local config"""
@@ -129,8 +101,8 @@ def generate_filler(goal_text, min_words=3, max_words=10, status_callback=None, 
                     status_callback(f"✅ AI filler generated")
                 print("[AI Filler] Server response:", filler)
 
-                # Track AI filler generation usage (CRITICAL!)
-                _track_ai_filler_usage()
+                # NOTE: AI filler tracking removed - Premium typing includes unlimited AI filler
+                # This is part of the premium experience and should NOT count toward AI gen limits
             else:
                 print(f"[AI Filler] No filler in response or filler is empty: {result}")
                 raise Exception("Empty filler response")

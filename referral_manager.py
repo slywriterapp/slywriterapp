@@ -16,13 +16,17 @@ class ReferralManager:
         if not self.user_id:
             return
         try:
-            resp = requests.get(f"{SERVER_URL}/get_referrals", params={"user_id": self.user_id})
+            # Use the user endpoint which includes referral data
+            resp = requests.get(f"{SERVER_URL}/api/auth/user/{self.user_id}")
             if resp.status_code == 200:
                 data = resp.json()
-                self.referrals = data.get("referrals", 0)
-                self.referral_code = data.get("referral_code", "")
-                self.referred_by = data.get("referred_by", None)
-                self.bonus_claimed = data.get("bonus_claimed", False)
+                # Extract referral data from nested object
+                referral_data = data.get("referrals", {})
+                self.referrals = referral_data.get("count", 0)
+                self.referral_code = referral_data.get("code", "")
+                # Note: referred_by is not included in the API response
+                # tier_claimed indicates if any bonuses have been claimed
+                self.bonus_claimed = referral_data.get("tier_claimed", 0) > 0
         except Exception as e:
             print("⚠️ Failed to load referrals:", e)
 
