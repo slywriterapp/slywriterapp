@@ -42,42 +42,49 @@ export default function StatisticsTab() {
     wpm: 0
   })
 
-  // Load and update stats from localStorage
-  const loadStats = () => {
-    const stats = localStorage.getItem('slywriter-stats')
-    if (stats) {
-      const parsed = JSON.parse(stats)
-      setTotalWords(parsed.totalWords || 0)
-      setTotalCharacters(parsed.totalCharacters || 0)
-      setTotalSessions(parsed.totalSessions || 0)
-      setAvgSpeed(parsed.avgSpeed || 0)
-      setTodayWords(parsed.todayWords || 0)
-      setTodaySessions(parsed.todaySessions || 0)
-      setBestWpm(parsed.bestWpm || 0)
-      setTimeSaved(parsed.timeSaved || 0)
-      
-      // Set daily progress (actual words, not percentage)
-      setDailyProgress(parsed.todayWords || 0)
-      
-      // Calculate trends by comparing with yesterday's data
-      const dailyData = JSON.parse(localStorage.getItem('slywriter-daily-stats') || '{}')
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const yesterdayKey = yesterday.toISOString().split('T')[0]
-      const yesterdayData = dailyData[yesterdayKey] || { words: 0, characters: 0, sessions: 0, avgSpeed: 0 }
-      
-      // Calculate percentage change
-      const calculateTrend = (current: number, previous: number) => {
-        if (previous === 0) return current > 0 ? 100 : 0
-        return Math.round(((current - previous) / previous) * 100)
+  // Load and update stats from PostgreSQL
+  const loadStats = async () => {
+    try {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.log('No auth token found')
+        return
       }
-      
-      setTrends({
-        words: calculateTrend(parsed.todayWords || 0, yesterdayData.words),
-        characters: calculateTrend((parsed.todayWords || 0) * 5, yesterdayData.characters),
-        sessions: calculateTrend(parsed.todaySessions || 0, yesterdayData.sessions),
-        wpm: calculateTrend(parsed.avgSpeed || 0, yesterdayData.avgSpeed)
+
+      // Fetch stats from PostgreSQL backend
+      const response = await fetch('https://slywriterapp.onrender.com/api/stats/user', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.stats) {
+          const stats = data.stats
+          setTotalWords(stats.totalWords || 0)
+          setTotalCharacters(stats.totalCharacters || 0)
+          setTotalSessions(stats.totalSessions || 0)
+          setAvgSpeed(stats.avgSpeed || 0)
+          setTodayWords(stats.todayWords || 0)
+          setTodaySessions(stats.todaySessions || 0)
+          setBestWpm(stats.bestWpm || 0)
+
+          // Set daily progress
+          setDailyProgress(stats.todayWords || 0)
+
+          // Calculate trends (simplified for now - backend can be enhanced later)
+          setTrends({
+            words: 0,
+            characters: 0,
+            sessions: 0,
+            wpm: 0
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load stats from PostgreSQL:', error)
     }
   }
   
@@ -166,13 +173,10 @@ export default function StatisticsTab() {
   useEffect(() => {
     setAchievements([
       { id: 'first', name: 'First Automation', description: 'Complete your first typing session', icon: Award, unlocked: totalSessions > 0, progress: totalSessions, target: 1 },
-      { id: 'speed', name: 'Speed Demon', description: 'Reach 100 WPM', icon: Zap, unlocked: bestWpm >= 100, progress: bestWpm, target: 100 },
       { id: 'marathon', name: 'Word Master', description: 'Automate 10,000 words', icon: TrendingUp, unlocked: totalWords >= 10000, progress: totalWords, target: 10000 },
       { id: 'daily', name: 'Daily Goal', description: `Type ${dailyGoal} words today`, icon: Target, unlocked: todayWords >= dailyGoal, progress: todayWords, target: dailyGoal },
-      { id: 'sessions', name: 'Productivity Pro', description: 'Complete 50 sessions', icon: Activity, unlocked: totalSessions >= 50, progress: totalSessions, target: 50 },
-      { id: 'time', name: 'Time Saver', description: 'Save 10 hours with automation', icon: Clock, unlocked: timeSaved >= 600, progress: timeSaved, target: 600 },
     ])
-  }, [totalWords, totalSessions, bestWpm, todayWords, dailyGoal, timeSaved])
+  }, [totalWords, totalSessions, todayWords, dailyGoal])
 
   const StatCard = ({ icon: Icon, label, value, color, trend }: any) => (
     <motion.div

@@ -87,7 +87,7 @@ def verify_admin(authorization: str = Header(None)):
 
     return True
 
-app = FastAPI(title="SlyWriter Backend", version="2.5.5")
+app = FastAPI(title="SlyWriter Backend", version="2.5.7")
 
 # Configure CORS
 app.add_middleware(
@@ -372,17 +372,17 @@ async def type_text_worker(
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"status": "ok", "service": "SlyWriter API", "version": "2.5.5"}
+    return {"status": "ok", "service": "SlyWriter API", "version": "2.5.7"}
 
 @app.get("/healthz")
 async def healthz():
     """Health check endpoint for Render"""
-    return {"status": "healthy", "service": "SlyWriter API", "version": "2.5.5"}
+    return {"status": "healthy", "service": "SlyWriter API", "version": "2.5.7"}
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "version": "2.5.5"}
+    return {"status": "healthy", "version": "2.5.7"}
 
 @app.post("/api/typing/start")
 async def start_typing(request: TypingStartRequest, background_tasks: BackgroundTasks):
@@ -1175,6 +1175,96 @@ async def get_global_stats(db: Session = Depends(get_db)):
         "total_sessions": total_sessions,
         "milestone_text": get_milestone_text(total_words)
     }
+
+# User statistics endpoint
+@app.get("/api/stats/user")
+async def get_user_stats(request: Request, db: Session = Depends(get_db)):
+    """Get user-specific statistics from PostgreSQL"""
+    try:
+        # Get token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.replace("Bearer ", "")
+
+        # Verify JWT token
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("sub") or payload.get("email")
+
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get user by email
+        user = get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get total sessions for this user
+        total_sessions = db.query(TypingSession).filter(TypingSession.user_id == user.id).count()
+
+        # Get total words and characters from user model
+        total_words = user.total_words_typed or 0
+        total_characters = total_words * 5  # Approximate characters from words
+
+        # Get today's sessions (UTC timezone)
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_sessions = db.query(TypingSession).filter(
+            TypingSession.user_id == user.id,
+            TypingSession.started_at >= today_start
+        ).all()
+
+        today_words = sum(session.words_typed or 0 for session in today_sessions)
+        today_sessions_count = len(today_sessions)
+
+        # Get average WPM from recent sessions (last 10 sessions)
+        recent_sessions = db.query(TypingSession).filter(
+            TypingSession.user_id == user.id,
+            TypingSession.average_wpm != None,
+            TypingSession.average_wpm > 0
+        ).order_by(TypingSession.started_at.desc()).limit(10).all()
+
+        avg_speed = 0
+        if recent_sessions:
+            avg_speed = sum(s.average_wpm for s in recent_sessions) / len(recent_sessions)
+
+        # Get best WPM from all sessions
+        best_wpm_session = db.query(TypingSession).filter(
+            TypingSession.user_id == user.id,
+            TypingSession.average_wpm != None
+        ).order_by(TypingSession.average_wpm.desc()).first()
+
+        best_wpm = best_wpm_session.average_wpm if best_wpm_session else 0
+
+        return {
+            "success": True,
+            "stats": {
+                "totalWords": total_words,
+                "totalCharacters": total_characters,
+                "totalSessions": total_sessions,
+                "avgSpeed": round(avg_speed, 1),
+                "todayWords": today_words,
+                "todaySessions": today_sessions_count,
+                "bestWpm": round(best_wpm, 1) if best_wpm else 0,
+                "totalAiGenerations": user.total_ai_generations or 0,
+                "totalHumanizerUses": user.total_humanizer_uses or 0
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"User stats error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def get_milestone_text(words: int) -> str:
     """Get a fun milestone description"""

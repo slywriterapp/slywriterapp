@@ -86,10 +86,10 @@ class LicenseManager:
         Returns:
             dict: License verification result
         """
-        # Check if we need to verify (every 30 minutes unless forced)
+        # Check if we need to verify (every 24 hours unless forced)
         if not force and self.last_verification:
             time_since_last = datetime.now() - self.last_verification
-            if time_since_last < timedelta(minutes=30):
+            if time_since_last < timedelta(hours=24):
                 print("[License] Using cached verification")
                 return self.license_data
 
