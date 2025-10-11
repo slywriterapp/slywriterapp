@@ -617,6 +617,7 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
     try:
         data = await request.json()
         credential = data.get("credential")
+        referral_code = data.get("referral_code")  # Optional referral code from signup URL
 
         if not credential:
             raise HTTPException(status_code=400, detail="No credential provided")
@@ -634,6 +635,8 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
 
             # Extract profile picture URL if available
             profile_picture = idinfo.get("picture")
+            # Extract username from Google (given_name or name)
+            username = idinfo.get("given_name") or idinfo.get("name") or email.split('@')[0]
 
         except ValueError as e:
             logger.error(f"Invalid Google token: {e}")
@@ -646,12 +649,29 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
             user = create_user(db, email, plan="Free")
             is_new_user = True
             logger.info(f"Created new user via Google: {email}")
+
+            # Process referral code if provided
+            if referral_code:
+                referrer = db.query(User).filter(User.referral_code == referral_code).first()
+                if referrer:
+                    # Set the new user's referred_by field
+                    user.referred_by = referral_code
+                    # Give new user bonus words (500 words)
+                    user.referral_bonus = 500
+                    # Increment referrer's count and give them bonus words (500 words)
+                    referrer.referral_count += 1
+                    referrer.referral_bonus += 500
+                    logger.info(f"Referral processed: {email} referred by {referrer.email}. Both users got 500 bonus words!")
+                else:
+                    logger.warning(f"Invalid referral code provided: {referral_code}")
         else:
             user.last_login = datetime.utcnow()
 
-        # Update profile picture if available
+        # Update profile picture and username if available
         if profile_picture:
             user.profile_picture = profile_picture
+        if username and not user.username:
+            user.username = username
 
         db.commit()
 
@@ -905,6 +925,7 @@ async def get_profile(request: Request, db: Session = Depends(get_db)):
         return {
             "id": user.id,
             "email": user.email,
+            "username": user.username if hasattr(user, 'username') and user.username else user.email.split('@')[0],
             "plan": user.plan,
             "usage": user.words_used_this_week,
             "humanizer_usage": user.humanizer_used_this_week,
@@ -953,6 +974,7 @@ async def get_user_endpoint(user_id: str, db: Session = Depends(get_db)):
     return {
         "id": user.id,
         "email": user.email,
+        "username": user.username if hasattr(user, 'username') and user.username else user.email.split('@')[0],
         "plan": user.plan,
         "usage": user.words_used_this_week,
         "humanizer_usage": user.humanizer_used_this_week,
