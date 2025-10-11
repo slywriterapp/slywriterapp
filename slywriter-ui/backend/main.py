@@ -675,6 +675,15 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
 
         db.commit()
 
+        # Check if Pro/Premium from referrals has expired
+        if user.premium_until and user.premium_until < datetime.utcnow():
+            # Pro/Premium expired, revert to Free if no active Stripe subscription
+            if not user.subscription_status or user.subscription_status != "active":
+                user.plan = "Free"
+                user.premium_until = None
+                db.commit()
+                logger.info(f"Pro/Premium from referrals expired for user: {email}")
+
         # Check for weekly reset
         check_weekly_reset(db, user)
 
@@ -829,6 +838,15 @@ async def verify_email(request: Request, db: Session = Depends(get_db)):
             db.commit()
             logger.info(f"User logged in: {email}, plan: {user.plan}")
 
+        # Check if Pro/Premium from referrals has expired
+        if user.premium_until and user.premium_until < datetime.utcnow():
+            # Pro/Premium expired, revert to Free if no active Stripe subscription
+            if not user.subscription_status or user.subscription_status != "active":
+                user.plan = "Free"
+                user.premium_until = None
+                db.commit()
+                logger.info(f"Pro/Premium from referrals expired for user: {email}")
+
         # Check for weekly reset
         reset_occurred = check_weekly_reset(db, user)
         if reset_occurred:
@@ -915,6 +933,15 @@ async def get_profile(request: Request, db: Session = Depends(get_db)):
         user = get_user_by_email(db, email)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+
+        # Check if Pro/Premium from referrals has expired
+        if user.premium_until and user.premium_until < datetime.utcnow():
+            # Pro/Premium expired, revert to Free if no active Stripe subscription
+            if not user.subscription_status or user.subscription_status != "active":
+                user.plan = "Free"
+                user.premium_until = None
+                db.commit()
+                logger.info(f"Pro/Premium from referrals expired for user: {email}")
 
         # Check for weekly reset
         check_weekly_reset(db, user)
