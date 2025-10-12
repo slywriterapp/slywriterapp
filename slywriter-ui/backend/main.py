@@ -525,24 +525,10 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 # Profile management
-@app.post("/api/profiles/save")
-async def save_profile(profile: ProfileRequest):
-    """Save a typing profile"""
-    profiles_db[profile.name] = profile.settings
-    return {"status": "saved", "message": f"Profile '{profile.name}' saved"}
-
 @app.get("/api/profiles")
 async def get_profiles():
     """Get all saved profiles"""
     return {"profiles": profiles_db}
-
-@app.delete("/api/profiles/{name}")
-async def delete_profile(name: str):
-    """Delete a profile"""
-    if name in profiles_db:
-        del profiles_db[name]
-        return {"status": "deleted", "message": f"Profile '{name}' deleted"}
-    raise HTTPException(status_code=404, detail="Profile not found")
 
 # User authentication
 @app.post("/api/auth/login")
@@ -734,45 +720,6 @@ async def google_login(request: Request, db: Session = Depends(get_db)):
         logger.error(f"Full traceback:\n{error_details}")
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e) or 'Unknown error'}")
 
-
-@app.post("/api/stripe/create-checkout")
-async def create_checkout_session(request: Request):
-    """Create Stripe checkout session with pre-filled email"""
-    try:
-        data = await request.json()
-        email = data.get("email")
-        plan = data.get("plan")  # "Pro" or "Premium"
-
-        if not email or not plan:
-            raise HTTPException(status_code=400, detail="Email and plan required")
-
-        # Get the price ID based on plan
-        STRIPE_PRICES = {
-            "Pro": os.getenv("STRIPE_PRO_PRICE_ID"),
-            "Premium": os.getenv("STRIPE_PREMIUM_PRICE_ID")
-        }
-
-        price_id = STRIPE_PRICES.get(plan)
-        if not price_id:
-            raise HTTPException(status_code=400, detail="Invalid plan")
-
-        # Create Stripe checkout session
-        checkout_session = stripe.checkout.Session.create(
-            customer_email=email,  # Pre-fill email
-            line_items=[{
-                'price': price_id,
-                'quantity': 1,
-            }],
-            mode='subscription',
-            success_url='https://www.slywriter.ai/upgrade-success',
-            cancel_url='https://www.slywriter.ai/pricing',
-        )
-
-        return {"checkout_url": checkout_session.url}
-
-    except Exception as e:
-        logger.error(f"Checkout creation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.options("/auth/verify-email")
 async def verify_email_options(request: Request):
@@ -1202,29 +1149,6 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
         "plan": user.plan
     }
 
-# Global statistics endpoint
-@app.get("/api/stats/global")
-async def get_global_stats(db: Session = Depends(get_db)):
-    """Get global platform statistics"""
-    # Calculate total words from all users
-    total_words = db.query(User).with_entities(
-        func.sum(User.total_words_typed)
-    ).scalar() or 0
-
-    # Count total users
-    total_users = db.query(User).count()
-
-    # Count total sessions
-    total_sessions = db.query(TypingSession).count()
-
-    return {
-        "total_words_typed": total_words,
-        "total_words_display": f"{total_words:,}",
-        "total_users": total_users,
-        "total_sessions": total_sessions,
-        "milestone_text": get_milestone_text(total_words)
-    }
-
 # User statistics endpoint
 @app.get("/api/stats/user")
 async def get_user_stats(request: Request, db: Session = Depends(get_db)):
@@ -1347,11 +1271,6 @@ async def register_hotkey(hotkey: HotkeyRequest):
     hotkeys_db[hotkey.action] = hotkey.hotkey
     return {"status": "registered", "action": hotkey.action, "hotkey": hotkey.hotkey}
 
-@app.get("/api/hotkeys")
-async def get_hotkeys():
-    """Get all registered hotkeys"""
-    return {"hotkeys": hotkeys_db}
-
 # Stripe webhook endpoint
 @app.post("/api/stripe/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
@@ -1457,83 +1376,6 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             logger.info(f"Downgraded user {user.email} to Free plan")
 
     return {"status": "success"}
-
-# Manual subscription sync endpoint (fallback if webhooks fail)
-@app.post("/api/stripe/sync-subscription")
-async def sync_subscription(request: Request, db: Session = Depends(get_db)):
-    """Manually sync Stripe subscription for a user (fallback if webhook fails)"""
-    try:
-        data = await request.json()
-        email = data.get("email")
-
-        if not email:
-            raise HTTPException(status_code=400, detail="Email required")
-
-        logger.info(f"Manual subscription sync requested for: {email}")
-
-        # Get or create user
-        user = get_user_by_email(db, email)
-        if not user:
-            logger.info(f"User not found in database, creating new user: {email}")
-            user = create_user(db, email, plan="Free")
-            logger.info(f"Created new user: {email}")
-
-        # Search for customer in Stripe by email
-        customers = stripe.Customer.list(email=email, limit=1)
-
-        if not customers.data:
-            return {
-                "success": False,
-                "message": "No Stripe customer found with this email"
-            }
-
-        customer = customers.data[0]
-        logger.info(f"Found Stripe customer: {customer.id}")
-
-        # Get active subscriptions
-        subscriptions = stripe.Subscription.list(customer=customer.id, status="active", limit=1)
-
-        if not subscriptions.data:
-            return {
-                "success": False,
-                "message": "No active subscription found"
-            }
-
-        subscription = subscriptions.data[0]
-        logger.info(f"Found active subscription: {subscription.id}")
-
-        # Determine plan from price
-        price = subscription["items"]["data"][0]["price"]
-        amount = price["unit_amount"] / 100
-
-        if amount == 8.99:
-            plan = "Pro"
-        elif amount == 15.00:
-            plan = "Premium"
-        else:
-            plan = "Free"
-
-        # Update user
-        user.plan = plan
-        user.stripe_customer_id = customer.id
-        user.stripe_subscription_id = subscription.id
-        user.subscription_status = subscription.status
-        user.subscription_current_period_start = datetime.fromtimestamp(subscription.current_period_start)
-        user.subscription_current_period_end = datetime.fromtimestamp(subscription.current_period_end)
-
-        db.commit()
-        logger.info(f"✅ Manually synced {email} to {plan} plan")
-
-        return {
-            "success": True,
-            "message": f"Successfully upgraded to {plan} plan",
-            "plan": plan
-        }
-
-    except Exception as e:
-        logger.error(f"Manual sync error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 # AI Generation endpoints
 class AIGenerateRequest(BaseModel):
@@ -1762,14 +1604,6 @@ async def get_lessons(user_id: str):
     """Get saved lessons for a user"""
     user_lessons = lessons_db.get(user_id, [])
     return {"success": True, "lessons": user_lessons}
-
-@app.post("/api/learning/save-lesson")
-async def save_lesson(user_id: str, lesson: dict):
-    """Save a lesson for a user"""
-    if user_id not in lessons_db:
-        lessons_db[user_id] = []
-    lessons_db[user_id].append(lesson)
-    return {"success": True, "message": "Lesson saved"}
 
 # Admin telemetry endpoints
 @app.get("/api/admin/telemetry/stats")
@@ -2074,40 +1908,6 @@ async def google_auth_desktop():
         "auth_url": "https://accounts.google.com/o/oauth2/auth"
     }
 
-@app.get("/api/auth/status")
-async def auth_status_desktop():
-    """Desktop App: Get current authentication status"""
-    # This is a simplified version for desktop app
-    # In production, this would check session/token validity
-    return {
-        "authenticated": False,
-        "message": "Desktop app authentication status check"
-    }
-
-@app.get("/api/config")
-async def get_config_desktop():
-    """Desktop App: Get current configuration"""
-    # Return default config for desktop app
-    return {
-        "settings": {
-            "hotkeys": hotkeys_db,
-            "theme": "dark"
-        }
-    }
-
-@app.post("/api/config")
-async def update_config_desktop(config_update: ConfigUpdate):
-    """Desktop App: Update configuration"""
-    # In production, this would save to user's config file
-    # For now, just acknowledge the update
-    return {"success": True, "config": config_update.settings}
-
-@app.post("/api/config/hotkey")
-async def update_hotkey_desktop(hotkey: HotkeyUpdate):
-    """Desktop App: Update a specific hotkey"""
-    hotkeys_db[hotkey.key] = hotkey.value
-    return {"success": True, "hotkeys": hotkeys_db}
-
 @app.post("/api/profiles/generate-from-wpm")
 async def generate_profile_from_wpm(request: dict):
     """Desktop App: Generate a custom profile based on WPM"""
@@ -2259,18 +2059,6 @@ async def stop_typing_by_session(session_id: str):
     """Desktop App: Stop typing by session ID"""
     return await stop_typing()
 
-@app.get("/api/usage")
-async def get_usage_desktop():
-    """Desktop App: Get usage statistics"""
-    # This is a simplified version for desktop app
-    # In production, this would fetch from user's account
-    return {
-        "words_used": 0,
-        "words_limit": 10000,
-        "is_premium": False,
-        "reset_time": "Weekly on Sunday"
-    }
-
 # Desktop App: License verification endpoints
 @app.post("/api/license/verify")
 async def verify_license_endpoint(request: LicenseVerifyRequest):
@@ -2282,30 +2070,6 @@ async def verify_license_endpoint(request: LicenseVerifyRequest):
     result = license_manager.verify_license(request.license_key, force=request.force)
 
     return result
-
-@app.get("/api/license/status")
-async def get_license_status():
-    """Desktop App: Get current license status"""
-    if not LICENSE_MANAGER_AVAILABLE:
-        return {"valid": False, "error": "license_system_unavailable"}
-
-    license_manager = get_license_manager(config_dir=typing_engine.config_dir)
-    if not license_manager or not license_manager.license_data:
-        return {"valid": False, "error": "not_verified"}
-
-    return license_manager.license_data
-
-@app.get("/api/license/features")
-async def get_enabled_features():
-    """Desktop App: Get list of enabled features for current license"""
-    if not LICENSE_MANAGER_AVAILABLE:
-        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
-
-    license_manager = get_license_manager(config_dir=typing_engine.config_dir)
-    if not license_manager or not license_manager.license_data:
-        return {"ai_generation": False, "humanizer": False, "premium_typing": False}
-
-    return license_manager.license_data.get('features_enabled', {})
 
 
 if __name__ == "__main__":

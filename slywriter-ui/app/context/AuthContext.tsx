@@ -39,7 +39,7 @@ interface AuthContextType {
   canUseHumanizer: boolean
   canUseAIGen: boolean
   login: (googleToken: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   updateUserPlan: (plan: string) => void
   checkAuth: () => Promise<void>
   refreshUsage: () => Promise<void>
@@ -222,13 +222,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    Cookies.remove('auth_token')
-    setUser(null)
-    setIsPremium(false)
-    setWordsRemaining(4000)
-    setUsageLimits(null)
-    toast.success('Logged out successfully')
+  const logout = async () => {
+    try {
+      // Call backend logout endpoint to invalidate server-side session
+      const token = Cookies.get('auth_token') || localStorage.getItem('auth_token')
+      if (token) {
+        await axios.post(`${getApiUrl()}/api/auth/logout`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      }
+    } catch (error) {
+      console.error('Logout endpoint error:', error)
+      // Continue with client-side logout even if server logout fails
+    } finally {
+      // Clear client-side state
+      Cookies.remove('auth_token')
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user_data')
+      setUser(null)
+      setIsPremium(false)
+      setWordsRemaining(4000)
+      setUsageLimits(null)
+      toast.success('Logged out successfully')
+    }
   }
 
   const updateUserPlan = (plan: string) => {
