@@ -1265,11 +1265,56 @@ hotkeys_db = {
     "pause": "ctrl+shift+p"
 }
 
+# Hotkey recording state
+hotkey_recording_state = {
+    "is_recording": False,
+    "action": None
+}
+
 @app.post("/api/hotkeys/register")
 async def register_hotkey(hotkey: HotkeyRequest):
     """Register a hotkey"""
     hotkeys_db[hotkey.action] = hotkey.hotkey
     return {"status": "registered", "action": hotkey.action, "hotkey": hotkey.hotkey}
+
+@app.get("/api/hotkeys/recording-status")
+async def get_hotkey_recording_status():
+    """Get hotkey recording status"""
+    return {
+        "is_recording": hotkey_recording_state["is_recording"],
+        "action": hotkey_recording_state["action"]
+    }
+
+class HotkeyRecordRequest(BaseModel):
+    action: str
+    recording: bool
+
+@app.post("/api/hotkeys/record")
+async def record_hotkey(request: HotkeyRecordRequest):
+    """Start or stop recording a hotkey"""
+    if request.recording:
+        # Start recording
+        hotkey_recording_state["is_recording"] = True
+        hotkey_recording_state["action"] = request.action
+        logger.info(f"Started recording hotkey for action: {request.action}")
+        return {
+            "success": True,
+            "message": f"Recording hotkey for {request.action}",
+            "is_recording": True,
+            "action": request.action
+        }
+    else:
+        # Stop recording
+        action = hotkey_recording_state["action"]
+        hotkey_recording_state["is_recording"] = False
+        hotkey_recording_state["action"] = None
+        logger.info(f"Stopped recording hotkey for action: {action}")
+        return {
+            "success": True,
+            "message": f"Stopped recording hotkey for {action}",
+            "is_recording": False,
+            "action": None
+        }
 
 # Stripe webhook endpoint
 @app.post("/api/stripe/webhook")
