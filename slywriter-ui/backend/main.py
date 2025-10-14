@@ -1623,11 +1623,38 @@ async def create_lesson(request: CreateLessonRequest):
 
 
 
-# Error telemetry endpoint
+# Telemetry endpoints
+class TelemetryEvent(BaseModel):
+    event: str
+    data: Any
+    timestamp: str
+    userId: str
+    sessionId: str
+    betaTester: bool = False
+
 class ErrorTelemetryRequest(BaseModel):
     error: str
     stack: Optional[str] = None
     user_id: Optional[str] = None
+
+@app.post("/api/telemetry")
+async def receive_telemetry(event_data: TelemetryEvent):
+    """Receive telemetry events from frontend analytics"""
+    try:
+        # Log telemetry event for monitoring
+        logger.info(f"Telemetry event from {event_data.userId}: {event_data.event}")
+
+        # Store in beta telemetry if user is beta tester
+        if event_data.betaTester:
+            logger.info(f"Beta tester event: {event_data.event} - {event_data.data}")
+
+        # TODO: Store telemetry in database if needed (currently just logging)
+        # Could create a Telemetry table to store these events for analytics
+
+        return {"success": True, "message": "Telemetry received"}
+    except Exception as e:
+        logger.error(f"Telemetry error: {e}")
+        return {"success": False, "message": str(e)}
 
 @app.post("/api/telemetry/error")
 async def log_error(request: ErrorTelemetryRequest):
