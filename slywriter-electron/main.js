@@ -825,9 +825,36 @@ function createOverlay() {
           // Send to renderer as fallback
           mainWindow.webContents.send('global-hotkey', 'start')
         }
-      } else if (action === 'stop' || action === 'pause') {
-        // Send stop/pause to renderer
+      } else if (action === 'stop') {
+        // Send stop to renderer
         mainWindow.webContents.send('global-hotkey', action)
+      } else if (action === 'pause') {
+        // Handle pause - call backend API like the hotkey does
+        console.log('Overlay triggered pause')
+        try {
+          const req = http.request({
+            hostname: '127.0.0.1',
+            port: 8000,
+            path: '/api/typing/pause',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          }, (res) => {
+            let responseData = ''
+            res.on('data', chunk => responseData += chunk)
+            res.on('end', () => {
+              console.log('Pause API response:', res.statusCode, responseData)
+              // Also send to renderer for UI update
+              mainWindow.webContents.send('global-hotkey', 'pause')
+            })
+          })
+          req.on('error', err => console.error('Pause API error:', err))
+          req.write('{}')
+          req.end()
+        } catch (error) {
+          console.error('Error calling pause API:', error)
+          // Still send to renderer as fallback
+          mainWindow.webContents.send('global-hotkey', action)
+        }
       } else if (action === 'ai-generate') {
         // Call the global AI generation handler
         console.log('🎯🎯🎯 === OVERLAY AI BUTTON CLICKED === 🎯🎯🎯')
@@ -1945,10 +1972,18 @@ app.whenReady().then(async () => {
                             await mainWindow.webContents.executeJavaScript(`
                               (async () => {
                                 try {
+                                  // Try user_data first (current key), then auth_state (legacy)
+                                  const userData = localStorage.getItem('user_data');
                                   const authState = localStorage.getItem('auth_state');
-                                  if (authState) {
-                                    const auth = JSON.parse(authState);
-                                    const userId = auth.user?.id || auth.user?.uid;
+                                  const dataStr = userData || authState;
+
+                                  if (dataStr) {
+                                    const data = JSON.parse(dataStr);
+                                    // Extract userId from different possible locations
+                                    const userId = data.email?.replace('@', '_').replace(/\\./g, '_') ||
+                                                   data.user?.email?.replace('@', '_').replace(/\\./g, '_') ||
+                                                   data.user?.id ||
+                                                   data.user?.uid;
                                     if (userId) {
                                       const API_URL = '${isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'}';
 
@@ -2198,11 +2233,18 @@ app.whenReady().then(async () => {
                     await mainWindow.webContents.executeJavaScript(`
                       (async () => {
                         try {
-                          // Get auth state from localStorage
+                          // Try user_data first (current key), then auth_state (legacy)
+                          const userData = localStorage.getItem('user_data');
                           const authState = localStorage.getItem('auth_state');
-                          if (authState) {
-                            const auth = JSON.parse(authState);
-                            const userId = auth.user?.id || auth.user?.uid;
+                          const dataStr = userData || authState;
+
+                          if (dataStr) {
+                            const data = JSON.parse(dataStr);
+                            // Extract userId from different possible locations
+                            const userId = data.email?.replace('@', '_').replace(/\\./g, '_') ||
+                                           data.user?.email?.replace('@', '_').replace(/\\./g, '_') ||
+                                           data.user?.id ||
+                                           data.user?.uid;
                             if (userId) {
                               const API_URL = '${isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'}';
                               await fetch(API_URL + '/api/usage/track?user_id=' + userId + '&words=${wordCount}', {

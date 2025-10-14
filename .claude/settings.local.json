@@ -35,7 +35,8 @@
       "Bash(echo:*)",
       "Bash(tasklist)",
       "Bash(findstr:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": [],
