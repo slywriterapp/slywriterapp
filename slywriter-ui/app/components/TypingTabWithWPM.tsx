@@ -51,7 +51,7 @@ interface TypingTabProps {
 }
 
 export default function TypingTabWithWPM({ connected, initialProfile, shouldOpenWpmTest, onWpmTestOpened, pendingAIText, onAITextProcessed }: TypingTabProps) {
-  const { user, isPremium, canType, wordsRemaining } = useAuth()
+  const { user, isPremium, canType, wordsRemaining, trackWordUsage } = useAuth()
   const hotkeys = useCustomHotkeys()
   
   // Core state
@@ -603,7 +603,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           setProgress(100)
           toast.success('Typing session complete!')
           setSessionId(null)
-          
+
+          // Track word usage
+          const wordsTyped = Math.floor(charsTyped / 5)
+          if (wordsTyped > 0 && trackWordUsage) {
+            trackWordUsage(wordsTyped)
+            console.log(`[USAGE TRACKING] Tracked ${wordsTyped} words typed`)
+          }
+
           // Send final stats to overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
             const completeData = {
@@ -674,6 +681,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               setProgress(100)
               setStatus('✅ Finished!')
               setSessionId(null)
+
+              // Track word usage
+              const completedWords = Math.floor(charsTyped / 5)
+              if (completedWords > 0 && trackWordUsage) {
+                trackWordUsage(completedWords)
+                console.log(`[USAGE TRACKING] Tracked ${completedWords} words typed (typing_complete event)`)
+              }
               
               // Send final stats to overlay
               if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
