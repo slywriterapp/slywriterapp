@@ -2116,6 +2116,60 @@ async def verify_license_endpoint(request: LicenseVerifyRequest):
 
     return result
 
+# Admin user management endpoint
+class AdminUpgradeUserRequest(BaseModel):
+    email: str
+    plan: str  # "Free", "Pro", or "Premium"
+    duration_days: Optional[int] = None  # Optional: days of Pro/Premium (e.g., 30 for 1 month)
+
+@app.post("/api/admin/upgrade-user")
+async def admin_upgrade_user(
+    request: AdminUpgradeUserRequest,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Admin: Manually upgrade a user's plan"""
+    user = get_user_by_email(db, request.email)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User not found: {request.email}")
+
+    old_plan = user.plan
+    user.plan = request.plan
+
+    # If setting to Pro/Premium with duration, set premium_until date
+    if request.plan in ["Pro", "Premium"] and request.duration_days:
+        now = datetime.utcnow()
+        start_date = now
+
+        # If user already has premium_until in future, stack on top of it
+        if user.premium_until and user.premium_until > now:
+            start_date = user.premium_until
+
+        user.premium_until = start_date + timedelta(days=request.duration_days)
+        logger.info(f"Admin upgraded {request.email} to {request.plan} until {user.premium_until.strftime('%Y-%m-%d')}")
+    elif request.plan == "Free":
+        # Clear premium_until when downgrading to Free
+        user.premium_until = None
+        logger.info(f"Admin downgraded {request.email} to Free")
+    else:
+        logger.info(f"Admin upgraded {request.email} to {request.plan} (permanent)")
+
+    db.commit()
+
+    # Get updated limits
+    limits = get_user_limits(user)
+
+    return {
+        "success": True,
+        "message": f"User {request.email} upgraded from {old_plan} to {request.plan}",
+        "user": {
+            "email": user.email,
+            "plan": user.plan,
+            "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+            **limits
+        }
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
