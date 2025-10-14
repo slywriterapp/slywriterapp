@@ -1799,7 +1799,8 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        words_used = user.total_words_typed or 0
+        # Use words_used_this_week for weekly limit tracking (not total_words_typed)
+        words_used = user.words_used_this_week or 0
         plan_name = "free"
         words_limit = 500
 
