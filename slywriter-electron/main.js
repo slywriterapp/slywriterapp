@@ -2168,12 +2168,25 @@ app.whenReady().then(async () => {
                 localStorage.getItem('slywriter-custom-wpm')
               `)
 
-              if (savedWpm) {
+              if (savedWpm && !isNaN(parseInt(savedWpm))) {
                 customWpm = parseInt(savedWpm)
                 console.log('🔥 [HOTKEY] Retrieved custom WPM from localStorage:', customWpm)
+              } else {
+                // If no custom WPM, calculate from profile (matching app logic)
+                const wpmMap = {
+                  'Slow': 40,
+                  'Medium': 70,
+                  'Fast': 100,
+                  'Lightning': 250,
+                  'Custom': 85,
+                  'Essay': 45
+                }
+                customWpm = wpmMap[profile] || 70
+                console.log('🔥 [HOTKEY] No custom WPM in localStorage, using profile WPM:', customWpm, 'for profile:', profile)
               }
             } catch (err) {
               console.log('Error getting profile/WPM, using default:', err.message)
+              customWpm = 70  // Default fallback
             }
 
             console.log('🔥 [HOTKEY] Making API call with profile:', profile, 'custom_wpm:', customWpm, 'text length:', text.length)
