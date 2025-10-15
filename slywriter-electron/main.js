@@ -607,7 +607,12 @@ function createWindow() {
       webSecurity: true
     },
     icon: path.join(__dirname, 'assets', 'icon.ico'), // SlyWriter logo
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: process.platform === 'win32' ? 'default' : 'hiddenInset',
+    titleBarOverlay: process.platform === 'win32' ? {
+      color: '#000000',
+      symbolColor: '#ffffff',
+      height: 32
+    } : undefined,
     show: false
   })
 
