@@ -84,6 +84,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
+  // Periodically check for plan changes
+  useEffect(() => {
+    if (user?.email) {
+      // Check for plan updates every 2 minutes
+      const interval = setInterval(async () => {
+        await checkPlanUpdate()
+      }, 2 * 60 * 1000)
+      return () => clearInterval(interval)
+    }
+  }, [user?.email])
+
+  const checkPlanUpdate = async () => {
+    if (!user?.email) return
+
+    try {
+      const userId = user.email.replace('@', '_').replace(/\./g, '_')
+      const response = await axios.get(`${getApiUrl()}/api/auth/user/${userId}`)
+
+      if (response.data && response.data.plan) {
+        const currentPlan = user.plan
+        const newPlan = response.data.plan
+
+        // Check if plan changed
+        if (currentPlan !== newPlan) {
+          console.log(`Plan changed from ${currentPlan} to ${newPlan}`)
+
+          // Update user data in state
+          const updatedUser = { ...user, plan: newPlan }
+          setUser(updatedUser)
+
+          // Update localStorage
+          localStorage.setItem('user_data', JSON.stringify(updatedUser))
+
+          // Update premium status
+          const isPrem = newPlan === 'premium' || newPlan === 'Premium' ||
+                         newPlan === 'pro' || newPlan === 'Pro'
+          setIsPremium(isPrem)
+
+          // Refresh usage limits
+          await refreshUsage()
+
+          // Show notification
+          if (isPrem) {
+            toast.success(`🎉 Your account has been upgraded to ${newPlan}!`, { duration: 5000 })
+          } else {
+            toast.info(`Your plan has been updated to ${newPlan}`, { duration: 4000 })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check plan update:', error)
+    }
+  }
+
   const checkWeeklyReset = async () => {
     if (!user?.email) return
 
@@ -158,6 +212,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Update words remaining for backwards compatibility
         const remaining = response.data.words_remaining
         setWordsRemaining(typeof remaining === 'number' ? remaining : 999999)
+
+        // Also check if plan changed
+        if (response.data.plan && user.plan !== response.data.plan) {
+          const updatedUser = { ...user, plan: response.data.plan }
+          setUser(updatedUser)
+          localStorage.setItem('user_data', JSON.stringify(updatedUser))
+
+          const isPrem = response.data.plan === 'premium' || response.data.plan === 'Premium' ||
+                         response.data.plan === 'pro' || response.data.plan === 'Pro'
+          setIsPremium(isPrem)
+        }
       }
     } catch (error) {
       console.error('Failed to fetch usage limits:', error)
