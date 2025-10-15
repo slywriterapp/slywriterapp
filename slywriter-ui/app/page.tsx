@@ -547,10 +547,10 @@ function SlyWriterApp() {
           initial={{ x: -100, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="w-72 bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col"
+          className="w-72 bg-black/40 backdrop-blur-2xl border-r border-gray-900 flex flex-col"
         >
           {/* Logo */}
-          <div className="p-6 border-b border-white/10">
+          <div className="p-6 border-b border-gray-900">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -572,7 +572,7 @@ function SlyWriterApp() {
           </div>
 
           {/* User Section */}
-          <div className="px-6 py-4 border-b border-white/10">
+          <div className="px-6 py-4 border-b border-gray-900">
             <UserProfile onShowDashboard={() => setShowDashboard(true)} />
           </div>
 
@@ -635,7 +635,7 @@ function SlyWriterApp() {
             </AnimatePresence>
 
             {/* Features Section */}
-            <div className="mt-6 pt-6 border-t border-white/10">
+            <div className="mt-6 pt-6 border-t border-gray-900">
               <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3 px-2">Features</h3>
 
               <button
@@ -656,7 +656,7 @@ function SlyWriterApp() {
           </nav>
 
           {/* Footer */}
-          <div className="p-6 border-t border-white/10 space-y-4">
+          <div className="p-6 border-t border-gray-900 space-y-4">
             {/* Connection Status */}
             <motion.div 
               animate={{ scale: connected ? 1 : [1, 1.05, 1] }}
