@@ -545,7 +545,27 @@ export default function AIHubTab() {
         console.log('[AIHub] Topic:', input.substring(0, 100))
         console.log('[AIHub] Answer length:', generatedText.length)
 
-        // Dispatch event to add topic to Learning tab's Recent Topics
+        // Save directly to localStorage (in addition to dispatching event)
+        const newTopic = {
+          topic: input.substring(0, 100),
+          answer: generatedText,
+          timestamp: new Date().toLocaleString()
+        }
+
+        const existingTopics = localStorage.getItem('slywriter-learning-topics')
+        let topics = []
+        try {
+          topics = existingTopics ? JSON.parse(existingTopics) : []
+        } catch (e) {
+          console.error('[AIHub] Failed to parse existing topics:', e)
+          topics = []
+        }
+
+        topics = [newTopic, ...topics].slice(0, 50) // Keep last 50 topics
+        localStorage.setItem('slywriter-learning-topics', JSON.stringify(topics))
+        console.log('[AIHub] ✅ Topic saved to localStorage, total topics:', topics.length)
+
+        // Also dispatch event for real-time update if Learning tab is already open
         window.dispatchEvent(new CustomEvent('newLearningTopic', {
           detail: {
             topic: input.substring(0, 100),
