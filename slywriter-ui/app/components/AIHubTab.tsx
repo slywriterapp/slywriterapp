@@ -529,43 +529,20 @@ export default function AIHubTab() {
         toast.success('✨ AI response generated!')
       }
       
-      // Create lesson if learning mode is on
-      if (settings.learning_mode && generatedText && user?.email) {
-        try {
-          // Convert email to user_id format
-          const userId = user.email.replace('@', '_').replace(/\./g, '_')
-          console.log('[AIHub] Saving lesson for user:', userId)
-
-          const lessonResponse = await axios.post(`${API_URL}/api/learning/save-lesson`, {
-            user_id: userId,
+      // Create topic if learning mode is on (topics are simple, full lessons created on-demand)
+      if (settings.learning_mode && generatedText) {
+        console.log('[AIHub] Dispatching newLearningTopic event')
+        // Dispatch event to add topic to Learning tab's Recent Topics
+        window.dispatchEvent(new CustomEvent('newLearningTopic', {
+          detail: {
             topic: input.substring(0, 100),
-            content: generatedText
-          }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            timeout: 5000,
-            withCredentials: false
-          })
-
-          if (lessonResponse.data?.success) {
-            console.log('[AIHub] Lesson saved successfully:', lessonResponse.data.lesson)
-            toast.success('📚 Lesson saved! View it in the Smart Learn tab', {
-              duration: 4000,
-              icon: '🎓'
-            })
+            answer: generatedText
           }
-        } catch (error: any) {
-          console.error('[AIHub] Failed to save lesson:', error)
-          // Show user-friendly error but don't block the main flow
-          if (error.response?.status === 404) {
-            console.log('[AIHub] Learning endpoint not found - server may need update')
-          } else if (error.code === 'ERR_NETWORK') {
-            console.log('[AIHub] Learning service unavailable - server may be down')
-          }
-          // Don't show error toast - learning is a bonus feature
-        }
+        }))
+        toast.success('📚 Topic saved! View it in the Smart Learn tab', {
+          duration: 3000,
+          icon: '🎓'
+        })
       }
       
     } catch (error: any) {

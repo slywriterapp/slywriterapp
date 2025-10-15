@@ -1040,8 +1040,8 @@ export default function EnhancedLearningTab() {
                 ) : savedLessons.length === 0 ? (
                   <div className="text-center py-8">
                     <BookOpenIcon className="w-12 h-12 text-gray-600 mx-auto mb-2" />
-                    <p className="text-gray-400">No saved lessons yet</p>
-                    <p className="text-sm text-gray-500 mt-2">Enable Auto-Learn in AI Writer to save lessons</p>
+                    <p className="text-gray-400">No comprehensive lessons yet</p>
+                    <p className="text-sm text-gray-500 mt-2">Create full lessons by clicking 'Deep Learn' on any topic</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1079,7 +1079,7 @@ export default function EnhancedLearningTab() {
               <div className="text-center py-8">
                 <BookOpenIcon className="w-12 h-12 text-gray-600 mx-auto mb-2" />
                 <p className="text-gray-400">No topics yet</p>
-                <p className="text-sm text-gray-500 mt-2">Generate content with AI to start learning</p>
+                <p className="text-sm text-gray-500 mt-2">Enable Auto-Learn in AI Hub to save topics automatically</p>
               </div>
             ) : (
               <div className="space-y-3">
