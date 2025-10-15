@@ -291,7 +291,11 @@ export default function AIHubTab() {
 
     // Wait for tab to render, then insert text
     setTimeout(() => {
-      const textarea = document.querySelector('textarea[placeholder*="Type here"]') as HTMLTextAreaElement
+      // Try multiple selectors to find the typing textarea
+      const textarea = document.querySelector('textarea[placeholder*="Type Mode"]') as HTMLTextAreaElement
+        || document.querySelector('textarea[placeholder*="Paste Mode"]') as HTMLTextAreaElement
+        || document.querySelector('textarea[placeholder*="text here"]') as HTMLTextAreaElement
+
       if (textarea) {
         textarea.value = text
         textarea.dispatchEvent(new Event('input', { bubbles: true }))
