@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RENDER_API_URL } from '../config/api'
 import toast from 'react-hot-toast'
 import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
 
 // Use Render server for AI generation (has OpenAI API key configured server-side)
 const API_URL = RENDER_API_URL
@@ -89,6 +90,7 @@ interface LearningProgress {
 }
 
 export default function EnhancedLearningTab() {
+  const { user } = useAuth()
   const [topics, setTopics] = useState<Array<{ topic: string, answer: string, timestamp: string }>>([])
   const [selectedTopic, setSelectedTopic] = useState<any>(null)
   const [currentLesson, setCurrentLesson] = useState<LessonContent | null>(null)
@@ -130,21 +132,33 @@ export default function EnhancedLearningTab() {
   const loadSavedLessons = async () => {
     setLoadingLessons(true)
     try {
-      const response = await axios.get(`${API_URL}/api/learning/get-lessons`, {
+      // Check if user is logged in
+      if (!user?.email) {
+        console.log('[Learning] No user logged in, cannot load lessons')
+        setSavedLessons([])
+        setLoadingLessons(false)
+        return
+      }
+
+      // Convert email to user_id format (replace @ and . with _)
+      const userId = user.email.replace('@', '_').replace(/\./g, '_')
+      console.log('[Learning] Loading lessons for user:', userId)
+
+      const response = await axios.get(`${API_URL}/api/learning/get-lessons?user_id=${userId}`, {
         timeout: 5000,
         validateStatus: (status) => status < 500 // Accept any status < 500
       })
-      
+
       if (response.status === 404) {
         // Endpoint not deployed yet
         console.log('[Learning] Lessons endpoint not available yet - server needs update')
         setSavedLessons([])
       } else if (response.data?.success) {
         setSavedLessons(response.data.lessons || [])
-        console.log('Loaded saved lessons:', response.data.lessons)
+        console.log('[Learning] Loaded saved lessons:', response.data.lessons)
       }
     } catch (error: any) {
-      console.error('Failed to load saved lessons:', error.message)
+      console.error('[Learning] Failed to load saved lessons:', error.message)
       // Don't show error toast - this is expected until server is updated
       setSavedLessons([])
     } finally {
