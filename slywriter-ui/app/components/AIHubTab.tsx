@@ -534,8 +534,17 @@ export default function AIHubTab() {
       }
       
       // Create topic if learning mode is on (topics are simple, full lessons created on-demand)
+      console.log('[AIHub] Checking learning mode:', {
+        learning_mode: settings.learning_mode,
+        hasGeneratedText: !!generatedText,
+        inputLength: input.length
+      })
+
       if (settings.learning_mode && generatedText) {
-        console.log('[AIHub] Dispatching newLearningTopic event')
+        console.log('[AIHub] ✅ Learning mode active - dispatching newLearningTopic event')
+        console.log('[AIHub] Topic:', input.substring(0, 100))
+        console.log('[AIHub] Answer length:', generatedText.length)
+
         // Dispatch event to add topic to Learning tab's Recent Topics
         window.dispatchEvent(new CustomEvent('newLearningTopic', {
           detail: {
@@ -543,10 +552,14 @@ export default function AIHubTab() {
             answer: generatedText
           }
         }))
+
+        console.log('[AIHub] ✅ Event dispatched successfully')
         toast.success('📚 Topic saved! View it in the Smart Learn tab', {
           duration: 3000,
           icon: '🎓'
         })
+      } else {
+        console.log('[AIHub] ❌ Learning mode NOT active or no generated text')
       }
       
     } catch (error: any) {

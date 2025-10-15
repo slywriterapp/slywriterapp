@@ -204,18 +204,27 @@ export default function EnhancedLearningTab() {
 
     // Listen for new topics from AI generation
     const handleNewTopic = (event: CustomEvent) => {
+      console.log('[Learning] 🎓 Received newLearningTopic event!')
+      console.log('[Learning] Event detail:', event.detail)
+
       const { topic, answer } = event.detail
+      console.log('[Learning] Topic:', topic)
+      console.log('[Learning] Answer length:', answer?.length)
+
       const newTopic = {
         topic,
         answer,
         timestamp: new Date().toLocaleString()
       }
-      
+
       setTopics(prev => {
         const updated = [newTopic, ...prev].slice(0, 50) // Keep last 50 topics
+        console.log('[Learning] Saving topics to localStorage, total count:', updated.length)
         localStorage.setItem('slywriter-learning-topics', JSON.stringify(updated))
         return updated
       })
+
+      console.log('[Learning] ✅ Topic added successfully!')
 
       // Show notification if enabled
       if (settings.notifications) {
@@ -226,6 +235,7 @@ export default function EnhancedLearningTab() {
       }
     }
 
+    console.log('[Learning] 📡 Registering event listener for newLearningTopic')
     window.addEventListener('newLearningTopic', handleNewTopic as EventListener)
     return () => {
       window.removeEventListener('newLearningTopic', handleNewTopic as EventListener)

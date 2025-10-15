@@ -121,15 +121,17 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           console.log('Loading saved profile:', savedProfile)
           setSelectedProfile(savedProfile)
           setProfileLoaded(true)
+
+          // Only load custom WPM if the saved profile is Custom
+          if (savedProfile === 'Custom') {
+            const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+            if (savedWpm) {
+              const wpm = parseInt(savedWpm)
+              setTestWpm(wpm)
+              console.log('Loaded custom WPM from localStorage:', wpm)
+            }
+          }
         }
-      }
-      
-      // Always reload WPM from localStorage
-      const savedWpm = localStorage.getItem('slywriter-custom-wpm')
-      if (savedWpm) {
-        const wpm = parseInt(savedWpm)
-        setTestWpm(wpm)
-        console.log('Loaded WPM from localStorage:', wpm)
       }
       
       // Load paste mode preference
@@ -253,14 +255,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
     }
   }, [])
   
-  // Save WPM to localStorage whenever it changes
+  // Save WPM to localStorage ONLY when using Custom profile
   useEffect(() => {
-    if (testWpm !== undefined) {
+    if (testWpm !== undefined && selectedProfile === 'Custom') {
       if (typeof window !== 'undefined') {
         localStorage.setItem('slywriter-custom-wpm', testWpm.toString())
+        console.log('Saved custom WPM to localStorage:', testWpm)
       }
     }
-  }, [testWpm])
+  }, [testWpm, selectedProfile])
   
   // Save selected profile to localStorage whenever it changes (but not on initial load)
   useEffect(() => {
