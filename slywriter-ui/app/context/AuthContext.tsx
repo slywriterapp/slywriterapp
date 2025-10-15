@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isPrem) {
             toast.success(`🎉 Your account has been upgraded to ${newPlan}!`, { duration: 5000 })
           } else {
-            toast.info(`Your plan has been updated to ${newPlan}`, { duration: 4000 })
+            toast(`Your plan has been updated to ${newPlan}`, { duration: 4000 })
           }
         }
       }
