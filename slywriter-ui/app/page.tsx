@@ -558,7 +558,7 @@ function SlyWriterApp() {
               className="flex items-center gap-3"
             >
               <img
-                src="/Darklogo_final.jpg"
+                src="/for_topleft_logo.png"
                 alt="SlyWriter Logo"
                 className="w-[60px] h-[67px] object-contain"
               />
