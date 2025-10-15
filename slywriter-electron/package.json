@@ -35,6 +35,7 @@
   "build": {
     "appId": "com.slywriter.desktop",
     "productName": "SlyWriter",
+    "icon": "assets/icon.ico",
     "directories": {
       "output": "dist"
     },
