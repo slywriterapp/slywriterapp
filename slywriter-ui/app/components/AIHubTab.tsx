@@ -530,12 +530,16 @@ export default function AIHubTab() {
       }
       
       // Create lesson if learning mode is on
-      if (settings.learning_mode && generatedText) {
+      if (settings.learning_mode && generatedText && user?.email) {
         try {
-          const lessonResponse = await axios.post(`${API_URL}/api/learning/create-lesson`, {
+          // Convert email to user_id format
+          const userId = user.email.replace('@', '_').replace(/\./g, '_')
+          console.log('[AIHub] Saving lesson for user:', userId)
+
+          const lessonResponse = await axios.post(`${API_URL}/api/learning/save-lesson`, {
+            user_id: userId,
             topic: input.substring(0, 100),
-            content: generatedText,
-            method: 'ai_generated'
+            content: generatedText
           }, {
             headers: {
               'Content-Type': 'application/json',
@@ -544,16 +548,16 @@ export default function AIHubTab() {
             timeout: 5000,
             withCredentials: false
           })
-          
+
           if (lessonResponse.data?.success) {
-            console.log('[AIHub] Lesson created successfully:', lessonResponse.data.lesson_id)
-            toast.success('📚 Lesson saved! View it in the Smart Learn tab', { 
+            console.log('[AIHub] Lesson saved successfully:', lessonResponse.data.lesson)
+            toast.success('📚 Lesson saved! View it in the Smart Learn tab', {
               duration: 4000,
               icon: '🎓'
             })
           }
         } catch (error: any) {
-          console.error('[AIHub] Failed to create lesson:', error)
+          console.error('[AIHub] Failed to save lesson:', error)
           // Show user-friendly error but don't block the main flow
           if (error.response?.status === 404) {
             console.log('[AIHub] Learning endpoint not found - server may need update')

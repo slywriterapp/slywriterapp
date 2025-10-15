@@ -1671,6 +1671,42 @@ async def log_error(request: ErrorTelemetryRequest):
 # Learning lessons storage (in-memory for now)
 lessons_db = {}
 
+class SaveLessonRequest(BaseModel):
+    user_id: str
+    topic: str
+    content: str
+
+@app.post("/api/learning/save-lesson")
+async def save_lesson(request: SaveLessonRequest):
+    """Save a learning lesson for a user"""
+    try:
+        # Get or create user's lessons list
+        if request.user_id not in lessons_db:
+            lessons_db[request.user_id] = []
+
+        # Create lesson object
+        lesson = {
+            "id": f"{request.user_id}_{len(lessons_db[request.user_id])}_{int(time.time())}",
+            "topic": request.topic,
+            "content": request.content,
+            "word_count": len(request.content.split()),
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        # Add to user's lessons
+        lessons_db[request.user_id].append(lesson)
+
+        logger.info(f"[Learning] Saved lesson for user {request.user_id}: {request.topic}")
+
+        return {
+            "success": True,
+            "message": "Lesson saved successfully",
+            "lesson": lesson
+        }
+    except Exception as e:
+        logger.error(f"Save lesson error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/learning/get-lessons")
 async def get_lessons(user_id: str):
     """Get saved lessons for a user"""
