@@ -26,6 +26,10 @@ from google.auth.transport import requests as google_requests
 import openai
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -1426,6 +1430,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 class AIGenerateRequest(BaseModel):
     prompt: str
     max_tokens: Optional[int] = 500
+    settings: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
 
 class AIHumanizeRequest(BaseModel):
     text: str
@@ -1440,18 +1446,74 @@ class StudyQuestionsRequest(BaseModel):
 
 @app.post("/api/ai/generate")
 async def generate_ai_text(request: AIGenerateRequest):
-    """Generate AI text using OpenAI"""
+    """Generate AI text using OpenAI with dynamic settings"""
     try:
         from openai import OpenAI
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+        # Extract settings or use defaults
+        settings = request.settings or {}
+
+        # Get key settings
+        tone = settings.get('tone', 'Neutral')
+        grade_level = settings.get('grade_level', 11)
+        response_length = settings.get('response_length', 3)
+        response_type = settings.get('response_type', 'short_response')
+        selected_template = settings.get('selectedTemplate', 'general')
+        academic_format = settings.get('academic_format', 'MLA')
+
+        # Learning tab specific settings
+        depth = settings.get('depth', 'Intermediate')
+        learning_style = settings.get('learning_style', 'Mixed')
+        focus = settings.get('focus', 'Balanced')
+
+        # Build dynamic system message based on template and settings
+        template_personalities = {
+            'creative_writing': f"You are a creative writing assistant with a {tone.lower()} tone. Write imaginatively and engagingly, suitable for grade {grade_level} readers.",
+            'professional': f"You are a professional business writing assistant. Write in a {tone.lower()} tone with clarity and professionalism, appropriate for grade {grade_level} comprehension level.",
+            'academic': f"You are an academic writing assistant specializing in {academic_format} format. Write in a {tone.lower()} scholarly tone suitable for grade {grade_level} level.",
+            'casual': f"You are a casual writing assistant. Write in a {tone.lower()}, conversational tone that's easy to understand for grade {grade_level} readers.",
+            'technical': f"You are a technical writing assistant. Explain concepts clearly with a {tone.lower()} tone, appropriate for grade {grade_level} technical comprehension.",
+            'gaming': f"You are a gaming content writer. Write with a {tone.lower()} tone that engages gamers, suitable for grade {grade_level} readers.",
+            'general': f"You are a helpful writing assistant. Write in a {tone.lower()} tone appropriate for grade {grade_level} level."
+        }
+
+        # Get system message based on template
+        system_message = template_personalities.get(selected_template, template_personalities['general'])
+
+        # Add learning-specific context if depth/focus settings present
+        if depth or focus:
+            system_message += f" The content should be at {depth} depth with {focus} focus, suitable for {learning_style} learning style."
+
+        # Calculate max_tokens based on response_length setting
+        # Map response_length (1-5 scale) to token counts
+        token_map = {
+            1: 100,   # 1-2 sentences
+            2: 200,   # 2-4 sentences
+            3: 300,   # 4-8 sentences
+            4: 500,   # 8-15 sentences
+            5: 800    # 15+ sentences
+        }
+
+        # For essays, use higher token counts
+        if response_type == 'essay':
+            required_pages = settings.get('required_pages', 1)
+            calculated_max_tokens = min(2000, required_pages * 500)  # ~500 tokens per page
+        else:
+            calculated_max_tokens = token_map.get(response_length, 300)
+
+        # Use calculated tokens unless explicitly overridden
+        max_tokens = request.max_tokens if request.max_tokens != 500 else calculated_max_tokens
+
+        logger.info(f"AI Generate with settings: tone={tone}, grade={grade_level}, length={response_length}, template={selected_template}, max_tokens={max_tokens}")
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful writing assistant."},
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": request.prompt}
             ],
-            max_tokens=request.max_tokens
+            max_tokens=max_tokens
         )
 
         generated_text = response.choices[0].message.content
