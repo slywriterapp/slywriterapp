@@ -1681,7 +1681,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                 key={profile.name}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedProfile(profile.name)}
+                onClick={() => {
+                  setSelectedProfile(profile.name)
+                  // Clear testWpm when switching to a non-Custom profile
+                  if (profile.name !== 'Custom') {
+                    setTestWpm(undefined)
+                    console.log(`[Profile Change] Switched to ${profile.name}, cleared testWpm`)
+                  }
+                }}
                 disabled={isTyping}
                 className={`
                   relative p-3 rounded-lg border transition-all
