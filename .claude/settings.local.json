@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dist:*)"
+      "Bash(npm run dist:*)",
+      "Bash(gh release upload:*)",
+      "Bash(copy:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": [],

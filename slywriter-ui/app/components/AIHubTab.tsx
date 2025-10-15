@@ -279,9 +279,35 @@ export default function AIHubTab() {
     toast.success('Auto-output cancelled')
   }
 
+  const insertTextIntoTypingTab = (text: string) => {
+    console.log('[AIHub] Inserting text into typing tab textarea')
+
+    // Switch to typing tab
+    const typingTabButton = document.querySelector('[data-tab="typing"]') as HTMLButtonElement
+    if (typingTabButton) {
+      typingTabButton.click()
+      console.log('[AIHub] Switched to typing tab')
+    }
+
+    // Wait for tab to render, then insert text
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea[placeholder*="Type here"]') as HTMLTextAreaElement
+      if (textarea) {
+        textarea.value = text
+        textarea.dispatchEvent(new Event('input', { bubbles: true }))
+        textarea.dispatchEvent(new Event('change', { bubbles: true }))
+        console.log('[AIHub] ✅ Text inserted into typing tab:', text.substring(0, 50) + '...')
+        toast.success('✅ Text added to typing tab!', { duration: 3000 })
+      } else {
+        console.error('[AIHub] ❌ Could not find typing textarea')
+        toast.error('Could not find typing input. Please copy manually.')
+      }
+    }, 300)
+  }
+
   const autoOutput = async (text: string) => {
     const pasteMode = localStorage.getItem('slywriter-paste-mode') === 'true'
-    
+
     if (pasteMode) {
       navigator.clipboard.writeText(text)
       toast.success('📋 Text copied to clipboard!')
@@ -290,9 +316,9 @@ export default function AIHubTab() {
         // Get the current typing profile and WPM from localStorage
         const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
         const savedWpm = localStorage.getItem('slywriter-custom-wpm')
-        
+
         console.log('[AIHub] Starting auto-output with profile:', savedProfile, 'WPM:', savedWpm)
-        
+
         const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
           method: 'POST',
           headers: {
@@ -305,7 +331,7 @@ export default function AIHubTab() {
             preview_mode: false
           })
         })
-        
+
         if (response.ok) {
           const data = await response.json()
           if (data.success) {
@@ -1141,7 +1167,8 @@ export default function AIHubTab() {
                       if (settings.auto_output) {
                         startAutoOutputCountdown(reviewText)
                       } else {
-                        toast.success('✅ Content approved! Use the output buttons below to type or copy.')
+                        // Insert text into typing tab
+                        insertTextIntoTypingTab(reviewText)
                       }
                     }}
                     className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-medium transition-all flex items-center gap-2"
