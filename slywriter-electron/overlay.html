@@ -156,6 +156,26 @@
       overflow-x: hidden;
       max-height: calc(100% - 50px);
     }
+
+    /* Dark scrollbar styling */
+    .content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 10px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.4);
+      border-radius: 10px;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+    }
+
+    .content::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.6);
+    }
     
     /* Status section */
     .status-section {
@@ -411,13 +431,6 @@
         <div id="ai-status" style="display: none;">🤖 AI: Ready</div>
         <div id="profile-status" style="display: none;">👤 Profile: Medium</div>
       </div>
-
-      <!-- Debug info -->
-      <div id="debug-info" style="margin-top: 6px; padding: 4px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-size: 8px; color: rgba(255, 255, 255, 0.6); font-family: monospace;">
-        <div id="debug-type">Type: -</div>
-        <div id="debug-status">Status: -</div>
-        <div id="debug-count">Events: 0</div>
-      </div>
     </div>
   </div>
   
@@ -429,8 +442,6 @@
     // CRITICAL: Guard against missing ipcRenderer
     if (!ipcRenderer) {
       console.error('[OVERLAY] ERROR: ipcRenderer not available! Overlay will not function.')
-      document.getElementById('debug-status').textContent = 'ERROR: IPC not available'
-      document.getElementById('debug-status').style.color = '#ef4444'
       throw new Error('ipcRenderer not available')
     }
 
@@ -595,20 +606,6 @@
     // Listen for updates
     ipcRenderer.on('update-display', (data) => {
       console.log('[OVERLAY] ✅ Received update-display event:', data)
-
-      // Update debug info
-      eventCount++
-      const debugType = document.getElementById('debug-type')
-      const debugStatus = document.getElementById('debug-status')
-      const debugCount = document.getElementById('debug-count')
-
-      if (debugType) debugType.textContent = `Type: ${data.type || 'unknown'}`
-      if (debugStatus) debugStatus.textContent = `Status: ${(data.status || '-').substring(0, 30)}`
-      if (debugCount) {
-        debugCount.textContent = `Events: ${eventCount}`
-        // Green for test messages, cyan for real typing
-        debugCount.style.color = data.type === 'test' ? '#10b981' : '#06b6d4'
-      }
 
       if (data.type === 'countdown') {
         countdownOverlay.classList.remove('hidden')
