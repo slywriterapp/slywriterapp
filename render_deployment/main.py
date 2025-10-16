@@ -217,6 +217,19 @@ class LicenseVerifyRequest(BaseModel):
     license_key: str
     force: bool = False
 
+class TypingSessionCompleteRequest(BaseModel):
+    user_email: str
+    words_typed: int
+    characters_typed: int
+    average_wpm: float
+    accuracy: float = 100.0
+    profile_used: str = "Medium"
+    input_text: Optional[str] = None
+    typos_made: int = 0
+    pauses_taken: int = 0
+    ai_generated: bool = False
+    humanized: bool = False
+
 # Profile management (kept in-memory for now, can be moved to DB later)
 profiles_db = {}
 
@@ -971,6 +984,48 @@ async def check_reset_endpoint(user_id: str, db: Session = Depends(get_db)):
         "reset": was_reset,
         "week_start": user.week_start_date.strftime("%Y-%m-%d") if user.week_start_date else None
     }
+
+@app.post("/api/typing/session/complete")
+async def complete_typing_session(session_data: TypingSessionCompleteRequest, db: Session = Depends(get_db)):
+    """Track completed typing session and update analytics"""
+    try:
+        # Get user by email
+        user = get_user_by_email(db, session_data.user_email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Track word usage
+        track_word_usage(db, user, session_data.words_typed)
+
+        # Create typing session record
+        session = create_typing_session(
+            db=db,
+            user=user,
+            words_typed=session_data.words_typed,
+            characters_typed=session_data.characters_typed,
+            average_wpm=session_data.average_wpm,
+            accuracy=session_data.accuracy,
+            profile_used=session_data.profile_used,
+            input_text=session_data.input_text,
+            typos_made=session_data.typos_made,
+            pauses_taken=session_data.pauses_taken,
+            ai_generated=session_data.ai_generated,
+            humanized=session_data.humanized
+        )
+
+        logger.info(f"✅ Typing session saved for {session_data.user_email}: {session_data.words_typed} words, {session_data.average_wpm} WPM")
+
+        return {
+            "success": True,
+            "session_id": session.id,
+            "words_used_this_week": user.words_used_this_week,
+            "total_words_typed": user.total_words_typed
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save typing session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Referral reward claim endpoint
 class ClaimRewardRequest(BaseModel):

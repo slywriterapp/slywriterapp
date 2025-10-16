@@ -614,6 +614,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             console.log(`[USAGE TRACKING] Tracked ${wordsTyped} words typed`)
           }
 
+          // Save typing session to database
+          saveTypingSession(wpm, accuracy, charsTyped)
+
           // Send final stats to overlay
           if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
             const completeData = {
@@ -1255,9 +1258,37 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   }, [setInputText, startTyping, selectedProfile]) // Include all dependencies to avoid stale closures
   */
 
+  // Helper function to save typing session to database
+  const saveTypingSession = async (finalWpm: number, finalAccuracy: number, finalCharsTyped: number) => {
+    if (!user?.email) return
+
+    try {
+      const wordsTyped = Math.floor(finalCharsTyped / 5)
+
+      await axios.post(`${AI_API_URL}/api/typing/session/complete`, {
+        user_email: user.email,
+        words_typed: wordsTyped,
+        characters_typed: finalCharsTyped,
+        average_wpm: finalWpm,
+        accuracy: finalAccuracy,
+        profile_used: selectedProfile,
+        input_text: inputText.substring(0, 500), // Save first 500 chars
+        typos_made: typosMade,
+        pauses_taken: pausesTaken,
+        ai_generated: false, // TODO: Track if content was AI-generated
+        humanized: false // TODO: Track if content was humanized
+      })
+
+      console.log(`✅ Typing session saved: ${wordsTyped} words, ${finalWpm} WPM`)
+    } catch (error) {
+      console.error('Failed to save typing session:', error)
+      // Don't throw - session tracking is optional
+    }
+  }
+
   const stopTyping = async () => {
     console.log('STOP TYPING CALLED - sessionId:', sessionId, 'isTyping:', isTyping)
-    
+
     // If not typing, don't do anything
     if (!isTyping) {
       console.log('Not typing, nothing to stop')
@@ -1303,6 +1334,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       typosMade,
       pausesTaken
     })
+
+    // Save typing session to database
+    await saveTypingSession(wpm, accuracy, charsTyped)
     
     // Always clear session and dispatch event
     setSessionId(null)
