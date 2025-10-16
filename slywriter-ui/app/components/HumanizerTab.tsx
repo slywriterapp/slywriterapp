@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { RENDER_API_URL } from '../config/api'
 import axios from 'axios'
@@ -28,6 +28,7 @@ export default function HumanizerTab({ onNavigateToDashboard }: HumanizerTabProp
   const [isProcessing, setIsProcessing] = useState(false)
   const [autoHumanize, setAutoHumanize] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const isExternalUpdate = useRef(false)
 
   // Load and sync auto-humanize state with AI Writer tab
   useEffect(() => {
@@ -37,21 +38,45 @@ export default function HumanizerTab({ onNavigateToDashboard }: HumanizerTabProp
     }
   }, [])
 
-  // Save auto-humanize state
+  // Save auto-humanize state and notify other components
   useEffect(() => {
     localStorage.setItem('slywriter-auto-humanize', autoHumanize.toString())
+
+    // Only dispatch event if this is a user-initiated change, not from external sync
+    if (!isExternalUpdate.current) {
+      window.dispatchEvent(new CustomEvent('autoHumanizeChange', {
+        detail: { enabled: autoHumanize }
+      }))
+    }
+
+    // Reset the flag
+    isExternalUpdate.current = false
   }, [autoHumanize])
 
-  // Listen for changes from other tabs (like AI Writer)
+  // Listen for changes from other components (same page) and other tabs
   useEffect(() => {
+    // Handle changes from other browser tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'slywriter-auto-humanize' && e.newValue !== null) {
+        isExternalUpdate.current = true
         setAutoHumanize(e.newValue === 'true')
       }
     }
 
+    // Handle changes from other components in same page (like AI Writer tab)
+    const handleCustomEvent = (e: CustomEvent) => {
+      if (e.detail?.enabled !== undefined) {
+        isExternalUpdate.current = true
+        setAutoHumanize(e.detail.enabled)
+      }
+    }
+
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('autoHumanizeChange', handleCustomEvent as EventListener)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('autoHumanizeChange', handleCustomEvent as EventListener)
+    }
   }, [])
 
   const processText = async () => {

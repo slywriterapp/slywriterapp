@@ -69,6 +69,7 @@ export default function AIHubTab() {
   const [reviewText, setReviewText] = useState('')
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const hasLoadedSettings = useRef(false)
+  const isExternalUpdate = useRef(false)
   
   // Debug review modal state
   useEffect(() => {
@@ -268,28 +269,56 @@ export default function AIHubTab() {
   // Save settings whenever they change (after initial load)
   useEffect(() => {
     if (!hasLoadedSettings.current) return
-    
+
     console.log('[AIHub] Saving settings:', settings)
     localStorage.setItem('slywriter-ai-hub-settings', JSON.stringify(settings))
-    
+
     // Also sync humanizer setting globally
     localStorage.setItem('slywriter-auto-humanize', settings.humanizer_enabled.toString())
+
+    // Only dispatch event if this is a user-initiated change, not from external sync
+    if (!isExternalUpdate.current) {
+      window.dispatchEvent(new CustomEvent('autoHumanizeChange', {
+        detail: { enabled: settings.humanizer_enabled }
+      }))
+    }
+
+    // Reset the flag
+    isExternalUpdate.current = false
   }, [settings])
   
-  // Listen for humanize changes from other tabs
+  // Listen for humanize changes from other components (same page) and other tabs
   useEffect(() => {
+    // Handle changes from other browser tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'slywriter-auto-humanize' && e.newValue !== null) {
-        console.log('[AIHub] Auto-humanize changed from another tab:', e.newValue)
+        console.log('[AIHub] Auto-humanize changed from another browser tab:', e.newValue)
+        isExternalUpdate.current = true
         setSettings(prev => ({
           ...prev,
           humanizer_enabled: e.newValue === 'true'
         }))
       }
     }
-    
+
+    // Handle changes from other components in same page (like Humanizer tab)
+    const handleCustomEvent = (e: CustomEvent) => {
+      if (e.detail?.enabled !== undefined) {
+        console.log('[AIHub] Auto-humanize changed from another component:', e.detail.enabled)
+        isExternalUpdate.current = true
+        setSettings(prev => ({
+          ...prev,
+          humanizer_enabled: e.detail.enabled
+        }))
+      }
+    }
+
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('autoHumanizeChange', handleCustomEvent as EventListener)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('autoHumanizeChange', handleCustomEvent as EventListener)
+    }
   }, [])
 
   // Save history whenever it changes
