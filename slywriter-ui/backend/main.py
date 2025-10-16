@@ -1072,20 +1072,25 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
         # Track word usage
         track_word_usage(db, user, session_data.words_typed)
 
+        # Prepare session data dict
+        typing_session_data = {
+            "words_typed": session_data.words_typed,
+            "characters_typed": session_data.characters_typed,
+            "average_wpm": session_data.average_wpm,
+            "accuracy": session_data.accuracy,
+            "profile_used": session_data.profile_used,
+            "input_text": session_data.input_text,
+            "typos_made": session_data.typos_made,
+            "pauses_taken": session_data.pauses_taken,
+            "ai_generated": session_data.ai_generated,
+            "humanized": session_data.humanized
+        }
+
         # Create typing session record
         session = create_typing_session(
             db=db,
-            user=user,
-            words_typed=session_data.words_typed,
-            characters_typed=session_data.characters_typed,
-            average_wpm=session_data.average_wpm,
-            accuracy=session_data.accuracy,
-            profile_used=session_data.profile_used,
-            input_text=session_data.input_text,
-            typos_made=session_data.typos_made,
-            pauses_taken=session_data.pauses_taken,
-            ai_generated=session_data.ai_generated,
-            humanized=session_data.humanized
+            user_id=user.id,
+            session_data=typing_session_data
         )
 
         logger.info(f"✅ Typing session saved for {session_data.user_email}: {session_data.words_typed} words, {session_data.average_wpm} WPM")
