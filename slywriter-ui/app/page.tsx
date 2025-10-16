@@ -240,21 +240,24 @@ function SlyWriterApp() {
         console.log('🎯 [PAGE.TSX] Received AI review IPC event from electron!')
         console.log('🎯 [PAGE.TSX] Full data object:', data)
         console.log('🎯 [PAGE.TSX] Review text:', data?.text?.substring(0, 50) + '...')
+        console.log('🎯 [PAGE.TSX] Learning mode from IPC:', data?.learningMode)
+        console.log('🎯 [PAGE.TSX] Original text from IPC:', data?.originalText?.substring(0, 50) + '...')
         console.log('🎯 [PAGE.TSX] Current active tab:', activeTab)
         console.log('🎯 [PAGE.TSX] Data properties:', Object.keys(data || {}))
-        
+
         // Switch to AI Hub tab (where the review modal is)
         setActiveTab('ai-hub')
-        
+
         // Dispatch event to show review modal after tab switch
         setTimeout(() => {
           console.log('🎯 [PAGE.TSX] Dispatching showAIReview DOM event to AIHubTab')
-          console.log('🎯 [PAGE.TSX] Event detail text:', (data?.text || '').substring(0, 50) + '...')
+          console.log('🎯 [PAGE.TSX] Event detail - passing all data:', data)
+          // FIXED: Pass all data from IPC, not just text (includes learningMode, originalText, etc.)
           const reviewEvent = new CustomEvent('showAIReview', {
-            detail: { text: data?.text || '' }
+            detail: data  // Pass entire data object
           })
           window.dispatchEvent(reviewEvent)
-          console.log('🎯 [PAGE.TSX] showAIReview event dispatched!')
+          console.log('🎯 [PAGE.TSX] showAIReview event dispatched with all properties!')
         }, 500) // Give time for tab to mount
       }
       
@@ -380,12 +383,12 @@ function SlyWriterApp() {
           console.log('App-level: Switching to AI Hub tab for review')
           // Switch to AI Hub tab and trigger review modal
           setActiveTab('ai-hub')
-          
+
           // Dispatch event to trigger review modal in AIHubTab with a longer delay to ensure component is ready
           setTimeout(() => {
             console.log('App-level: Dispatching showAIReview event with text:', aiText.substring(0, 50) + '...')
             const reviewEvent = new CustomEvent('showAIReview', {
-              detail: { text: aiText }
+              detail: event.detail  // Pass entire event detail (includes text, learningMode, etc.)
             })
             window.dispatchEvent(reviewEvent)
           }, 500) // Increased delay to ensure AIHubTab is mounted and ready
