@@ -1886,6 +1886,7 @@ app.whenReady().then(async () => {
                           // Send to renderer for review
                           mainWindow.webContents.send('show-ai-review', {
                             text: finalText,
+                            originalText: clipboardText,  // Pass original text for learning topic
                             originalLength: clipboardText.length,
                             generatedLength: finalText.length,
                             humanized: humanizerEnabled,

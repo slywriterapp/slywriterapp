@@ -166,12 +166,60 @@ export default function AIHubTab() {
       console.log('🎉 [AIHub] Event detail:', event.detail)
       console.log('🎉 [AIHub] Text received:', event.detail?.text?.substring(0, 50) + '...')
       console.log('🎉 [AIHub] Current showReviewModal state:', showReviewModal)
-      
+      console.log('🎉 [AIHub] Learning mode in overlay event:', event.detail?.learningMode)
+
       if (event.detail?.text) {
         console.log('🎉 [AIHub] Setting review text and showing modal!')
         setOutput(event.detail.text)
         setReviewText(event.detail.text)
         setShowReviewModal(true)
+
+        // Save to learning mode if enabled (from overlay AI generation)
+        if (event.detail.learningMode) {
+          console.log('[AIHub] 📚 Overlay AI generation has learning mode enabled')
+
+          // Use the original highlighted text as the topic (if available)
+          const clipboardTopic = event.detail.originalText || input || 'AI Generated Content'
+          const topicText = clipboardTopic.substring(0, 100)
+
+          console.log('[AIHub] ✅ Learning mode active (from overlay) - saving topic')
+          console.log('[AIHub] Topic:', topicText)
+          console.log('[AIHub] Answer length:', event.detail.text.length)
+
+          // Save directly to localStorage
+          const newTopic = {
+            topic: topicText,
+            answer: event.detail.text,
+            timestamp: new Date().toLocaleString()
+          }
+
+          const existingTopics = localStorage.getItem('slywriter-learning-topics')
+          let topics = []
+          try {
+            topics = existingTopics ? JSON.parse(existingTopics) : []
+          } catch (e) {
+            console.error('[AIHub] Failed to parse existing topics:', e)
+            topics = []
+          }
+
+          topics = [newTopic, ...topics].slice(0, 50) // Keep last 50 topics
+          localStorage.setItem('slywriter-learning-topics', JSON.stringify(topics))
+          console.log('[AIHub] ✅ Topic saved to localStorage (from overlay), total topics:', topics.length)
+
+          // Also dispatch event for real-time update if Learning tab is already open
+          window.dispatchEvent(new CustomEvent('newLearningTopic', {
+            detail: {
+              topic: topicText,
+              answer: event.detail.text
+            }
+          }))
+
+          console.log('[AIHub] ✅ Event dispatched successfully (overlay)')
+          toast.success('📚 Topic saved! View it in the Smart Learn tab', {
+            duration: 3000,
+            icon: '🎓'
+          })
+        }
       } else {
         console.log('❌ [AIHub] No text in event detail!')
       }
