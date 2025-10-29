@@ -1070,8 +1070,8 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
                 detail="You have already redeemed a referral code"
             )
 
-        # Find referrer by code
-        referral_code = request.referral_code.strip().upper()
+        # Find referrer by code (case-sensitive)
+        referral_code = request.referral_code.strip()
         referrer = db.query(User).filter(User.referral_code == referral_code).first()
 
         if not referrer:
