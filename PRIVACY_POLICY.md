@@ -4,7 +4,7 @@
 
 **IMPORTANT: READ CAREFULLY**
 
-This Privacy Policy describes how SlyWriter ("we", "us", or "our") collects, uses, stores, and protects your information when you use our software and services ("Service"). By using SlyWriter, you consent to the data practices described in this policy.
+This Privacy Policy describes how SlyWriter LLC ("we", "us", or "our") collects, uses, stores, and protects your information when you use our software and services ("Service"). By using SlyWriter, you consent to the data practices described in this policy.
 
 ---
 
@@ -127,8 +127,9 @@ We analyze usage data in aggregate to:
 **Sent to OpenAI's Servers:**
 - Your prompts are transmitted to OpenAI's API for processing
 - OpenAI processes your data according to their privacy policy (https://openai.com/privacy)
-- OpenAI may use your data to improve their models unless you opt out through their systems
-- We have no control over OpenAI's data handling practices
+- **As of 2023, OpenAI does NOT use API data to train their models by default** (their policy changed to not use API inputs/outputs for training unless you explicitly opt in)
+- OpenAI retains API data for up to 30 days for abuse monitoring purposes only
+- We have no control over OpenAI's data handling practices beyond what their policies state
 - AI-generated responses are sent back to your device
 
 **Temporarily Stored on Our Servers:**
@@ -156,7 +157,7 @@ We share your information with third-party service providers who help us operate
 - **OpenAI** - Processes AI generation, humanization, and learning features
 - Your prompts and text are sent to OpenAI's API
 - Subject to OpenAI's privacy policy and data usage terms
-- OpenAI may use data to improve their models unless you opt out
+- **OpenAI does NOT use API data to train their models by default** (as of 2023 policy update; data is retained for 30 days for abuse monitoring only)
 
 **Authentication Services:**
 - **Google OAuth** - Handles Google sign-in authentication
@@ -588,6 +589,16 @@ While we implement security measures, **WE CANNOT GUARANTEE ABSOLUTE SECURITY.**
 
 ### 21.2 Third-Party Data Use
 We are not responsible for how third-party services (OpenAI, Google, etc.) use your data. Review their privacy policies.
+
+### 21.3 Jurisdiction-Specific Limitations
+**IMPORTANT:** Some jurisdictions do not allow certain limitations of liability or exclusions of warranties. If applicable law in your jurisdiction prohibits any of the limitations or disclaimers in this Privacy Policy or our Terms of Service, those provisions shall not apply to you, but only to the extent prohibited by law.
+
+In such cases:
+- Our liability and responsibility will be determined according to the applicable laws of your jurisdiction.
+- Certain statutory consumer rights or data protection laws (such as GDPR, CCPA, or similar regulations) cannot be waived and remain in full effect.
+- Nothing in this Privacy Policy shall exclude or limit our liability for fraud, gross negligence, willful misconduct, or any other liability that cannot be excluded under applicable law.
+
+The limitations and disclaimers in this Privacy Policy are intended to apply to the maximum extent permitted by law. If you are a consumer in a jurisdiction with stronger privacy protections or consumer rights, those protections shall override any conflicting provisions in this policy to the extent required by law.
 
 ---
 

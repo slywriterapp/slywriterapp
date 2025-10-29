@@ -1107,6 +1107,85 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
         logger.error(f"Failed to save typing session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Referral code redemption endpoint
+class RedeemReferralRequest(BaseModel):
+    referral_code: str
+
+@app.post("/api/referral/redeem")
+async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Request, db: Session = Depends(get_db)):
+    """Redeem a referral code in-app after signup"""
+    try:
+        # Get token from Authorization header
+        auth_header = auth_request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.replace("Bearer ", "")
+
+        # Verify JWT token
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("sub") or payload.get("email")
+
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get current user (referee)
+        referee = get_user_by_email(db, email)
+        if not referee:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Check if user has already been referred
+        if referee.referred_by:
+            raise HTTPException(
+                status_code=400,
+                detail="You have already redeemed a referral code"
+            )
+
+        # Find referrer by code
+        referral_code = request.referral_code.strip().upper()
+        referrer = db.query(User).filter(User.referral_code == referral_code).first()
+
+        if not referrer:
+            raise HTTPException(status_code=404, detail="Invalid referral code")
+
+        # Prevent self-referral
+        if referrer.email == referee.email:
+            raise HTTPException(status_code=400, detail="You cannot use your own referral code")
+
+        # Apply bonuses
+        referee.referred_by = referral_code
+        referee.referral_bonus = (referee.referral_bonus or 0) + 500
+
+        referrer.referral_count = (referrer.referral_count or 0) + 1
+        referrer.referral_bonus = (referrer.referral_bonus or 0) + 500
+
+        db.commit()
+
+        logger.info(f"[REFERRAL] {referee.email} redeemed code {referral_code} from {referrer.email}. Both got 500 bonus words!")
+
+        return {
+            "success": True,
+            "message": "Referral code redeemed successfully!",
+            "bonus_words": referee.referral_bonus,
+            "referrer_name": referrer.name or "Unknown",
+            "referral_code_used": referral_code
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to redeem referral code: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Referral reward claim endpoint
 class ClaimRewardRequest(BaseModel):
     tier: int

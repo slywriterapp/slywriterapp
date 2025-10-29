@@ -57,10 +57,32 @@ You expressly agree NOT to use SlyWriter for any of the following purposes:
 ### 2.3 User Responsibility
 **YOU ARE SOLELY RESPONSIBLE FOR HOW YOU USE THIS SOFTWARE.** You agree to use SlyWriter only for legitimate, lawful purposes such as:
 - Accessibility assistance for users with disabilities
-- Productivity enhancement for personal work
+- Productivity enhancement for personal work (e.g., transcribing your own pre-written notes or documents)
 - Automation of your own personal typing tasks
 - Testing and development purposes
 - Other lawful uses that do not violate any third-party rights
+
+**Examples of Acceptable vs. Unacceptable Use:**
+- ✓ **ACCEPTABLE:** Using SlyWriter to type out your own handwritten notes or pre-written content
+- ✓ **ACCEPTABLE:** Using SlyWriter for accessibility assistance due to a disability
+- ✓ **ACCEPTABLE:** Automating repetitive typing tasks for your personal productivity
+- ✗ **NOT ACCEPTABLE:** Using SlyWriter to input answers during a proctored exam or test
+- ✗ **NOT ACCEPTABLE:** Using SlyWriter to complete assignments on someone else's behalf
+- ✗ **NOT ACCEPTABLE:** Using SlyWriter to circumvent academic integrity monitoring systems
+
+### 2.4 Compliance with Anti-Cheating Laws and Disclaimer Limitations
+**SlyWriter is NOT a "Commercial Cheating Service."** SlyWriter is a typing automation tool designed for legitimate productivity and accessibility purposes. The Software does not provide completed academic work or assignments to students; it is a general-purpose automation tool that can be used (or misused) by the user.
+
+**Legal Compliance:**
+- Certain jurisdictions (including but not limited to the State of Georgia, effective July 2025) have enacted laws prohibiting "commercial cheating services" that provide students with substantially completed academic work.
+- SlyWriter does not fall under the definition of a commercial cheating service, as it is an automation tool, not a service that delivers completed assignments or academic content.
+- However, users must not misuse SlyWriter to violate academic integrity policies or applicable laws.
+
+**Effectiveness of Disclaimers:**
+- The disclaimers, indemnifications, and liability limitations in these Terms are effective to the fullest extent permitted by applicable law.
+- Where any applicable law (federal, state, or local) prohibits or limits certain disclaimers or liability waivers, those provisions of these Terms shall be deemed modified to the minimum extent necessary to comply with such law.
+- Nothing in these Terms shall be construed to circumvent laws that prohibit commercial cheating services or other consumer protection regulations.
+- **If you use SlyWriter in violation of applicable laws or academic policies, you do so at your own risk, and any disclaimers that are void under applicable law will not protect either you or us.**
 
 ---
 
@@ -157,6 +179,16 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL SLYWRITER, ITS OFFICER
 
 ### 5.2 Monetary Cap
 If, notwithstanding the foregoing, we are found liable for any damages, our total aggregate liability shall not exceed the amount you paid for the Software in the 12 months preceding the claim (or $100 USD if you used a free version).
+
+### 5.3 Jurisdiction-Specific Limitations
+**IMPORTANT:** Some jurisdictions do not allow the exclusion or limitation of certain warranties, liabilities, or damages. If applicable law in your jurisdiction prohibits any of the disclaimers, exclusions, or limitations set forth in these Terms (including Sections 3, 4, and 5), then such provisions shall not apply to you, but only to the extent prohibited by law.
+
+In such cases:
+- Our liability will be limited to the fullest extent permitted by applicable law in your jurisdiction.
+- Certain statutory consumer rights or protections (such as those under EU consumer law, UK consumer law, or similar regulations) cannot be waived and remain in effect.
+- Nothing in these Terms shall exclude or limit our liability for death or personal injury caused by our gross negligence or willful misconduct, fraud, or any other liability that cannot be excluded under applicable law.
+
+The disclaimers and limitations in these Terms are intended to apply to the maximum extent permitted by law. If you are a consumer in a jurisdiction with stronger consumer protections, those protections shall override any conflicting provisions in these Terms to the extent required by law.
 
 ---
 
@@ -340,6 +372,17 @@ These Terms shall be governed by and construed in accordance with the laws of th
 
 ### 16.2 Mandatory Arbitration
 **ANY DISPUTE ARISING FROM THESE TERMS OR YOUR USE OF THE SOFTWARE SHALL BE RESOLVED THROUGH BINDING ARBITRATION**, not in court, except that you may assert claims in small claims court if your claims qualify.
+
+**Arbitration Procedures:**
+- Arbitration shall be administered by the **American Arbitration Association (AAA)** under the AAA's Consumer Arbitration Rules, or by another mutually agreeable arbitration provider if AAA is unavailable.
+- The arbitration shall be conducted in English and may be held virtually (via video conference or document submission) or in person in Essex County, New Jersey, at the arbitrator's discretion or by mutual agreement of the parties.
+- Either party may initiate arbitration by filing a demand for arbitration with the AAA in accordance with the AAA Rules. The AAA Rules and information about initiating arbitration are available at www.adr.org or by calling 1-800-778-7879.
+- The arbitrator's decision shall be final and binding, and judgment on the arbitration award may be entered in any court having jurisdiction.
+
+**Arbitration Costs:**
+- Each party shall be responsible for its own attorney's fees and costs unless the arbitrator awards such fees and costs to the prevailing party as permitted by applicable law.
+- If the arbitration filing fees exceed the cost of filing a lawsuit, or if the arbitrator finds the arbitration to be non-frivolous, SlyWriter will pay any additional arbitration filing fees beyond what you would have paid to file a complaint in court.
+- SlyWriter will not seek to recover attorney's fees or costs in arbitration unless the arbitrator determines your claim was frivolous or brought for an improper purpose.
 
 ### 16.3 Class Action Waiver
 **YOU AGREE TO WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS ACTION LAWSUIT OR CLASS-WIDE ARBITRATION.** All disputes must be brought on an individual basis only.
