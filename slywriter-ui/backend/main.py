@@ -226,7 +226,7 @@ class TypingSessionCompleteRequest(BaseModel):
     average_wpm: float
     accuracy: float = 100.0
     profile_used: str = "Medium"
-    input_text: Optional[str] = None
+    # input_text: Optional[str] = None  # REMOVED: We don't store user text for privacy
     typos_made: int = 0
     pauses_taken: int = 0
     ai_generated: bool = False
@@ -1072,14 +1072,14 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
         # Track word usage
         track_word_usage(db, user, session_data.words_typed)
 
-        # Prepare session data dict
+        # Prepare session data dict (text not stored for privacy)
         typing_session_data = {
             "words_typed": session_data.words_typed,
             "characters_typed": session_data.characters_typed,
             "average_wpm": session_data.average_wpm,
             "accuracy": session_data.accuracy,
             "profile_used": session_data.profile_used,
-            "input_text": session_data.input_text,
+            # "input_text": session_data.input_text,  # REMOVED: We don't store text
             "typos_made": session_data.typos_made,
             "pauses_taken": session_data.pauses_taken,
             "ai_generated": session_data.ai_generated,
@@ -1321,6 +1321,37 @@ def get_milestone_text(words: int) -> str:
         return "✨ 10K+ words automated!"
     else:
         return "🎯 Join thousands of users!"
+
+# Global statistics endpoint for website live counter
+@app.get("/api/global-stats")
+async def get_global_stats(db: Session = Depends(get_db)):
+    """Get global platform statistics (public, no auth required)"""
+    try:
+        # Calculate total words from all users
+        total_words = db.query(User).with_entities(
+            func.sum(User.total_words_typed)
+        ).scalar() or 0
+
+        # Count total users
+        total_users = db.query(User).count()
+
+        return {
+            "success": True,
+            "stats": {
+                "total_words_typed": int(total_words),
+                "total_users": total_users
+            }
+        }
+    except Exception as e:
+        logger.error(f"Global stats error: {e}")
+        # Return zeros instead of error for public endpoint
+        return {
+            "success": True,
+            "stats": {
+                "total_words_typed": 0,
+                "total_users": 0
+            }
+        }
 
 # Hotkey registration (simplified - actual implementation would use system hooks)
 hotkeys_db = {

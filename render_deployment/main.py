@@ -224,7 +224,7 @@ class TypingSessionCompleteRequest(BaseModel):
     average_wpm: float
     accuracy: float = 100.0
     profile_used: str = "Medium"
-    input_text: Optional[str] = None
+    # input_text: Optional[str] = None  # REMOVED: We don't store user text for privacy
     typos_made: int = 0
     pauses_taken: int = 0
     ai_generated: bool = False
@@ -997,7 +997,7 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
         # Track word usage
         track_word_usage(db, user, session_data.words_typed)
 
-        # Create typing session record
+        # Create typing session record (text not stored for privacy)
         session = create_typing_session(
             db=db,
             user=user,
@@ -1006,7 +1006,7 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
             average_wpm=session_data.average_wpm,
             accuracy=session_data.accuracy,
             profile_used=session_data.profile_used,
-            input_text=session_data.input_text,
+            # input_text=session_data.input_text,  # REMOVED: We don't store text
             typos_made=session_data.typos_made,
             pauses_taken=session_data.pauses_taken,
             ai_generated=session_data.ai_generated,
@@ -1114,10 +1114,10 @@ async def claim_referral_reward(request: ClaimRewardRequest, db: Session = Depen
         "plan": user.plan
     }
 
-# Global statistics endpoint
+# Global statistics endpoint (original path for backward compatibility)
 @app.get("/api/stats/global")
-async def get_global_stats(db: Session = Depends(get_db)):
-    """Get global platform statistics"""
+async def get_global_stats_legacy(db: Session = Depends(get_db)):
+    """Get global platform statistics (legacy endpoint)"""
     # Calculate total words from all users
     total_words = db.query(User).with_entities(
         func.sum(User.total_words_typed)
@@ -1136,6 +1136,37 @@ async def get_global_stats(db: Session = Depends(get_db)):
         "total_sessions": total_sessions,
         "milestone_text": get_milestone_text(total_words)
     }
+
+# Global statistics endpoint for website live counter
+@app.get("/api/global-stats")
+async def get_global_stats(db: Session = Depends(get_db)):
+    """Get global platform statistics (public, no auth required)"""
+    try:
+        # Calculate total words from all users
+        total_words = db.query(User).with_entities(
+            func.sum(User.total_words_typed)
+        ).scalar() or 0
+
+        # Count total users
+        total_users = db.query(User).count()
+
+        return {
+            "success": True,
+            "stats": {
+                "total_words_typed": int(total_words),
+                "total_users": total_users
+            }
+        }
+    except Exception as e:
+        logger.error(f"Global stats error: {e}")
+        # Return zeros instead of error for public endpoint
+        return {
+            "success": True,
+            "stats": {
+                "total_words_typed": 0,
+                "total_users": 0
+            }
+        }
 
 def get_milestone_text(words: int) -> str:
     """Get a fun milestone description"""

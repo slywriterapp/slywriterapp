@@ -92,9 +92,9 @@ class TypingSession(Base):
     accuracy = Column(Float, default=100)
     profile_used = Column(String, default="default")
     
-    # Text data
-    input_text = Column(String)
-    output_text = Column(String, nullable=True)
+    # Text data - NOT STORED FOR PRIVACY
+    # input_text = Column(String, nullable=True)  # REMOVED: We don't store user text
+    # output_text = Column(String, nullable=True)  # REMOVED: We don't store user text
     typos_made = Column(Integer, default=0)
     pauses_taken = Column(Integer, default=0)
     
