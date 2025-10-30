@@ -1169,6 +1169,8 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
         referrer.referral_bonus = (referrer.referral_bonus or 0) + 500
 
         db.commit()
+        db.refresh(referee)
+        db.refresh(referrer)
 
         logger.info(f"[REFERRAL] {referee.email} redeemed code {referral_code} from {referrer.email}. Both got 500 bonus words!")
 
