@@ -350,14 +350,14 @@ class AccountTab(tk.Frame):
                 data = response.json()
                 if data.get('success'):
                     message = data.get('message', 'Success!')
-                    self.redeem_status.config(text=f"✅ {message}", fg='green')
+                    bonus_words = data.get('bonus_words', 500)
+                    self.redeem_status.config(text=f"✅ {message} (+{bonus_words} words!)", fg='green')
                     # Clear the entry
                     self.referral_code_entry.delete(0, tk.END)
                     self.referral_code_entry.insert(0, "Enter code...")
                     self.referral_code_entry.config(fg='gray')
-                    # Refresh usage to show new bonus words
-                    self.usage_mgr.load_usage()
-                    self.usage_mgr.update_usage_display()
+                    # Refresh user profile data to show new bonus words
+                    self._refresh_profile_data()
                     # Hide redeem box after successful redemption
                     self.after(3000, lambda: self.redeem_frame.pack_forget())
                 else:
@@ -376,6 +376,62 @@ class AccountTab(tk.Frame):
         finally:
             # Re-enable button
             self.redeem_btn.config(state='normal')
+
+    def _refresh_profile_data(self):
+        """Fetch fresh profile data from /auth/profile and update UI"""
+        import requests
+
+        try:
+            token = self.google_info.get('token')
+            if not token:
+                print("[Profile Refresh] No auth token available")
+                # Fallback to old method
+                self.usage_mgr.load_usage()
+                self.usage_mgr.update_usage_display()
+                return
+
+            # Fetch fresh profile data
+            response = requests.get(
+                f"{SERVER_URL}/auth/profile",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                profile = response.json()
+                print(f"[Profile Refresh] Got fresh profile data")
+
+                # Update usage manager with referral data
+                referrals = profile.get('referrals', {})
+                self.usage_mgr.referral_mgr.referral_code = referrals.get('code', '')
+                self.usage_mgr.referral_mgr.referrals = referrals.get('count', 0)
+                self.usage_mgr.referral_mgr.referral_bonus = referrals.get('bonus_words', 0)
+
+                # Update plan and usage
+                self.usage_mgr.plan = profile.get('plan', 'free')
+                self.usage_mgr.words_used = profile.get('usage', 0)
+
+                # Save to local storage
+                self.usage_mgr.save_usage()
+
+                # Update all UI elements
+                self.usage_mgr.update_usage_display()
+                self._render_user_status()
+                self.update_idletasks()  # Force UI redraw
+
+                print(f"[Profile Refresh] Updated UI with referral_bonus={self.usage_mgr.referral_mgr.referral_bonus}")
+
+            else:
+                print(f"[Profile Refresh] Error: status {response.status_code}")
+                # Fallback to old method
+                self.usage_mgr.load_usage()
+                self.usage_mgr.update_usage_display()
+
+        except Exception as e:
+            print(f"[Profile Refresh] Exception: {e}")
+            # Fallback to old method
+            self.usage_mgr.load_usage()
+            self.usage_mgr.update_usage_display()
 
     def _check_and_show_redeem_box(self):
         """Check if user can redeem a code and show/hide the redeem box accordingly"""
