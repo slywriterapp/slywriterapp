@@ -1176,7 +1176,7 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
             "success": True,
             "message": "Referral code redeemed successfully!",
             "bonus_words": referee.referral_bonus,
-            "referrer_name": referrer.name or "Unknown",
+            "referrer_name": getattr(referrer, 'name', None) or referrer.email.split('@')[0],
             "referral_code_used": referral_code
         }
 
