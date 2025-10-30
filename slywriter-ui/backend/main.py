@@ -893,6 +893,9 @@ async def get_profile(request: Request, db: Session = Depends(get_db)):
             logger.error(f"Invalid token: {e}")
             raise HTTPException(status_code=401, detail="Invalid token")
 
+        # Expire session cache to ensure fresh data from database
+        db.expire_all()
+
         # Get user by email
         user = get_user_by_email(db, email)
         if not user:
