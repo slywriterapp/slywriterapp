@@ -153,10 +153,14 @@ export default function AIHubTab() {
     // Sync with global auto-humanize setting
     const autoHumanize = localStorage.getItem('slywriter-auto-humanize')
     if (autoHumanize !== null) {
-      setSettings(prev => ({
-        ...prev,
-        humanizer_enabled: autoHumanize === 'true'
-      }))
+      const newValue = autoHumanize === 'true'
+      setSettings(prev => {
+        if (prev.humanizer_enabled === newValue) return prev
+        return {
+          ...prev,
+          humanizer_enabled: newValue
+        }
+      })
     }
   }, [])
   
@@ -292,24 +296,40 @@ export default function AIHubTab() {
     // Handle changes from other browser tabs/windows
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'slywriter-auto-humanize' && e.newValue !== null) {
-        console.log('[AIHub] Auto-humanize changed from another browser tab:', e.newValue)
+        const newValue = e.newValue === 'true'
+        console.log('[AIHub] Auto-humanize changed from another browser tab:', newValue)
         isExternalUpdate.current = true
-        setSettings(prev => ({
-          ...prev,
-          humanizer_enabled: e.newValue === 'true'
-        }))
+        // IMPORTANT: Only update if value actually changed (prevents infinite loop)
+        setSettings(prev => {
+          if (prev.humanizer_enabled === newValue) {
+            // Value hasn't changed, don't create new object
+            return prev
+          }
+          return {
+            ...prev,
+            humanizer_enabled: newValue
+          }
+        })
       }
     }
 
     // Handle changes from other components in same page (like Humanizer tab)
     const handleCustomEvent = (e: CustomEvent) => {
       if (e.detail?.enabled !== undefined) {
-        console.log('[AIHub] Auto-humanize changed from another component:', e.detail.enabled)
+        const newValue = e.detail.enabled
+        console.log('[AIHub] Auto-humanize changed from another component:', newValue)
         isExternalUpdate.current = true
-        setSettings(prev => ({
-          ...prev,
-          humanizer_enabled: e.detail.enabled
-        }))
+        // IMPORTANT: Only update if value actually changed (prevents infinite loop)
+        setSettings(prev => {
+          if (prev.humanizer_enabled === newValue) {
+            // Value hasn't changed, don't create new object
+            return prev
+          }
+          return {
+            ...prev,
+            humanizer_enabled: newValue
+          }
+        })
       }
     }
 
