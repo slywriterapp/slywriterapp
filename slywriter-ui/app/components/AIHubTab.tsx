@@ -418,7 +418,23 @@ export default function AIHubTab() {
         const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
         const savedWpm = localStorage.getItem('slywriter-custom-wpm')
 
-        console.log('[AIHub] Starting auto-output with profile:', savedProfile, 'WPM:', savedWpm)
+        // Calculate actual WPM to use - same logic as TypingTabWithWPM
+        let actualWpm: number
+        if (savedProfile === 'Custom' && savedWpm) {
+          actualWpm = parseInt(savedWpm)
+        } else {
+          // Use profile default WPM
+          const wpmMap: Record<string, number> = {
+            'Slow': 40,
+            'Medium': 70,
+            'Fast': 100,
+            'Lightning': 250,
+            'Custom': 85
+          }
+          actualWpm = wpmMap[savedProfile] || 70
+        }
+
+        console.log('[AIHub] Starting auto-output with profile:', savedProfile, 'Actual WPM:', actualWpm)
 
         const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
           method: 'POST',
@@ -428,7 +444,7 @@ export default function AIHubTab() {
           body: JSON.stringify({
             text,
             profile: savedProfile,
-            custom_wpm: savedProfile === 'Custom' ? parseInt(savedWpm || '70') : null,
+            custom_wpm: actualWpm,
             preview_mode: false
           })
         })
@@ -724,9 +740,25 @@ export default function AIHubTab() {
       // Get the current typing profile and WPM from localStorage
       const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
       const savedWpm = localStorage.getItem('slywriter-custom-wpm')
-      
-      console.log('[AIHub] Starting manual typing with profile:', savedProfile, 'WPM:', savedWpm)
-      
+
+      // Calculate actual WPM to use - same logic as TypingTabWithWPM
+      let actualWpm: number
+      if (savedProfile === 'Custom' && savedWpm) {
+        actualWpm = parseInt(savedWpm)
+      } else {
+        // Use profile default WPM
+        const wpmMap: Record<string, number> = {
+          'Slow': 40,
+          'Medium': 70,
+          'Fast': 100,
+          'Lightning': 250,
+          'Custom': 85
+        }
+        actualWpm = wpmMap[savedProfile] || 70
+      }
+
+      console.log('[AIHub] Starting manual typing with profile:', savedProfile, 'Actual WPM:', actualWpm)
+
       const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
         method: 'POST',
         headers: {
@@ -735,7 +767,7 @@ export default function AIHubTab() {
         body: JSON.stringify({
           text: output,
           profile: savedProfile,
-          custom_wpm: savedProfile === 'Custom' ? parseInt(savedWpm || '70') : null,
+          custom_wpm: actualWpm,
           preview_mode: false
         })
       })
