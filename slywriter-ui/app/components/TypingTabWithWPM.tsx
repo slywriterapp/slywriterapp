@@ -1215,17 +1215,34 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           
           // Force typing to start immediately
           console.log('Force starting typing immediately')
-          
-          // Send typing request directly to backend
+
+          // Calculate the actual WPM to use - either custom or from profile
+          const actualWpm = selectedProfile === 'Custom' && testWpm ? testWpm : getProfileWpm(selectedProfile, testWpm)
+
+          // Get profile settings from localStorage
+          const typingSpeed = localStorage.getItem('typingSpeed') || '5'
+          const pauseFrequency = localStorage.getItem('pauseFrequency') || '5'
+
+          // Send typing request directly to backend with complete settings
           axios.post(API_ENDPOINTS.TYPING_START, {
             text: text,
             profile: selectedProfile || 'Medium',
             preview_mode: false,
-            typos_enabled: true
+            custom_wpm: actualWpm,
+            ai_filler_enabled: aiFillerEnabled,
+            typos_enabled: humanMode,
+            grammarly_mode: grammarlyCorrectionEnabled,
+            grammarly_delay: grammarlyCorrectionDelay,
+            typo_rate: typoRate,
+            typing_speed: parseInt(typingSpeed),
+            pause_frequency: parseInt(pauseFrequency)
           }).then(response => {
             console.log('Typing started via direct API call:', response.data)
+            console.log('🔥 Backup method used WPM:', actualWpm)
             setIsTyping(true)
             setSessionId(response.data.session_id || 'active')
+            // Set WPM in UI to match what was sent
+            setWpm(actualWpm)
           }).catch(error => {
             console.error('Failed to start typing:', error)
             // Fallback to button click
@@ -2132,7 +2149,6 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               <QuickTip text="🎯 Or use Ctrl+Enter with clipboard" />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <QuickTip text="Free users get 4,000 words daily" />
               <QuickTip text={`Press ${hotkeys.ai_generation} on any highlighted text for AI magic`} />
             </div>
           </div>

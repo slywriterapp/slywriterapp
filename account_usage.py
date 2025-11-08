@@ -251,13 +251,13 @@ class AccountUsageManager:
         """Get benefits description for each plan"""
         benefits = {
             'free': [
-                "4,000 words per month",
+                "4,000 words per week",
                 "Basic AI text generation",
                 "Standard humanizer features",
                 "Basic learning mode"
             ],
             'pro': [
-                "40,000 words per month", 
+                "40,000 words per week", 
                 "Advanced AI models",
                 "Premium humanizer features",
                 "Advanced learning system",
