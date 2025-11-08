@@ -1277,19 +1277,45 @@ export default function AIHubTab() {
                   </button>
                   
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       setShowReviewModal(false)
                       if (settings.auto_output) {
                         startAutoOutputCountdown(reviewText)
                       } else {
-                        // Insert text into typing tab
-                        insertTextIntoTypingTab(reviewText)
+                        // Start typing immediately with the reviewed text
+                        try {
+                          const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
+                          const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+
+                          const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              text: reviewText,
+                              profile: savedProfile,
+                              custom_wpm: savedProfile === 'Custom' ? parseInt(savedWpm || '70') : null,
+                              preview_mode: false
+                            })
+                          })
+
+                          if (response.ok) {
+                            const data = await response.json()
+                            if (data.success) {
+                              toast.success('⌨️ Typing started!')
+                            }
+                          }
+                        } catch (error) {
+                          console.error('Failed to start typing:', error)
+                          toast.error('Failed to start typing')
+                        }
                       }
                     }}
                     className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg text-white font-medium transition-all flex items-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    Approve & Use
+                    Approve & Type
                   </button>
                 </div>
               </div>
