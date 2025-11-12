@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, Clock, Keyboard, Target, Award, Calendar, Activity, Zap, BarChart3, PieChart } from 'lucide-react'
+import { RENDER_API_URL } from '../config/api'
 
 interface DailyStats {
   date: string
@@ -53,7 +54,7 @@ export default function StatisticsTab() {
       }
 
       // Fetch stats from PostgreSQL backend
-      const response = await fetch('https://slywriterapp.onrender.com/api/stats/user', {
+      const response = await fetch(`${RENDER_API_URL}/api/stats/user`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

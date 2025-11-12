@@ -37,7 +37,8 @@
       "Bash(\"C:\\Users\\brice\\Downloads\\cli_2.4.1_windows_amd64\\cli_v2.4.1.exe\" deploys create srv-d26gc60gjchc73aq7dsg --confirm --wait)",
       "Bash(timeout /t 60 /nobreak)",
       "Bash(gh release list:*)",
-      "Bash(npm run copy:ui:*)"
+      "Bash(npm run copy:ui:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": [],

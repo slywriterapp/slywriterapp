@@ -6,7 +6,7 @@ import {
   HeartIcon, UsersIcon, TrophyIcon, GiftIcon,
   StarIcon, ZapIcon, CrownIcon, RocketIcon,
   TargetIcon, FlagIcon, CheckCircleIcon, LockIcon,
-  ShareIcon, CopyIcon, SparklesIcon, AwardIcon,
+  CopyIcon, SparklesIcon, AwardIcon,
   TrendingUpIcon, ChevronRightIcon, DollarSignIcon,
   BrainIcon, KeyboardIcon
 } from 'lucide-react'
@@ -75,20 +75,6 @@ export default function MissionTab() {
     setCopied(true)
     toast.success('Referral code copied!')
     setTimeout(() => setCopied(false), 2000)
-  }
-  
-  // Share referral
-  const shareReferral = () => {
-    const text = `Check out SlyWriter - AI-powered typing assistant! Use my code: ${referralCode}`
-    if (navigator.share) {
-      navigator.share({
-        title: 'SlyWriter',
-        text: text,
-        url: 'https://slywriter.app'
-      })
-    } else {
-      copyReferralCode()
-    }
   }
   
   // Calculate progress to next tier
@@ -193,14 +179,6 @@ export default function MissionTab() {
                 className="p-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
               >
                 <CopyIcon className={`w-4 h-4 ${copied ? 'text-green-300' : 'text-white'}`} />
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={shareReferral}
-                className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              >
-                <ShareIcon className="w-4 h-4" />
               </motion.button>
             </div>
           </div>

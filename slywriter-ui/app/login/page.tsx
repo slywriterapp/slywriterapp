@@ -81,7 +81,7 @@ export default function LoginPage() {
       const isDev = window.location.hostname === 'localhost' && window.location.port === '3000' && !isElectronEnv
       const backendUrl = isDev ? 'http://localhost:5000' : 'https://slywriterapp.onrender.com'
 
-      const endpoint = isSignup ? '/auth/register' : '/auth/login'
+      const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login'
       const body = isSignup
         ? { email: formData.email, password: formData.password, name: formData.name }
         : { email: formData.email, password: formData.password }
