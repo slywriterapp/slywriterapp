@@ -2056,11 +2056,30 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       )}
       
       {/* Text Input & Preview Section */}
-      <div className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20">
+      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
+        !inputText && !previewMode
+          ? 'border-purple-500/40 shadow-lg shadow-purple-500/20'
+          : 'border-gray-800 border-purple-500/20'
+      }`}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-            <FileTextIcon className="w-4 h-4 text-blue-400" />
-            {previewMode ? 'Preview Output' : 'Text Input'}
+          <div className="flex items-center gap-3">
+            <FileTextIcon className={`w-5 h-5 transition-all ${!inputText && !previewMode ? 'text-purple-400' : 'text-blue-400'}`} />
+            <div>
+              <h3 className={`font-semibold uppercase tracking-wider flex items-center gap-2 transition-all ${
+                !inputText && !previewMode ? 'text-base text-purple-300' : 'text-sm text-gray-300'
+              }`}>
+                {previewMode ? 'Preview Output' : '1. Paste Your Text Here'}
+              </h3>
+              {!inputText && !previewMode && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-gray-400 mt-1"
+                >
+                  Copy any text, paste it here, and click Start below ⬇️
+                </motion.p>
+              )}
+            </div>
             {!inputText && !previewMode && (
               <motion.span
                 initial={{ opacity: 0, x: -10 }}
@@ -2070,7 +2089,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                 📋 Clipboard fallback enabled
               </motion.span>
             )}
-          </h3>
+          </div>
           
           <div className="flex items-center gap-2">
             <button
@@ -2133,16 +2152,42 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             )}
           </div>
         ) : (
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder={pasteMode 
-              ? "Paste Mode: AI-generated answers will be instantly pasted here (no typing animation)" 
-              : "Type Mode: Text will be typed out with realistic human patterns"
-            }
-            className="w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white placeholder-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-            disabled={isTyping}
-          />
+          <div className="relative">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={pasteMode
+                ? "📋 Paste Mode: AI answers will be instantly pasted (Ctrl+V or right-click → Paste)"
+                : "📝 Paste or type any text here... (Ctrl+V to paste from clipboard)"
+              }
+              className={`w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white resize-none focus:outline-none transition-all ${
+                !inputText
+                  ? 'placeholder-gray-400 text-base focus:ring-2 focus:ring-purple-500 focus:shadow-lg focus:shadow-purple-500/20'
+                  : 'placeholder-gray-600 focus:ring-2 focus:ring-purple-500/50'
+              }`}
+              disabled={isTyping}
+            />
+            {!inputText && !isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute inset-0 pointer-events-none flex items-center justify-center"
+              >
+                <div className="text-center space-y-3 p-6">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="text-6xl opacity-20"
+                  >
+                    📋
+                  </motion.div>
+                  <div className="text-sm text-gray-500 font-medium">
+                    Click here to paste or type your text
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
         )}
         
         {/* Quick Tips */}
@@ -2180,12 +2225,31 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       </div>
       
       {/* Controls */}
-      <div className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20">
+      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
+        inputText && !isTyping
+          ? 'border-green-500/40 shadow-lg shadow-green-500/20'
+          : 'border-gray-800 border-purple-500/20'
+      }`}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-            <PlayIcon className="w-4 h-4 text-green-400" />
-            Controls
-          </h3>
+          <div className="flex items-center gap-3">
+            <PlayIcon className={`w-5 h-5 transition-all ${inputText && !isTyping ? 'text-green-400' : 'text-gray-400'}`} />
+            <div>
+              <h3 className={`font-semibold uppercase tracking-wider transition-all ${
+                inputText && !isTyping ? 'text-base text-green-300' : 'text-sm text-gray-300'
+              }`}>
+                2. Click Start to Begin
+              </h3>
+              {inputText && !isTyping && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-gray-400 mt-1"
+                >
+                  Ready to type your text automatically! 🚀
+                </motion.p>
+              )}
+            </div>
+          </div>
           
           {countdown !== null && (
             <motion.div
