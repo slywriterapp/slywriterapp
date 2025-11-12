@@ -91,7 +91,7 @@ def verify_admin(authorization: str = Header(None)):
 
     return True
 
-app = FastAPI(title="SlyWriter Backend", version="2.6.5")
+app = FastAPI(title="SlyWriter Backend", version="2.6.6")
 
 # Configure CORS
 app.add_middleware(
@@ -389,17 +389,17 @@ async def type_text_worker(
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"status": "ok", "service": "SlyWriter API", "version": "2.6.5"}
+    return {"status": "ok", "service": "SlyWriter API", "version": "2.6.6"}
 
 @app.get("/healthz")
 async def healthz():
     """Health check endpoint for Render"""
-    return {"status": "healthy", "service": "SlyWriter API", "version": "2.6.5"}
+    return {"status": "healthy", "service": "SlyWriter API", "version": "2.6.6"}
 
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "version": "2.6.5"}
+    return {"status": "healthy", "version": "2.6.6"}
 
 @app.post("/api/typing/start")
 async def start_typing(request: TypingStartRequest, background_tasks: BackgroundTasks):

@@ -1737,7 +1737,11 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                   // Clear testWpm when switching to a non-Custom profile
                   if (profile.name !== 'Custom') {
                     setTestWpm(undefined)
-                    console.log(`[Profile Change] Switched to ${profile.name}, cleared testWpm`)
+                    // CRITICAL FIX: Remove localStorage value so preset WPM is used
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('slywriter-custom-wpm')
+                    }
+                    console.log(`[Profile Change] Switched to ${profile.name}, cleared testWpm and localStorage`)
                   }
                 }}
                 disabled={isTyping}

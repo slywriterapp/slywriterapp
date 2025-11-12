@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Wand2, RefreshCw, Copy, Check, Brain, Zap, BookOpen, Briefcase, Heart, Gamepad2, Code, Palette, AlertCircleIcon, XCircleIcon, BrainIcon, SparklesIcon, X, Lightbulb, Info, TrendingUp, MessageSquare, CheckCircle2, Target, Rocket } from 'lucide-react'
-import { RENDER_API_URL } from '../config/api'
+import { RENDER_API_URL, getWebSocketUrl } from '../config/api'
 import { FirstTimeHelper } from './FeatureTooltips'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -70,6 +70,15 @@ export default function AIHubTab() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const hasLoadedSettings = useRef(false)
   const isExternalUpdate = useRef(false)
+
+  // Typing progress tracking
+  const [isTyping, setIsTyping] = useState(false)
+  const [typingProgress, setTypingProgress] = useState(0)
+  const [typingStatus, setTypingStatus] = useState<string>('Ready')
+  const [typingWpm, setTypingWpm] = useState(0)
+  const [charsTyped, setCharsTyped] = useState(0)
+  const [totalChars, setTotalChars] = useState(0)
+  const wsRef = useRef<WebSocket | null>(null)
   
   // Debug review modal state
   useEffect(() => {
@@ -163,7 +172,125 @@ export default function AIHubTab() {
       })
     }
   }, [])
-  
+
+  // WebSocket connection for typing progress updates
+  useEffect(() => {
+    if (!user) return
+
+    const userId = user?.email || 'anonymous'
+    let ws: WebSocket | null = null
+
+    try {
+      ws = new WebSocket(getWebSocketUrl(userId))
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        console.log('[AIHub] WebSocket connected for typing updates')
+      }
+
+      ws.onerror = (error) => {
+        console.warn('[AIHub] WebSocket connection error - this is normal if not actively typing')
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          console.log('[AIHub] WebSocket event received:', data.type, data)
+
+          switch (data.type) {
+            case 'countdown':
+              setCountdown(data.data.count)
+              setTypingStatus(`Starting in ${data.data.count}...`)
+              break
+
+            case 'typing_started':
+              setCountdown(null)
+              setIsTyping(true)
+              setTypingStatus('⌨️ Typing...')
+              setTypingProgress(0)
+              break
+
+            case 'progress':
+              const progressValue = data.data.progress || 0
+              const currentWpm = data.data.wpm || 0
+              const currentCharsTyped = data.data.chars_typed || 0
+              const currentTotalChars = data.data.total_chars || 0
+
+              setTypingProgress(Math.min(100, Math.max(0, progressValue)))
+              setTypingWpm(currentWpm)
+              setCharsTyped(currentCharsTyped)
+              setTotalChars(currentTotalChars)
+              setTypingStatus(data.data.status || '⌨️ Typing in progress')
+
+              console.log(`[AIHub] Progress update: ${progressValue}% (${currentCharsTyped}/${currentTotalChars} chars) - WPM: ${currentWpm}`)
+              break
+
+            case 'pause':
+              setTypingStatus(data.data.status || '⏸️ Taking a break...')
+              break
+
+            case 'zone_out':
+              setTypingStatus(data.data.status || '😴 Zoning out...')
+              break
+
+            case 'ai_filler':
+              setTypingStatus('🤖 AI Filler...')
+              break
+
+            case 'complete':
+            case 'typing_complete':
+            case 'typing_finished':
+              setIsTyping(false)
+              setTypingStatus('✅ Finished!')
+              setTypingProgress(100)
+              toast.success('Typing session complete!')
+
+              // Reset after 3 seconds
+              setTimeout(() => {
+                setTypingProgress(0)
+                setCharsTyped(0)
+                setTotalChars(0)
+                setTypingStatus('Ready')
+              }, 3000)
+              break
+
+            case 'error':
+              toast.error(data.data.message || 'Typing error occurred')
+              setIsTyping(false)
+              setTypingStatus('Error')
+              break
+
+            case 'status':
+              if (data.data) {
+                setTypingStatus(data.data.status || '⌨️ Typing in progress')
+                if (data.data.progress !== undefined) {
+                  setTypingProgress(Math.min(100, Math.max(0, data.data.progress)))
+                }
+              }
+              break
+          }
+        } catch (err) {
+          console.warn('[AIHub] Failed to parse WebSocket message:', err)
+        }
+      }
+
+      ws.onclose = () => {
+        console.log('[AIHub] WebSocket disconnected')
+        wsRef.current = null
+      }
+
+    } catch (error) {
+      console.warn('[AIHub] WebSocket setup error - this is normal if backend is starting up')
+    }
+
+    return () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+      wsRef.current = null
+    }
+  }, [user])
+
   // Listen for external review requests (from overlay/hotkey) - no dependencies to ensure it stays registered
   useEffect(() => {
     const handleShowReview = (event: CustomEvent) => {
@@ -1164,7 +1291,45 @@ export default function AIHubTab() {
               </button>
             </div>
           )}
-          
+
+          {/* Typing Progress */}
+          {isTyping && (
+            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-purple-300">
+                  {typingStatus}
+                </span>
+                <span className="text-sm text-purple-400">
+                  {typingProgress.toFixed(0)}%
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${typingProgress}%` }}
+                />
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="text-center p-2 bg-gray-800/50 rounded">
+                  <div className="text-purple-400 font-semibold">{typingWpm}</div>
+                  <div className="text-gray-400">WPM</div>
+                </div>
+                <div className="text-center p-2 bg-gray-800/50 rounded">
+                  <div className="text-purple-400 font-semibold">{charsTyped}</div>
+                  <div className="text-gray-400">Chars Typed</div>
+                </div>
+                <div className="text-center p-2 bg-gray-800/50 rounded">
+                  <div className="text-purple-400 font-semibold">{totalChars}</div>
+                  <div className="text-gray-400">Total Chars</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Output */}
           {output && (
             <div>
