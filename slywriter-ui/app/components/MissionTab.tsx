@@ -213,7 +213,7 @@ export default function MissionTab() {
 
                   try {
                     const token = localStorage.getItem('token')
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/redeem-referral`, {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/referral/redeem`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

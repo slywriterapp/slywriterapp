@@ -118,32 +118,46 @@ export default function TypingTabModern({
             setProgress(data.progress || 0)
             setCharsTyped(data.chars_typed || 0)
             setTotalChars(data.total_chars || 0)
-            setIsTyping(data.status === 'typing')
-            setIsPaused(data.status === 'paused')
-            
-            // Calculate real-time WPM
-            if (data.chars_typed > 0 && typingStartTimeRef.current) {
-              const elapsed = (Date.now() - typingStartTimeRef.current.getTime()) / 1000 / 60 // minutes
-              const wordsTyped = data.chars_typed / 5
-              const realTimeWPM = Math.round(wordsTyped / Math.max(elapsed, 0.01))
-              setCurrentWPM(realTimeWPM)
-              
-              // Update average WPM
-              setAverageWPM(prev => {
-                if (prev === 0) return realTimeWPM
-                return Math.round((prev * 0.9) + (realTimeWPM * 0.1)) // Weighted average
-              })
-              
-              // Update time stats
-              setTimeElapsed(Math.floor(elapsed * 60)) // seconds
-              const remainingChars = data.total_chars - data.chars_typed
-              const remainingTime = (remainingChars / 5) / wpm * 60 // seconds
-              setEstimatedTimeLeft(Math.floor(remainingTime))
-            }
-            
-            if (data.status === 'completed') {
-              toast.success('Typing completed!')
-              handleStop()
+
+            // Handle completion FIRST before setting other states
+            if (data.status === 'completed' || data.progress >= 100) {
+              console.log('[WebSocket] Typing completed - resetting UI')
+              setIsTyping(false)
+              setIsPaused(false)
+              setProgress(100)
+              setSessionId(null)
+              typingStartTimeRef.current = null
+              toast.success('✅ Typing completed!')
+              // Reset after showing 100%
+              setTimeout(() => {
+                setProgress(0)
+                setCharsTyped(0)
+                setCurrentWPM(0)
+              }, 2000)
+            } else {
+              // Normal progress updates
+              setIsTyping(data.status === 'typing')
+              setIsPaused(data.status === 'paused')
+
+              // Calculate real-time WPM
+              if (data.chars_typed > 0 && typingStartTimeRef.current) {
+                const elapsed = (Date.now() - typingStartTimeRef.current.getTime()) / 1000 / 60 // minutes
+                const wordsTyped = data.chars_typed / 5
+                const realTimeWPM = Math.round(wordsTyped / Math.max(elapsed, 0.01))
+                setCurrentWPM(realTimeWPM)
+
+                // Update average WPM
+                setAverageWPM(prev => {
+                  if (prev === 0) return realTimeWPM
+                  return Math.round((prev * 0.9) + (realTimeWPM * 0.1)) // Weighted average
+                })
+
+                // Update time stats
+                setTimeElapsed(Math.floor(elapsed * 60)) // seconds
+                const remainingChars = data.total_chars - data.chars_typed
+                const remainingTime = (remainingChars / 5) / wpm * 60 // seconds
+                setEstimatedTimeLeft(Math.floor(remainingTime))
+              }
             }
           }
         } catch (error) {
@@ -171,7 +185,84 @@ export default function TypingTabModern({
       }
     }
   }, [connected, wpm])
-  
+
+  // Listen for IPC events from overlay (Electron)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !(window as any).electron) return
+
+    const electron = (window as any).electron
+
+    // Listen for stop command from overlay
+    const handleOverlayStop = async () => {
+      console.log('[IPC] Overlay stop command received')
+      try {
+        if (sessionId) {
+          await axios.post(`${API_URL}/api/typing/stop`, { session_id: sessionId })
+        }
+        setIsTyping(false)
+        setIsPaused(false)
+        setProgress(0)
+        setCharsTyped(0)
+        setCurrentWPM(0)
+        setSessionId(null)
+        typingStartTimeRef.current = null
+        toast.success('✋ Stopped from overlay')
+      } catch (error) {
+        console.error('Overlay stop error:', error)
+        // Still stop frontend
+        setIsTyping(false)
+        setIsPaused(false)
+      }
+    }
+
+    // Listen for pause command from overlay
+    const handleOverlayPause = async () => {
+      console.log('[IPC] Overlay pause command received')
+      try {
+        if (!sessionId) return
+        const endpoint = isPaused ? 'resume' : 'pause'
+        await axios.post(`${API_URL}/api/typing/${endpoint}`, { session_id: sessionId })
+        setIsPaused(!isPaused)
+        toast.success(isPaused ? '▶️ Resumed from overlay' : '⏸️ Paused from overlay')
+      } catch (error) {
+        console.error('Overlay pause error:', error)
+      }
+    }
+
+    // Listen for typing complete from backend/overlay
+    const handleTypingComplete = () => {
+      console.log('[IPC] Typing complete event received')
+      setIsTyping(false)
+      setIsPaused(false)
+      setProgress(100)
+      setSessionId(null)
+      typingStartTimeRef.current = null
+      toast.success('✅ Typing completed!')
+      // Don't reset progress immediately to show 100% complete
+      setTimeout(() => {
+        setProgress(0)
+        setCharsTyped(0)
+        setCurrentWPM(0)
+      }, 2000)
+    }
+
+    // Register IPC listeners
+    if (electron.ipcRenderer) {
+      electron.ipcRenderer.on('overlay-stop', handleOverlayStop)
+      electron.ipcRenderer.on('overlay-pause', handleOverlayPause)
+      electron.ipcRenderer.on('typing-complete', handleTypingComplete)
+    }
+
+    // Cleanup
+    return () => {
+      if (electron.ipcRenderer) {
+        electron.ipcRenderer.removeListener('overlay-stop', handleOverlayStop)
+        electron.ipcRenderer.removeListener('overlay-pause', handleOverlayPause)
+        electron.ipcRenderer.removeListener('typing-complete', handleTypingComplete)
+      }
+    }
+  }, [sessionId, isPaused])
+
   // Handle WPM test modal
   useEffect(() => {
     if (shouldOpenWpmTest) {
@@ -179,7 +270,7 @@ export default function TypingTabModern({
       onWpmTestOpened?.()
     }
   }, [shouldOpenWpmTest, onWpmTestOpened])
-  
+
   // Start typing
   const handleStart = async () => {
     if (!text.trim()) {

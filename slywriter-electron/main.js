@@ -833,6 +833,7 @@ function createOverlay() {
       } else if (action === 'stop') {
         // Send stop to renderer
         mainWindow.webContents.send('global-hotkey', action)
+        mainWindow.webContents.send('overlay-stop')  // Specific event for React listeners
       } else if (action === 'pause') {
         // Handle pause - call backend API like the hotkey does
         console.log('Overlay triggered pause')
@@ -850,6 +851,7 @@ function createOverlay() {
               console.log('Pause API response:', res.statusCode, responseData)
               // Also send to renderer for UI update
               mainWindow.webContents.send('global-hotkey', 'pause')
+              mainWindow.webContents.send('overlay-pause')  // Specific event for React listeners
             })
           })
           req.on('error', err => console.error('Pause API error:', err))
@@ -2169,12 +2171,15 @@ app.whenReady().then(async () => {
                 localStorage.getItem('slywriter-selected-profile') || 'Medium'
               `)
 
+              // Defensive: trim whitespace and ensure consistent casing
+              profile = (profile || 'Medium').trim()
+
               // Also get custom WPM setting
               const savedWpm = await mainWindow.webContents.executeJavaScript(`
                 localStorage.getItem('slywriter-custom-wpm')
               `)
 
-              if (savedWpm && !isNaN(parseInt(savedWpm))) {
+              if (savedWpm && savedWpm.trim() && !isNaN(parseInt(savedWpm))) {
                 customWpm = parseInt(savedWpm)
                 console.log('🔥 [HOTKEY] Retrieved custom WPM from localStorage:', customWpm)
               } else {
@@ -2189,6 +2194,8 @@ app.whenReady().then(async () => {
                 }
                 customWpm = wpmMap[profile] || 70
                 console.log('🔥 [HOTKEY] No custom WPM in localStorage, using profile WPM:', customWpm, 'for profile:', profile)
+                console.log('🔥 [HOTKEY] Available profiles in wpmMap:', Object.keys(wpmMap))
+                console.log('🔥 [HOTKEY] Profile match found:', profile in wpmMap)
               }
             } catch (err) {
               console.log('Error getting profile/WPM, using default:', err.message)
