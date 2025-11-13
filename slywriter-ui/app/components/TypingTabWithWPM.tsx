@@ -1734,15 +1734,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setSelectedProfile(profile.name)
-                  // Clear testWpm when switching to a non-Custom profile
-                  if (profile.name !== 'Custom') {
-                    setTestWpm(undefined)
-                    // CRITICAL FIX: Remove localStorage value so preset WPM is used
-                    if (typeof window !== 'undefined') {
-                      localStorage.removeItem('slywriter-custom-wpm')
-                    }
-                    console.log(`[Profile Change] Switched to ${profile.name}, cleared testWpm and localStorage`)
+                  // Set custom WPM to the profile's WPM value (makes profiles work like shortcuts)
+                  const profileWpm = getProfileWpm(profile.name)
+                  setTestWpm(profileWpm)
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('slywriter-custom-wpm', profileWpm.toString())
                   }
+                  console.log(`[Profile Change] Set ${profile.name} profile WPM to ${profileWpm}`)
                 }}
                 disabled={isTyping}
                 className={`
@@ -1780,6 +1778,175 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           <span className="text-yellow-400">Tip:</span> All profiles have typos enabled by default for realistic typing. 
           Click "Calibrate Speed" above to create a profile matched to your typing speed!
         </div>
+      </div>
+      
+      {/* Text Input & Preview Section */}
+      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
+        !inputText && !previewMode
+          ? 'border-purple-500/40 shadow-lg shadow-purple-500/20'
+          : 'border-gray-800 border-purple-500/20'
+      }`}>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            <FileTextIcon className={`w-5 h-5 transition-all ${!inputText && !previewMode ? 'text-purple-400' : 'text-blue-400'}`} />
+            <div>
+              <h3 className={`font-semibold uppercase tracking-wider flex items-center gap-2 transition-all ${
+                !inputText && !previewMode ? 'text-base text-purple-300' : 'text-sm text-gray-300'
+              }`}>
+                {previewMode ? 'Preview Output' : '1. Paste Your Text Here'}
+              </h3>
+              {!inputText && !previewMode && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-gray-400 mt-1"
+                >
+                  Copy any text, paste it here, and click Start below ⬇️
+                </motion.p>
+              )}
+            </div>
+            {!inputText && !previewMode && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="ml-2 px-2 py-0.5 bg-purple-500/20 rounded-full text-xs text-purple-300"
+              >
+                📋 Clipboard fallback enabled
+              </motion.span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPreviewMode(!previewMode)}
+              className="px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg flex items-center gap-2 transition-all text-sm"
+            >
+              <EyeIcon className="w-4 h-4" />
+              {previewMode ? 'Edit' : 'Preview'}
+            </button>
+            
+            {inputText && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(inputText)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+                className="px-3 py-1.5 bg-gray-700 bg-gray-800 hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-all text-sm"
+              >
+                {copied ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            )}
+            
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-gray-700 bg-gray-800 hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-all text-sm"
+            >
+              <UploadIcon className="w-4 h-4" />
+              Load File
+            </button>
+            
+            {inputText && (
+              <button
+                onClick={() => setInputText('')}
+                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg flex items-center gap-2 transition-all text-sm text-red-400"
+              >
+                <TrashIcon className="w-4 h-4" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+        
+        {previewMode ? (
+          <div className="bg-gray-800 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
+            <div className="font-mono text-sm text-green-400 whitespace-pre-wrap">
+              {inputText || (
+                <span className="text-gray-400">
+                  Enter text to see how it will be typed out with human-like patterns...
+                </span>
+              )}
+            </div>
+            {inputText && (
+              <div className="mt-4 pt-4 border-t border-gray-700 flex items-center justify-between text-xs text-gray-400">
+                <span>Characters: {inputText.length}</span>
+                <span>Words: {inputText.trim().split(/\s+/).length}</span>
+                <span>Est. Time: {Math.round(inputText.length / (wpm * 5) * 60)}s @ {wpm || getProfileWpm(selectedProfile, testWpm)} WPM</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="relative">
+            <textarea
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder={pasteMode
+                ? "📋 Paste Mode: AI answers will be instantly pasted (Ctrl+V or right-click → Paste)"
+                : "📝 Paste or type any text here... (Ctrl+V to paste from clipboard)"
+              }
+              className={`w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white resize-none focus:outline-none transition-all ${
+                !inputText
+                  ? 'placeholder-gray-400 text-base focus:ring-2 focus:ring-purple-500 focus:shadow-lg focus:shadow-purple-500/20'
+                  : 'placeholder-gray-600 focus:ring-2 focus:ring-purple-500/50'
+              }`}
+              disabled={isTyping}
+            />
+            {!inputText && !isTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute inset-0 pointer-events-none flex items-center justify-center"
+              >
+                <div className="text-center space-y-3 p-6">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="text-6xl opacity-20"
+                  >
+                    📋
+                  </motion.div>
+                  <div className="text-sm text-gray-500 font-medium">
+                    Click here to paste or type your text
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+        
+        {/* Quick Tips */}
+        {!inputText && !isTyping && (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <QuickTip text="📋 Copy any text + Click Start = Instant typing!" />
+              <QuickTip text="🎯 Or use Ctrl+Enter with clipboard" />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <QuickTip text={`Press ${hotkeys.ai_generation} on any highlighted text for AI magic`} />
+            </div>
+          </div>
+        )}
+        
+        {/* Active Typing Indicators */}
+        {isTyping && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm text-green-400 font-medium">Typing in progress...</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-gray-400">Stop with hotkey:</span>
+                <kbd className="px-2 py-1 bg-gray-800 rounded text-red-400 font-mono">{hotkeys.stop}</kbd>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
       
       {/* Advanced Typing Settings */}
@@ -2054,175 +2221,6 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           </div>
         </div>
       )}
-      
-      {/* Text Input & Preview Section */}
-      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
-        !inputText && !previewMode
-          ? 'border-purple-500/40 shadow-lg shadow-purple-500/20'
-          : 'border-gray-800 border-purple-500/20'
-      }`}>
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <FileTextIcon className={`w-5 h-5 transition-all ${!inputText && !previewMode ? 'text-purple-400' : 'text-blue-400'}`} />
-            <div>
-              <h3 className={`font-semibold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                !inputText && !previewMode ? 'text-base text-purple-300' : 'text-sm text-gray-300'
-              }`}>
-                {previewMode ? 'Preview Output' : '1. Paste Your Text Here'}
-              </h3>
-              {!inputText && !previewMode && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-xs text-gray-400 mt-1"
-                >
-                  Copy any text, paste it here, and click Start below ⬇️
-                </motion.p>
-              )}
-            </div>
-            {!inputText && !previewMode && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="ml-2 px-2 py-0.5 bg-purple-500/20 rounded-full text-xs text-purple-300"
-              >
-                📋 Clipboard fallback enabled
-              </motion.span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPreviewMode(!previewMode)}
-              className="px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 rounded-lg flex items-center gap-2 transition-all text-sm"
-            >
-              <EyeIcon className="w-4 h-4" />
-              {previewMode ? 'Edit' : 'Preview'}
-            </button>
-            
-            {inputText && (
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(inputText)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 2000)
-                }}
-                className="px-3 py-1.5 bg-gray-700 bg-gray-800 hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-all text-sm"
-              >
-                {copied ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            )}
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1.5 bg-gray-700 bg-gray-800 hover:bg-gray-600 rounded-lg flex items-center gap-2 transition-all text-sm"
-            >
-              <UploadIcon className="w-4 h-4" />
-              Load File
-            </button>
-            
-            {inputText && (
-              <button
-                onClick={() => setInputText('')}
-                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg flex items-center gap-2 transition-all text-sm text-red-400"
-              >
-                <TrashIcon className="w-4 h-4" />
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {previewMode ? (
-          <div className="bg-gray-800 rounded-lg p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
-            <div className="font-mono text-sm text-green-400 whitespace-pre-wrap">
-              {inputText || (
-                <span className="text-gray-400">
-                  Enter text to see how it will be typed out with human-like patterns...
-                </span>
-              )}
-            </div>
-            {inputText && (
-              <div className="mt-4 pt-4 border-t border-gray-700 flex items-center justify-between text-xs text-gray-400">
-                <span>Characters: {inputText.length}</span>
-                <span>Words: {inputText.trim().split(/\s+/).length}</span>
-                <span>Est. Time: {Math.round(inputText.length / (wpm * 5) * 60)}s @ {wpm || getProfileWpm(selectedProfile, testWpm)} WPM</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="relative">
-            <textarea
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder={pasteMode
-                ? "📋 Paste Mode: AI answers will be instantly pasted (Ctrl+V or right-click → Paste)"
-                : "📝 Paste or type any text here... (Ctrl+V to paste from clipboard)"
-              }
-              className={`w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white resize-none focus:outline-none transition-all ${
-                !inputText
-                  ? 'placeholder-gray-400 text-base focus:ring-2 focus:ring-purple-500 focus:shadow-lg focus:shadow-purple-500/20'
-                  : 'placeholder-gray-600 focus:ring-2 focus:ring-purple-500/50'
-              }`}
-              disabled={isTyping}
-            />
-            {!inputText && !isTyping && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute inset-0 pointer-events-none flex items-center justify-center"
-              >
-                <div className="text-center space-y-3 p-6">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className="text-6xl opacity-20"
-                  >
-                    📋
-                  </motion.div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    Click here to paste or type your text
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </div>
-        )}
-        
-        {/* Quick Tips */}
-        {!inputText && !isTyping && (
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <QuickTip text="📋 Copy any text + Click Start = Instant typing!" />
-              <QuickTip text="🎯 Or use Ctrl+Enter with clipboard" />
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <QuickTip text={`Press ${hotkeys.ai_generation} on any highlighted text for AI magic`} />
-            </div>
-          </div>
-        )}
-        
-        {/* Active Typing Indicators */}
-        {isTyping && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-sm text-green-400 font-medium">Typing in progress...</span>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-gray-400">Stop with hotkey:</span>
-                <kbd className="px-2 py-1 bg-gray-800 rounded text-red-400 font-mono">{hotkeys.stop}</kbd>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
       
       {/* Controls */}
       <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${

@@ -219,15 +219,20 @@ export default function MissionTab() {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                       },
-                      body: JSON.stringify({ code })
+                      body: JSON.stringify({ referral_code: code })
                     })
 
-                    const data = await response.json()
                     if (response.ok) {
+                      const data = await response.json()
                       toast.success(`✨ Redeemed! You got ${data.bonus_words} bonus words!`)
                       if (input) input.value = ''
                     } else {
-                      toast.error(data.detail || 'Invalid referral code')
+                      try {
+                        const data = await response.json()
+                        toast.error(data.detail || 'Invalid referral code')
+                      } catch {
+                        toast.error('Invalid referral code')
+                      }
                     }
                   } catch (error) {
                     console.error('Failed to redeem referral code:', error)
