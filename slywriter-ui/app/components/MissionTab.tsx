@@ -212,7 +212,7 @@ export default function MissionTab() {
                   }
 
                   try {
-                    const token = localStorage.getItem('token')
+                    const token = localStorage.getItem('auth_token')
                     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/referral/redeem`, {
                       method: 'POST',
                       headers: {
@@ -350,7 +350,7 @@ export default function MissionTab() {
                           whileTap={{ scale: 0.95 }}
                           onClick={async () => {
                             try {
-                              const token = localStorage.getItem('token')
+                              const token = localStorage.getItem('auth_token')
                               const userData = JSON.parse(localStorage.getItem('user_data') || '{}')
                               const email = userData.email
 

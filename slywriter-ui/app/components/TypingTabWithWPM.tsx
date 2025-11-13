@@ -753,7 +753,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               // Handle status updates from backend (especially AI filler updates)
               if (data.data) {
                 const statusData = data.data
-                setStatus(statusData.status || '⌨️ Typing in progress')
+                const currentStatus = statusData.status || '⌨️ Typing in progress'
+                setStatus(currentStatus)
+
+                // Update pause state based on backend status
+                if (currentStatus === 'Paused' || currentStatus.includes('Paused')) {
+                  setIsPaused(true)
+                } else if (currentStatus.includes('Typing') || currentStatus.includes('resumed')) {
+                  setIsPaused(false)
+                }
 
                 if (statusData.progress !== undefined) {
                   setProgress(Math.min(100, Math.max(0, statusData.progress)))
