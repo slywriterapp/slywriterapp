@@ -329,6 +329,7 @@ export default function EnhancedLearningTab() {
       const response = await axios.post(`${API_URL}/api/ai/generate`, {
         prompt: prompt + '\n\nIMPORTANT: Return ONLY valid JSON, no markdown formatting or extra text. Start with { and end with }',
         user_id: localStorage.getItem('userId') || 'anonymous',
+        max_tokens: 4000, // High token limit for comprehensive lesson JSON
         settings: {
           response_type: 'json',
           response_length: 5, // Detailed response
