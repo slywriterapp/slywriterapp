@@ -1949,7 +1949,217 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         )}
       </div>
       
-      {/* Advanced Typing Settings */}
+      {/* Controls */}
+      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
+        inputText && !isTyping
+          ? 'border-green-500/40 shadow-lg shadow-green-500/20'
+          : 'border-gray-800 border-purple-500/20'
+      }`}>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            <PlayIcon className={`w-5 h-5 transition-all ${inputText && !isTyping ? 'text-green-400' : 'text-gray-400'}`} />
+            <div>
+              <h3 className={`font-semibold uppercase tracking-wider transition-all ${
+                inputText && !isTyping ? 'text-base text-green-300' : 'text-sm text-gray-300'
+              }`}>
+                2. Click Start to Begin
+              </h3>
+              {inputText && !isTyping && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-xs text-gray-400 mt-1"
+                >
+                  Ready to type your text automatically! 🚀
+                </motion.p>
+              )}
+            </div>
+          </div>
+          
+          {countdown !== null && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="text-3xl font-bold text-purple-400"
+            >
+              {countdown}
+            </motion.div>
+          )}
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          {!isTyping ? (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={startTyping}
+              disabled={!connected || !canType}
+              data-testid="start-typing"
+              className={`
+                w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
+                ${connected && canType
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 bg-green-500 text-white hover:shadow-lg hover:shadow-green-500/30 hover:shadow-green-500/20'
+                  : 'bg-gray-700 bg-gray-800 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              <PlayIcon className="w-5 h-5" />
+              {inputText ? 'Start Typing' : 'Start (Uses Clipboard)'}
+            </motion.button>
+          ) : (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={pauseTyping}
+                className={`
+                  flex-1 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
+                  ${isPaused
+                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+                    : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                  }
+                `}
+              >
+                <PauseIcon className="w-5 h-5" />
+                {isPaused ? 'Resume' : 'Pause'}
+              </motion.button>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={stopTyping}
+                className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/30"
+              >
+                <StopCircleIcon className="w-5 h-5" />
+                Stop
+              </motion.button>
+            </>
+          )}
+        </div>
+        
+        {/* Status Bar */}
+        <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-400">Status</span>
+            <span className={`text-sm font-medium ${
+              status.includes('Typing') ? 'text-green-400' :
+              status.includes('Paused') ? 'text-yellow-400' :
+              status.includes('Stopped') ? 'text-red-400' :
+              status.includes('Finished') ? 'text-blue-400' :
+              'text-gray-400'
+            }`}>
+              {status}
+            </span>
+          </div>
+          
+          {progress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Progress</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 bg-gray-800 rounded-full h-2">
+                <motion.div
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 bg-purple-500 h-2 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Live Stats */}
+      {(isTyping || progress > 0) && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20"
+        >
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <ActivityIcon className="w-4 h-4 text-purple-400" />
+            Live Statistics
+          </h3>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-800 rounded-lg p-3">
+              <div className="text-2xl font-bold text-white">{wpm}</div>
+              <div className="text-xs text-gray-400">Current WPM</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <div className="text-2xl font-bold text-white">{charsTyped}/{totalChars}</div>
+              <div className="text-xs text-gray-400">Characters</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-3">
+              <div className="text-2xl font-bold text-white">{typosMade}</div>
+              <div className="text-xs text-gray-400">Typos Made</div>
+            </div>
+          </div>
+          
+          {isPremium && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                <div className="text-lg font-bold text-purple-400">{pausesTaken}</div>
+                <div className="text-xs text-gray-400">Natural Pauses</div>
+              </div>
+              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                <div className="text-lg font-bold text-purple-400">{microHesitations}</div>
+                <div className="text-xs text-gray-400">Micro-Hesitations</div>
+              </div>
+              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                <div className="text-lg font-bold text-purple-400">{aiFillers}</div>
+                <div className="text-xs text-gray-400">AI Fillers</div>
+              </div>
+              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                <div className="text-lg font-bold text-purple-400">{zoneOutActive ? 'Yes' : 'No'}</div>
+                <div className="text-xs text-gray-400">Zone Out Active</div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt"
+        onChange={loadFile}
+        className="hidden"
+      />
+
+      {/* Out of Words Modal */}
+      <OutOfWordsModal
+        isOpen={showOutOfWordsModal}
+        onClose={() => setShowOutOfWordsModal(false)}
+        wordsRemaining={wordsRemaining}
+        userEmail={user?.email || ''}
+        referralCode={user?.referralCode || ''}
+      />
+    </div>
+  )
+}
+
+// Helper function to get WPM for current profile
+function getProfileWpm(profileName?: string, customWpm?: number): number {
+  // If it's a custom profile and we have a custom WPM value, use it
+  if (profileName === 'Custom' && customWpm) {
+    return customWpm
+  }
+  
+  const wpmMap: Record<string, number> = {
+    'Slow': 40,
+    'Medium': 70,
+    'Fast': 100,
+    'Lightning': 250,
+    'Custom': 85,  // Default for custom if no test taken
+    'Essay': 45
+  }
+
+  return wpmMap[profileName || 'Medium'] || 100
+}      {/* Advanced Typing Settings */}
       <div className="bg-gray-900/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
@@ -2222,214 +2432,3 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         </div>
       )}
       
-      {/* Controls */}
-      <div className={`bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border transition-all duration-300 ${
-        inputText && !isTyping
-          ? 'border-green-500/40 shadow-lg shadow-green-500/20'
-          : 'border-gray-800 border-purple-500/20'
-      }`}>
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <PlayIcon className={`w-5 h-5 transition-all ${inputText && !isTyping ? 'text-green-400' : 'text-gray-400'}`} />
-            <div>
-              <h3 className={`font-semibold uppercase tracking-wider transition-all ${
-                inputText && !isTyping ? 'text-base text-green-300' : 'text-sm text-gray-300'
-              }`}>
-                2. Click Start to Begin
-              </h3>
-              {inputText && !isTyping && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-xs text-gray-400 mt-1"
-                >
-                  Ready to type your text automatically! 🚀
-                </motion.p>
-              )}
-            </div>
-          </div>
-          
-          {countdown !== null && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="text-3xl font-bold text-purple-400"
-            >
-              {countdown}
-            </motion.div>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          {!isTyping ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={startTyping}
-              disabled={!connected || !canType}
-              data-testid="start-typing"
-              className={`
-                w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
-                ${connected && canType
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 bg-green-500 text-white hover:shadow-lg hover:shadow-green-500/30 hover:shadow-green-500/20'
-                  : 'bg-gray-700 bg-gray-800 text-gray-400 cursor-not-allowed'
-                }
-              `}
-            >
-              <PlayIcon className="w-5 h-5" />
-              {inputText ? 'Start Typing' : 'Start (Uses Clipboard)'}
-            </motion.button>
-          ) : (
-            <>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={pauseTyping}
-                className={`
-                  flex-1 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
-                  ${isPaused
-                    ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                    : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                  }
-                `}
-              >
-                <PauseIcon className="w-5 h-5" />
-                {isPaused ? 'Resume' : 'Pause'}
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={stopTyping}
-                className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-500/30"
-              >
-                <StopCircleIcon className="w-5 h-5" />
-                Stop
-              </motion.button>
-            </>
-          )}
-        </div>
-        
-        {/* Status Bar */}
-        <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">Status</span>
-            <span className={`text-sm font-medium ${
-              status.includes('Typing') ? 'text-green-400' :
-              status.includes('Paused') ? 'text-yellow-400' :
-              status.includes('Stopped') ? 'text-red-400' :
-              status.includes('Finished') ? 'text-blue-400' :
-              'text-gray-400'
-            }`}>
-              {status}
-            </span>
-          </div>
-          
-          {progress > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>Progress</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <div className="w-full bg-gray-700 bg-gray-800 rounded-full h-2">
-                <motion.div
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 bg-purple-500 h-2 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Live Stats */}
-      {(isTyping || progress > 0) && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="bg-gray-900/50 rounded-2xl p-6 backdrop-blur-sm border border-gray-800 border-purple-500/20"
-        >
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
-            <ActivityIcon className="w-4 h-4 text-purple-400" />
-            Live Statistics
-          </h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-white">{wpm}</div>
-              <div className="text-xs text-gray-400">Current WPM</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-white">{charsTyped}/{totalChars}</div>
-              <div className="text-xs text-gray-400">Characters</div>
-            </div>
-            <div className="bg-gray-800 rounded-lg p-3">
-              <div className="text-2xl font-bold text-white">{typosMade}</div>
-              <div className="text-xs text-gray-400">Typos Made</div>
-            </div>
-          </div>
-          
-          {isPremium && (
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
-                <div className="text-lg font-bold text-purple-400">{pausesTaken}</div>
-                <div className="text-xs text-gray-400">Natural Pauses</div>
-              </div>
-              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
-                <div className="text-lg font-bold text-purple-400">{microHesitations}</div>
-                <div className="text-xs text-gray-400">Micro-Hesitations</div>
-              </div>
-              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
-                <div className="text-lg font-bold text-purple-400">{aiFillers}</div>
-                <div className="text-xs text-gray-400">AI Fillers</div>
-              </div>
-              <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
-                <div className="text-lg font-bold text-purple-400">{zoneOutActive ? 'Yes' : 'No'}</div>
-                <div className="text-xs text-gray-400">Zone Out Active</div>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      )}
-      
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".txt"
-        onChange={loadFile}
-        className="hidden"
-      />
-
-      {/* Out of Words Modal */}
-      <OutOfWordsModal
-        isOpen={showOutOfWordsModal}
-        onClose={() => setShowOutOfWordsModal(false)}
-        wordsRemaining={wordsRemaining}
-        userEmail={user?.email || ''}
-        referralCode={user?.referralCode || ''}
-      />
-    </div>
-  )
-}
-
-// Helper function to get WPM for current profile
-function getProfileWpm(profileName?: string, customWpm?: number): number {
-  // If it's a custom profile and we have a custom WPM value, use it
-  if (profileName === 'Custom' && customWpm) {
-    return customWpm
-  }
-  
-  const wpmMap: Record<string, number> = {
-    'Slow': 40,
-    'Medium': 70,
-    'Fast': 100,
-    'Lightning': 250,
-    'Custom': 85,  // Default for custom if no test taken
-    'Essay': 45
-  }
-
-  return wpmMap[profileName || 'Medium'] || 100
-}
