@@ -2138,28 +2138,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         userEmail={user?.email || ''}
         referralCode={user?.referralCode || ''}
       />
-    </div>
-  )
-}
 
-// Helper function to get WPM for current profile
-function getProfileWpm(profileName?: string, customWpm?: number): number {
-  // If it's a custom profile and we have a custom WPM value, use it
-  if (profileName === 'Custom' && customWpm) {
-    return customWpm
-  }
-  
-  const wpmMap: Record<string, number> = {
-    'Slow': 40,
-    'Medium': 70,
-    'Fast': 100,
-    'Lightning': 250,
-    'Custom': 85,  // Default for custom if no test taken
-    'Essay': 45
-  }
-
-  return wpmMap[profileName || 'Medium'] || 100
-}      {/* Advanced Typing Settings */}
+      {/* Advanced Typing Settings */}
       <div className="bg-gray-900/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
@@ -2432,3 +2412,26 @@ function getProfileWpm(profileName?: string, customWpm?: number): number {
         </div>
       )}
       
+    </div>
+  )
+}
+
+// Helper function to get WPM for current profile
+function getProfileWpm(profileName?: string, customWpm?: number): number {
+  // If it's a custom profile and we have a custom WPM value, use it
+  if (profileName === 'Custom' && customWpm) {
+    return customWpm
+  }
+  
+  const wpmMap: Record<string, number> = {
+    'Slow': 40,
+    'Medium': 70,
+    'Fast': 100,
+    'Lightning': 250,
+    'Custom': 85,  // Default for custom if no test taken
+    'Essay': 45
+  }
+
+  return wpmMap[profileName || 'Medium'] || 100
+
+export default TypingTabWithWPM
