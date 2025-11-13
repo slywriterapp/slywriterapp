@@ -2433,5 +2433,6 @@ function getProfileWpm(profileName?: string, customWpm?: number): number {
   }
 
   return wpmMap[profileName || 'Medium'] || 100
+}
 
 export default TypingTabWithWPM
