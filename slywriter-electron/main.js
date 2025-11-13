@@ -835,33 +835,11 @@ function createOverlay() {
         mainWindow.webContents.send('global-hotkey', action)
         mainWindow.webContents.send('overlay-stop')  // Specific event for React listeners
       } else if (action === 'pause') {
-        // Handle pause - call backend API like the hotkey does
-        console.log('Overlay triggered pause')
-        try {
-          const req = http.request({
-            hostname: '127.0.0.1',
-            port: 8000,
-            path: '/api/typing/pause',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          }, (res) => {
-            let responseData = ''
-            res.on('data', chunk => responseData += chunk)
-            res.on('end', () => {
-              console.log('Pause API response:', res.statusCode, responseData)
-              // Also send to renderer for UI update
-              mainWindow.webContents.send('global-hotkey', 'pause')
-              mainWindow.webContents.send('overlay-pause')  // Specific event for React listeners
-            })
-          })
-          req.on('error', err => console.error('Pause API error:', err))
-          req.write('{}')
-          req.end()
-        } catch (error) {
-          console.error('Error calling pause API:', error)
-          // Still send to renderer as fallback
-          mainWindow.webContents.send('global-hotkey', action)
-        }
+        // Send IPC to renderer - let React handle the API call
+        // This prevents double-calling the pause endpoint (which would toggle pause → resume)
+        console.log('Overlay triggered pause - sending to renderer')
+        mainWindow.webContents.send('global-hotkey', 'pause')
+        mainWindow.webContents.send('overlay-pause')  // Specific event for React listeners
       } else if (action === 'ai-generate') {
         // Call the global AI generation handler
         console.log('🎯🎯🎯 === OVERLAY AI BUTTON CLICKED === 🎯🎯🎯')
