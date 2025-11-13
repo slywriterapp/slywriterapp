@@ -1,5 +1,8 @@
 # SlyWriter Release Checklist
 
+> **🚨 CRITICAL REMINDER:** Every GitHub release MUST include `SlyWriter-Setup-{version}.exe` installer!
+> Example: `SlyWriter-Setup-2.7.0.exe` - Users download this from GitHub releases.
+
 ## First-Time Setup ✅
 
 ### 1. GitHub Token
@@ -44,19 +47,25 @@ npm run dist:squirrel
 
 ### 3. Create GitHub Release
 ```bash
-# The build process creates draft release automatically
-# OR manually:
-
 # Tag the version
-git tag v2.0.1
-git push origin v2.0.1
+git tag v2.7.0
+git push origin v2.7.0
 
 # Go to: https://github.com/slywriterapp/slywriterapp/releases/new
-# Upload from dist/ folder:
-- SlyWriter-2.0.1-Setup.exe
-- RELEASES
-- *.nupkg files (delta update packages)
 ```
+
+**CRITICAL: Every release MUST include these installers from `dist/` folder:**
+
+**Primary Installer (NSIS - User-friendly):**
+- ✅ `SlyWriter-Setup-2.7.0.exe` ← **ALWAYS INCLUDE THIS**
+
+**Update System (Squirrel - For auto-updates):**
+- `RELEASES` file
+- `*.nupkg` files (delta update packages)
+
+**Both installer types are needed:**
+- NSIS installer: For new users downloading from GitHub
+- Squirrel files: For existing users getting auto-updates
 
 ### 4. Publish Release
 - Change from "Draft" to "Published"
