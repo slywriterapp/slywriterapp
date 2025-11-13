@@ -1881,10 +1881,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             <textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={pasteMode
-                ? "📋 Paste Mode: AI answers will be instantly pasted (Ctrl+V or right-click → Paste)"
-                : "📝 Paste or type any text here... (Ctrl+V to paste from clipboard)"
-              }
+              placeholder="Type here"
               className={`w-full h-[200px] bg-gray-800 rounded-lg p-4 text-white resize-none focus:outline-none transition-all ${
                 !inputText
                   ? 'placeholder-gray-400 text-base focus:ring-2 focus:ring-purple-500 focus:shadow-lg focus:shadow-purple-500/20'
