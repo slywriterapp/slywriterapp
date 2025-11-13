@@ -1682,14 +1682,26 @@ async def generate_ai_text(request: AIGenerateRequest):
 
         logger.info(f"AI Generate with settings: tone={tone}, grade={grade_level}, length={response_length}, template={selected_template}, max_tokens={max_tokens}")
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": request.prompt}
-            ],
-            max_tokens=max_tokens
-        )
+        # Use JSON mode if requested (for Learn tab and structured responses)
+        if response_type == 'json':
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo-1106",  # Supports JSON mode
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": request.prompt}
+                ],
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"}
+            )
+        else:
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": request.prompt}
+                ],
+                max_tokens=max_tokens
+            )
 
         generated_text = response.choices[0].message.content
 
