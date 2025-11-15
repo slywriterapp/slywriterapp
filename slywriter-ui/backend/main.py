@@ -188,11 +188,14 @@ class TypingStartRequest(BaseModel):
     min_delay: float = 0.1
     max_delay: float = 0.3
     typos_enabled: bool = False
-    ai_filler_enabled: bool = False
     pause_frequency: int = 5
     preview_mode: bool = False
     profile: Optional[str] = "Medium"  # Profile name for WPM calculation
     custom_wpm: Optional[int] = None   # Custom WPM value
+    # FUTURE FEATURES - Removed for now, add back when implementing:
+    # ai_filler_enabled: bool = False  # TODO: Port AI Filler from Python desktop app
+    # grammarly_mode: bool = False  # TODO: Implement delayed corrections
+    # grammarly_delay: float = 3.0  # TODO: Delay before corrections in seconds
 
 class UserAuthRequest(BaseModel):
     email: str

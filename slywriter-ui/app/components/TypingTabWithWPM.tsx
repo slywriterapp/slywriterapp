@@ -77,18 +77,19 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
   // Premium features state
   const [typosMade, setTyposMade] = useState(0)
   const [pausesTaken, setPausesTaken] = useState(0)
-  
-  // Delayed correction settings (like autocorrect tools)
-  const [grammarlyCorrectionEnabled, setGrammarlyCorrectionEnabled] = useState(false)
-  const [grammarlyCorrectionDelay, setGrammarlyCorrectionDelay] = useState(3) // 3 seconds default
-  const [typoRate, setTypoRate] = useState(3) // 3% typo rate
+
+  // Human-like typing settings
   const [humanMode, setHumanMode] = useState(true)
   const [pasteMode, setPasteMode] = useState(false)
   const [autoClearTextbox, setAutoClearTextbox] = useState(true)
-  const [aiFillerEnabled, setAiFillerEnabled] = useState(false) // Premium feature
   const [microHesitations, setMicroHesitations] = useState(0)
-  const [aiFillers, setAiFillers] = useState(0)
   const [zoneOutActive, setZoneOutActive] = useState(false)
+
+  // FUTURE FEATURES - State variables reserved for future updates
+  // const [grammarlyCorrectionEnabled, setGrammarlyCorrectionEnabled] = useState(false) // TODO: Delayed corrections
+  // const [grammarlyCorrectionDelay, setGrammarlyCorrectionDelay] = useState(3) // TODO: Correction delay
+  // const [aiFillerEnabled, setAiFillerEnabled] = useState(false) // TODO: AI Filler premium feature
+  const [aiFillers, setAiFillers] = useState(0) // Keep for stats display (will be 0 until feature implemented)
   
   // UI state
   const [showStats, setShowStats] = useState(false)
@@ -145,29 +146,15 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       if (typosEnabled !== null) {
         setHumanMode(typosEnabled === 'true')
       }
-      
-      const aiFillerEnabled = localStorage.getItem('aiFillerEnabled')
-      if (aiFillerEnabled !== null) {
-        setAiFillerEnabled(aiFillerEnabled === 'true')
-      }
-      
+
       // Load auto-clear setting
       const autoClear = localStorage.getItem('slywriter-auto-clear')
       if (autoClear !== null) {
         setAutoClearTextbox(autoClear === 'true')
       }
-      
-      // Load delayed correction mode setting
-      const grammarlyMode = localStorage.getItem('slywriter-grammarly-mode')
-      if (grammarlyMode !== null) {
-        setGrammarlyCorrectionEnabled(grammarlyMode === 'true')
-      }
-      
-      // Load correction delay setting
-      const grammarlyDelay = localStorage.getItem('slywriter-grammarly-delay')
-      if (grammarlyDelay !== null) {
-        setGrammarlyCorrectionDelay(parseInt(grammarlyDelay))
-      }
+
+      // FUTURE FEATURES - localStorage loading removed (features not implemented yet)
+      // TODO: Re-enable when delayed corrections and AI filler are implemented
     }
   }
   
@@ -280,31 +267,16 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       localStorage.setItem('slywriter-auto-clear', autoClearTextbox.toString())
     }
   }, [autoClearTextbox, isClient])
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isClient) {
-      localStorage.setItem('slywriter-grammarly-mode', grammarlyCorrectionEnabled.toString())
-    }
-  }, [grammarlyCorrectionEnabled, isClient])
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isClient) {
-      localStorage.setItem('slywriter-grammarly-delay', grammarlyCorrectionDelay.toString())
-    }
-  }, [grammarlyCorrectionDelay, isClient])
-  
+
+  // FUTURE FEATURES - localStorage saving removed (features not implemented yet)
+  // TODO: Re-enable when delayed corrections and AI filler are implemented
+
   useEffect(() => {
     if (typeof window !== 'undefined' && isClient) {
       localStorage.setItem('typosEnabled', humanMode.toString())
     }
   }, [humanMode, isClient])
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isClient) {
-      localStorage.setItem('aiFillerEnabled', aiFillerEnabled.toString())
-    }
-  }, [aiFillerEnabled, isClient])
-  
+
   useEffect(() => {
     if (typeof window !== 'undefined' && isClient) {
       localStorage.setItem('slywriter-paste-mode', pasteMode.toString())
@@ -922,11 +894,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         profile: selectedProfile,
         preview_mode: previewMode,
         custom_wpm: customWpm,
-        ai_filler_enabled: aiFillerEnabled, // Pass premium AI filler setting
         typos_enabled: customWpm < 100, // Enable typos for slower speeds (< 100 WPM)
-        grammarly_mode: grammarlyCorrectionEnabled, // Enable delayed corrections
-        grammarly_delay: grammarlyCorrectionDelay, // Delay before corrections
-        typo_rate: typoRate, // Percentage chance of typos
+        // FUTURE: ai_filler_enabled, grammarly_mode, grammarly_delay - Not implemented yet
         typing_speed: parseInt(typingSpeed), // Use profile speed setting
         pause_frequency: parseInt(pauseFrequency) // Use profile pause frequency
       }
@@ -956,13 +925,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       setStatus('Typing...')
       
       // Track typing session start
-      telemetry.startTypingSession(textToType.length, selectedProfile, aiFillerEnabled)
+      telemetry.startTypingSession(textToType.length, selectedProfile, false) // ai_filler disabled for now
       telemetry.trackEvent('typing_started', {
         profile: selectedProfile,
         textLength: textToType.length,
-        aiFillerEnabled,
-        humanMode,
-        grammarlyCorrectionEnabled
+        humanMode
+        // FUTURE: aiFillerEnabled, grammarlyCorrectionEnabled tracking when implemented
       })
       
       // Dispatch start event for overlay
@@ -986,19 +954,6 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       })
       
       // Show additional feedback based on settings
-      if (aiFillerEnabled) {
-        setTimeout(() => {
-          toast('🎭 Premium AI Filler activated!', {
-            icon: '👑',
-            duration: 3000,
-            style: {
-              background: 'linear-gradient(135deg, #9333ea 0%, #ec4899 100%)',
-              color: 'white',
-            }
-          })
-        }, 500)
-      }
-      
       if (humanMode) {
         setTimeout(() => {
           toast('🎯 Human mode patterns enabled', {
@@ -1007,15 +962,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
           })
         }, 300)
       }
-      
-      if (grammarlyCorrectionEnabled) {
-        setTimeout(() => {
-          toast('✏️ Delayed corrections active', {
-            icon: '📝',
-            duration: 2000
-          })
-        }, 600)
-      }
+
+      // FUTURE FEATURES - Toast notifications removed (features not implemented yet)
+      // TODO: Re-enable AI Filler and Delayed Corrections toasts when implemented
       
       // Show typing speed after a moment
       const wpmValue = getProfileWpm(selectedProfile, testWpm)
@@ -1034,8 +983,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to start typing'
       toast.error(errorMsg)
     }
-  }, [inputText, connected, user, canType, wordsRemaining, selectedProfile, humanMode, 
-     grammarlyCorrectionEnabled, grammarlyCorrectionDelay, typoRate, aiFillerEnabled, 
+  }, [inputText, connected, user, canType, wordsRemaining, selectedProfile, humanMode,
      pasteMode, autoClearTextbox, testWpm, isPremium])
   
   const pauseTyping = async () => {
@@ -1237,11 +1185,8 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             profile: selectedProfile || 'Medium',
             preview_mode: false,
             custom_wpm: actualWpm,
-            ai_filler_enabled: aiFillerEnabled,
             typos_enabled: humanMode,
-            grammarly_mode: grammarlyCorrectionEnabled,
-            grammarly_delay: grammarlyCorrectionDelay,
-            typo_rate: typoRate,
+            // FUTURE: ai_filler_enabled, grammarly_mode, grammarly_delay - Not implemented yet
             typing_speed: parseInt(typingSpeed),
             pause_frequency: parseInt(pauseFrequency)
           }).then(response => {
@@ -2205,65 +2150,13 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               </p>
             </div>
           </label>
-          
-          <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
-            <input
-              type="checkbox"
-              checked={grammarlyCorrectionEnabled}
-              onChange={(e) => {
-                setGrammarlyCorrectionEnabled(e.target.checked)
-                if (e.target.checked) {
-                  toast.success('✏️ Delayed corrections enabled!')
-                }
-              }}
-              className="w-5 h-5 text-purple-500 rounded"
-              disabled={isTyping}
-            />
-            <div className="flex-1">
-              <span className="text-white font-medium text-sm">Delayed Correction</span>
-              <p className="text-xs text-gray-400">Makes typos then fixes them</p>
-            </div>
-            {/* Delayed Correction Tooltip */}
-            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-green-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-              <p className="text-xs text-gray-200">
-                <span className="text-green-300 font-semibold">✏️ Simulates autocorrect tools:</span><br/>
-                • Makes word typos (teh, taht, etc.)<br/>
-                • Continues typing 20-40 chars<br/>
-                • Then goes back to fix mistakes<br/>
-                • Configurable delay (1-5 seconds)<br/>
-                • Max 2 pending corrections at once<br/>
-                • Works WITH natural typos (smart balance)<br/>
-                • Shows you're using "writing assistance"<br/>
-                <span className="text-yellow-300 mt-1 inline-block">Perfect for making AI text look human!</span>
-              </p>
-            </div>
-          </label>
-          
-          {/* Correction Delay Slider - only show when enabled */}
-          {grammarlyCorrectionEnabled && (
-            <div className="ml-8 mt-2 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400">Correction Delay</span>
-                <span className="text-xs font-medium text-purple-400">{grammarlyCorrectionDelay}s</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="0.5"
-                value={grammarlyCorrectionDelay}
-                onChange={(e) => setGrammarlyCorrectionDelay(parseFloat(e.target.value))}
-                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-                disabled={isTyping}
-              />
-              <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                <span>Quick</span>
-                <span>Natural</span>
-                <span>Slow</span>
-              </div>
-            </div>
-          )}
-          
+
+          {/*
+            FUTURE FEATURE: Delayed Corrections (Grammarly Mode)
+            TODO: Implement backend logic for delayed corrections in future update
+            Feature would simulate autocorrect tools by making typos and fixing them after a delay
+          */}
+
           <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
             <input
               type="checkbox"
@@ -2327,47 +2220,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               </p>
             </div>
           </label>
-          
-          {/* AI Filler - PRO FEATURE */}
-          <label className={`flex items-center gap-3 p-3 bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-lg transition-all group relative border border-purple-500/30 ${!isPremium ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:from-purple-900/40 hover:to-pink-900/40'}`}>
-            <input
-              type="checkbox"
-              checked={aiFillerEnabled && isPremium}
-              onChange={(e) => {
-                if (!isPremium) {
-                  toast.error('AI Filler requires Pro or Premium plan', { icon: '🔒' })
-                  return
-                }
-                setAiFillerEnabled(e.target.checked)
-                localStorage.setItem('slywriter-ai-filler', e.target.checked.toString())
-                if (e.target.checked) {
-                  toast.success('🎭 AI Filler activated!', { icon: '✨' })
-                }
-              }}
-              className="w-5 h-5 text-purple-500 rounded"
-              disabled={isTyping || !isPremium}
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className={`font-medium text-sm ${!isPremium ? 'text-gray-400' : 'text-white'}`}>AI Filler</span>
-                <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-0.5 rounded-full text-white font-bold">PRO</span>
-              </div>
-              <p className="text-xs text-gray-400">Realistic drafts{!isPremium ? ' - Requires Pro or Premium' : ''}</p>
-            </div>
-            {/* Premium Tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 w-80 p-3 bg-gradient-to-br from-purple-900 to-pink-900 rounded-lg shadow-xl border border-purple-500/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-              <p className="text-xs text-gray-200">
-                <span className="text-yellow-300 font-bold">👑 PREMIUM ONLY - Ultimate Realism</span><br/>
-                <span className="text-purple-300 font-semibold">🎭 How it works:</span><br/>
-                • Types a "draft thought" (contextual)<br/>
-                • Pauses like "hmm, that's not right"<br/>
-                • Deletes the draft<br/>
-                • Types the real answer<br/>
-                <span className="text-cyan-300">Example:</span> Types "The answer is..." → deletes → types actual answer<br/>
-                <span className="text-pink-300 font-bold mt-1 inline-block">🔥 Most realistic feature - 100% undetectable!</span>
-              </p>
-            </div>
-          </label>
+
+          {/*
+            FUTURE FEATURE: AI Filler (Premium)
+            TODO: Port AI Filler from Python desktop app in future premium update
+            Feature would type draft thoughts, delete them, then type the real answer for maximum realism
+          */}
         </div>
       </div>
       

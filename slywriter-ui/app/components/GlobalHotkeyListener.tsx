@@ -251,8 +251,8 @@ export default function GlobalHotkeyListener() {
       try {
         response = await axios.post(`${AI_API_URL}/api/ai/generate`, {
           prompt,
-          settings,
-          ai_filler_enabled: settings.ai_filler_enabled || false
+          settings
+          // FUTURE: ai_filler_enabled - Not implemented yet
         })
       } catch (error: any) {
         console.error('AI Generation error:', error)
@@ -407,8 +407,8 @@ export default function GlobalHotkeyListener() {
       try {
         response = await axios.post(`${AI_API_URL}/api/ai/generate`, {
           prompt,
-          settings,
-          ai_filler_enabled: settings.ai_filler_enabled || false
+          settings
+          // FUTURE: ai_filler_enabled - Not implemented yet
         })
       } catch (error: any) {
         console.error('AI Generation error:', error)

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Wand2, RefreshCw, Copy, Check, Brain, Zap, BookOpen, Briefcase, Heart, Gamepad2, Code, Palette, AlertCircleIcon, XCircleIcon, BrainIcon, SparklesIcon, X, Lightbulb, Info, TrendingUp, MessageSquare, CheckCircle2, Target, Rocket } from 'lucide-react'
+import { Sparkles, Wand2, RefreshCw, Copy, Check, Brain, Zap, BookOpen, Briefcase, Heart, AlertCircleIcon, XCircleIcon, BrainIcon, SparklesIcon, X, Lightbulb, Info, MessageSquare, CheckCircle2, Rocket, Target } from 'lucide-react'
 import { RENDER_API_URL, getWebSocketUrl } from '../config/api'
 import { FirstTimeHelper } from './FeatureTooltips'
 import axios from 'axios'
@@ -24,17 +24,14 @@ interface AITemplate {
   description: string
 }
 
+// Simplified to 3 essential templates for students
 const templates: AITemplate[] = [
-  { id: 'creative', name: 'Creative Writing', icon: Palette, prompt: 'Write a creative and engaging', description: 'Stories, narratives, and creative content' },
-  { id: 'professional', name: 'Professional', icon: Briefcase, prompt: 'Write a professional and formal', description: 'Business emails, reports, and documents' },
-  { id: 'academic', name: 'Academic', icon: BookOpen, prompt: 'Write an academic and scholarly', description: 'Essays, research papers, and studies' },
+  { id: 'academic', name: 'Academic', icon: BookOpen, prompt: 'Write an academic and scholarly', description: 'Essays, assignments, and scholarly writing' },
+  { id: 'professional', name: 'Professional', icon: Briefcase, prompt: 'Write a professional and formal', description: 'Cover letters, emails, and formal documents' },
   { id: 'casual', name: 'Casual', icon: Heart, prompt: 'Write a casual and friendly', description: 'Personal messages and informal content' },
-  { id: 'technical', name: 'Technical', icon: Code, prompt: 'Write a technical and detailed', description: 'Documentation, guides, and tutorials' },
-  { id: 'gaming', name: 'Gaming', icon: Gamepad2, prompt: 'Write gaming-related', description: 'Game reviews, guides, and discussions' },
 ]
 
 interface AIGenerationSettings {
-  // Template
   selectedTemplate: string
   
   // Response Configuration
@@ -90,7 +87,7 @@ export default function AIHubTab() {
   
   // ALL settings in one state object with defaults
   const [settings, setSettings] = useState<AIGenerationSettings>({
-    selectedTemplate: 'creative',
+    selectedTemplate: 'academic',
     response_type: 'short_response',
     response_length: 3,
     academic_format: 'None',
@@ -131,7 +128,7 @@ export default function AIHubTab() {
         
         // Ensure all properties exist (for backward compatibility)
         const defaultSettings: AIGenerationSettings = {
-          selectedTemplate: 'creative',
+          selectedTemplate: 'academic',
           response_type: 'short_response',
           response_length: 3,
           academic_format: 'None',
@@ -623,9 +620,9 @@ export default function AIHubTab() {
     setIsGenerating(true)
     
     try {
-      // Build the prompt
+      // Build the prompt based on selected template
       const template = templates.find(t => t.id === settings.selectedTemplate)
-      let prompt = `${template?.prompt || 'Write'} response about: ${input}\n\n`
+      let prompt = `${template?.prompt || 'Write an academic and scholarly'} response about: ${input}\n\n`
       
       if (settings.response_type === 'short_response') {
         const lengths = {
@@ -943,12 +940,12 @@ export default function AIHubTab() {
             <p className="text-xs font-semibold text-white">Generation</p>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-            <TrendingUp className="w-4 h-4 text-green-400 mx-auto mb-1" />
-            <p className="text-[10px] text-gray-400">6 Styles</p>
+            <BookOpen className="w-4 h-4 text-blue-400 mx-auto mb-1" />
+            <p className="text-[10px] text-gray-400">3 Styles</p>
             <p className="text-xs font-semibold text-white">Templates</p>
           </div>
           <div className="bg-gray-800/50 rounded-lg p-3 text-center">
-            <MessageSquare className="w-4 h-4 text-blue-400 mx-auto mb-1" />
+            <MessageSquare className="w-4 h-4 text-green-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">Natural</p>
             <p className="text-xs font-semibold text-white">Output</p>
           </div>
@@ -960,7 +957,7 @@ export default function AIHubTab() {
         </div>
       </motion.div>
 
-      {/* Content Templates */}
+      {/* Writing Style Templates */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -968,14 +965,14 @@ export default function AIHubTab() {
         className="bg-gray-900/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider">Content Templates</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wider">Writing Style</h3>
           <div className="text-xs text-gray-500">
             <Target className="w-3 h-3 inline mr-1" />
-            {templates.find(t => t.id === settings.selectedTemplate)?.name || 'None'} selected
+            {templates.find(t => t.id === settings.selectedTemplate)?.name || 'Academic'} selected
           </div>
         </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+
+        <div className="grid grid-cols-3 gap-3">
           {templates.map(template => (
             <motion.button
               key={template.id}
@@ -1376,7 +1373,7 @@ export default function AIHubTab() {
           <div className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-gray-300">
-              <span className="font-semibold">Quick Start:</span> Select a template, enter your topic, and click generate for instant content
+              <span className="font-semibold">Quick Start:</span> Select writing style (Academic/Professional/Casual), enter topic, and generate
             </p>
           </div>
           <div className="flex items-start gap-2">
@@ -1400,7 +1397,7 @@ export default function AIHubTab() {
           <div className="flex items-start gap-2">
             <Rocket className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-gray-300">
-              <span className="font-semibold">Power User:</span> Combine templates with custom prompts for best results
+              <span className="font-semibold">Power User:</span> Combine templates with tone/grade settings for perfectly tailored content
             </p>
           </div>
           <div className="flex items-start gap-2">
