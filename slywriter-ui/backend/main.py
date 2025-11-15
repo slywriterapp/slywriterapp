@@ -2141,7 +2141,6 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
         days_until_sunday = (6 - today.weekday()) % 7
         reset_date = (today + timedelta(days=days_until_sunday)).isoformat()
         referral_code = user.referral_code or f"SLY{user.id}"
-        referrals_successful = db.query(User).filter(User.referred_by == referral_code).count()
         bonus_words = user.referral_bonus or 0  # Use actual bonus words from database
         total_sessions = db.query(TypingSession).filter(TypingSession.user_id == user.id).count()
 
@@ -2177,8 +2176,8 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
             },
             "referrals": {
                 "code": referral_code,
-                "successful": referrals_successful,
-                "pending": 0,
+                "count": user.referral_count or 0,  # Match format from other endpoints
+                "tier_claimed": user.referral_tier_claimed or 0,
                 "bonus_words": bonus_words,
                 "share_link": f"https://slywriter.ai/signup?ref={referral_code}"
             },
