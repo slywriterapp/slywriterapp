@@ -2142,7 +2142,7 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
         reset_date = (today + timedelta(days=days_until_sunday)).isoformat()
         referral_code = user.referral_code or f"SLY{user.id}"
         referrals_successful = db.query(User).filter(User.referred_by == referral_code).count()
-        bonus_words = referrals_successful * 500
+        bonus_words = user.referral_bonus or 0  # Use actual bonus words from database
         total_sessions = db.query(TypingSession).filter(TypingSession.user_id == user.id).count()
 
         # Extract username from email (User model doesn't have a name field)
