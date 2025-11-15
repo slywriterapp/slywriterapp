@@ -198,6 +198,14 @@ export default function AIHubTab() {
             case 'countdown':
               setCountdown(data.data.count)
               setTypingStatus(`Starting in ${data.data.count}...`)
+
+              // Send countdown to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'countdown',
+                  value: data.data.count
+                })
+              }
               break
 
             case 'typing_started':
@@ -252,14 +260,47 @@ export default function AIHubTab() {
 
             case 'pause':
               setTypingStatus(data.data.status || '⏸️ Taking a break...')
+
+              // Send pause status to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'typing',
+                  status: data.data.status || '⏸️ Paused',
+                  progress: typingProgress,
+                  wpm: typingWpm,
+                  charsTyped: charsTyped
+                })
+              }
               break
 
             case 'zone_out':
               setTypingStatus(data.data.status || '😴 Zoning out...')
+
+              // Send zone out status to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'typing',
+                  status: data.data.status || '😴 Zoning out...',
+                  progress: typingProgress,
+                  wpm: typingWpm,
+                  charsTyped: charsTyped
+                })
+              }
               break
 
             case 'ai_filler':
               setTypingStatus('🤖 AI Filler...')
+
+              // Send AI filler status to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'typing',
+                  status: '🤖 AI Filler...',
+                  progress: typingProgress,
+                  wpm: typingWpm,
+                  charsTyped: charsTyped
+                })
+              }
               break
 
             case 'complete':
@@ -293,6 +334,15 @@ export default function AIHubTab() {
               toast.error(data.data.message || 'Typing error occurred')
               setIsTyping(false)
               setTypingStatus('Error')
+
+              // Send error to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'error',
+                  message: data.data.message || 'Typing error occurred',
+                  status: 'Error'
+                })
+              }
               break
 
             case 'status':
