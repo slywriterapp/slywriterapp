@@ -2097,27 +2097,10 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             Advanced Settings
           </h3>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Typo Rate - controls natural typo frequency */}
-          <div>
-            <label className="flex items-center justify-between text-sm font-medium text-gray-300 mb-2">
-              <span>Natural Typo Rate</span>
-              <span className="text-purple-400 font-mono">{typoRate}%</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="0.5"
-              value={typoRate}
-              onChange={(e) => setTypoRate(parseFloat(e.target.value))}
-              className="w-full accent-purple-500"
-              disabled={isTyping}
-            />
-          </div>
-        </div>
-        
+
+        {/* FUTURE FEATURES: Typo rate slider, grammarly delay, AI filler settings removed */}
+        {/* Typos now auto-enable based on WPM (< 100 WPM = typos ON) */}
+
         {/* Toggle Options */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <label className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors group relative">
