@@ -10,6 +10,7 @@
     "dist": "electron-builder --win --publish never",
     "dist:nsis": "electron-builder --win nsis",
     "dist:squirrel": "electron-builder --win squirrel",
+    "dist:mac": "electron-builder --mac dmg",
     "pack:win": "electron-builder --win --dir"
   },
   "keywords": [
@@ -339,6 +340,11 @@
       "unicode": true,
       "preCompressedFileExtensions": [".mp4", ".webm", ".png", ".jpg"],
       "warningsAsErrors": false
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity",
+      "artifactName": "SlyWriter-${version}.${ext}"
     }
   }
 }
