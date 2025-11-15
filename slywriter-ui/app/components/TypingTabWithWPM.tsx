@@ -894,7 +894,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         profile: selectedProfile,
         preview_mode: previewMode,
         custom_wpm: customWpm,
-        typos_enabled: customWpm < 100, // Enable typos for slower speeds (< 100 WPM)
+        typos_enabled: humanMode || customWpm < 100, // Manual override OR auto-enable for < 100 WPM
         // FUTURE: ai_filler_enabled, grammarly_mode, grammarly_delay - Not implemented yet
         typing_speed: parseInt(typingSpeed), // Use profile speed setting
         pause_frequency: parseInt(pauseFrequency) // Use profile pause frequency
@@ -1185,7 +1185,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             profile: selectedProfile || 'Medium',
             preview_mode: false,
             custom_wpm: actualWpm,
-            typos_enabled: humanMode,
+            typos_enabled: humanMode || actualWpm < 100, // Manual override OR auto-enable for < 100 WPM
             // FUTURE: ai_filler_enabled, grammarly_mode, grammarly_delay - Not implemented yet
             typing_speed: parseInt(typingSpeed),
             pause_frequency: parseInt(pauseFrequency)
@@ -2110,7 +2110,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               onChange={(e) => {
                 setHumanMode(e.target.checked)
                 if (e.target.checked) {
-                  toast.success('🎭 Human mode activated!')
+                  toast.success('🎭 Natural typos enabled!')
+                } else {
+                  toast.success('⚡ Typos disabled (unless WPM < 100)')
                 }
               }}
               className="w-5 h-5 text-purple-500 rounded"
@@ -2118,17 +2120,26 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             />
             <div className="flex-1">
               <span className="text-white font-medium text-sm">Natural Typos</span>
-              <p className="text-xs text-gray-400">2% instant fixes</p>
+              <p className="text-xs text-gray-400">
+                {customWpm < 100 ? (
+                  <span className="text-green-400">✓ Auto-enabled (&lt;100 WPM)</span>
+                ) : (
+                  humanMode ? '2% instant fixes' : 'Disabled (can enable)'
+                )}
+              </p>
             </div>
             {/* Human Mode Tooltip */}
-            <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-gray-900 rounded-lg shadow-xl border border-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            <div className="absolute bottom-full left-0 mb-2 w-80 p-3 bg-gray-900 rounded-lg shadow-xl border border-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
               <p className="text-xs text-gray-200">
-                <span className="text-blue-300 font-semibold">🎭 Natural Typing Patterns:</span><br/>
+                <span className="text-blue-300 font-semibold">🎭 Natural Typing with Typos:</span><br/>
                 • Makes occasional typos (2% chance)<br/>
                 • Immediately corrects them (like real typing)<br/>
                 • Keyboard proximity errors (hit adjacent keys)<br/>
-                • Works WITH delayed corrections (reduced rate)<br/>
-                • Natural pauses and speed variations<br/>
+                <br/>
+                <span className="text-yellow-300 font-semibold">⚡ Auto-Enable Logic:</span><br/>
+                • <span className="text-green-300">WPM &lt; 100:</span> Typos AUTO-ENABLED (realistic)<br/>
+                • <span className="text-purple-300">WPM ≥ 100:</span> Check this box to enable manually<br/>
+                <br/>
                 <span className="text-green-300 mt-1 inline-block">Makes typing look genuinely human!</span>
               </p>
             </div>
