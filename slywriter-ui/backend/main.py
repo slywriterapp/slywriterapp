@@ -91,7 +91,7 @@ def verify_admin(authorization: str = Header(None)):
 
     return True
 
-app = FastAPI(title="SlyWriter Backend", version="2.7.2")
+app = FastAPI(title="SlyWriter Backend", version="2.7.3")
 
 # Configure CORS
 app.add_middleware(
