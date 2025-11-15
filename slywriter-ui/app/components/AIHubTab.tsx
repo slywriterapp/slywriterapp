@@ -205,6 +205,22 @@ export default function AIHubTab() {
               setIsTyping(true)
               setTypingStatus('⌨️ Typing...')
               setTypingProgress(0)
+
+              // Show overlay and send initial stats
+              if (typeof window !== 'undefined' && (window as any).electron) {
+                if ((window as any).electron.showOverlay) {
+                  (window as any).electron.showOverlay()
+                }
+                if ((window as any).electron.ipcRenderer) {
+                  (window as any).electron.ipcRenderer.send('typing-status', {
+                    type: 'typing',
+                    progress: 0,
+                    wpm: 0,
+                    charsTyped: 0,
+                    status: '⌨️ Typing...'
+                  })
+                }
+              }
               break
 
             case 'progress':
@@ -218,6 +234,18 @@ export default function AIHubTab() {
               setCharsTyped(currentCharsTyped)
               setTotalChars(currentTotalChars)
               setTypingStatus(data.data.status || '⌨️ Typing in progress')
+
+              // Send to overlay for real-time progress display
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'typing',
+                  progress: progressValue,
+                  wpm: currentWpm,
+                  charsTyped: currentCharsTyped,
+                  totalChars: currentTotalChars,
+                  status: data.data.status || '⌨️ Typing...'
+                })
+              }
 
               console.log(`[AIHub] Progress update: ${progressValue}% (${currentCharsTyped}/${currentTotalChars} chars) - WPM: ${currentWpm}`)
               break
@@ -241,6 +269,16 @@ export default function AIHubTab() {
               setTypingStatus('✅ Finished!')
               setTypingProgress(100)
               toast.success('Typing session complete!')
+
+              // Send completion to overlay
+              if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+                (window as any).electron.ipcRenderer.send('typing-status', {
+                  type: 'typing',
+                  progress: 100,
+                  wpm: typingWpm,
+                  status: '✅ Finished!'
+                })
+              }
 
               // Reset after 3 seconds
               setTimeout(() => {
