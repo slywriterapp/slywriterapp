@@ -923,7 +923,7 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
         preview_mode: previewMode,
         custom_wpm: customWpm,
         ai_filler_enabled: aiFillerEnabled, // Pass premium AI filler setting
-        typos_enabled: humanMode, // Enable typos when in human mode
+        typos_enabled: customWpm < 100, // Enable typos for slower speeds (< 100 WPM)
         grammarly_mode: grammarlyCorrectionEnabled, // Enable delayed corrections
         grammarly_delay: grammarlyCorrectionDelay, // Delay before corrections
         typo_rate: typoRate, // Percentage chance of typos

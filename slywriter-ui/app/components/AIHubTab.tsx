@@ -572,7 +572,8 @@ export default function AIHubTab() {
             text,
             profile: savedProfile,
             custom_wpm: actualWpm,
-            preview_mode: false
+            preview_mode: false,
+            typos_enabled: actualWpm < 100 // Enable typos for slower speeds
           })
         })
 
@@ -895,7 +896,8 @@ export default function AIHubTab() {
           text: output,
           profile: savedProfile,
           custom_wpm: actualWpm,
-          preview_mode: false
+          preview_mode: false,
+          typos_enabled: actualWpm < 100 // Enable typos for slower speeds
         })
       })
       
@@ -1483,6 +1485,8 @@ export default function AIHubTab() {
                         try {
                           const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
                           const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+                          const wpmMap: { [key: string]: number } = { Slow: 40, Medium: 70, Fast: 100, Lightning: 250, Custom: parseInt(savedWpm || '70') }
+                          const actualWpm = wpmMap[savedProfile] || 70
 
                           const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
                             method: 'POST',
@@ -1493,7 +1497,8 @@ export default function AIHubTab() {
                               text: reviewText,
                               profile: savedProfile,
                               custom_wpm: savedProfile === 'Custom' ? parseInt(savedWpm || '70') : null,
-                              preview_mode: false
+                              preview_mode: false,
+                              typos_enabled: actualWpm < 100 // Enable typos for slower speeds
                             })
                           })
 

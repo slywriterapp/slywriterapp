@@ -87,7 +87,8 @@ export default function GlobalHotkeyListener() {
             await axios.post(`${TYPING_API_URL}/api/typing/start`, {
               text: humanizedText,
               profile: 'Medium',
-              preview_mode: false
+              preview_mode: false,
+              typos_enabled: true // Medium profile is 70 WPM, enable typos
             })
             toast.success('✨ Humanized and typing started!')
           }
@@ -150,10 +151,16 @@ export default function GlobalHotkeyListener() {
       }
       
       // Start typing using local backend
+      const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
+      const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+      const wpmMap: { [key: string]: number } = { Slow: 40, Medium: 70, Fast: 100, Lightning: 250, Custom: parseInt(savedWpm || '70') }
+      const actualWpm = wpmMap[savedProfile] || 70
+
       await axios.post(`${TYPING_API_URL}/api/typing/start`, {
         text,
-        profile: localStorage.getItem('slywriter-selected-profile') || 'Medium',
-        preview_mode: false
+        profile: savedProfile,
+        preview_mode: false,
+        typos_enabled: actualWpm < 100 // Enable typos for slower speeds
       })
       
       toast.success('Typing started!')
@@ -326,7 +333,8 @@ export default function GlobalHotkeyListener() {
           await axios.post(`${TYPING_API_URL}/api/typing/start`, {
             text: generatedText,
             profile: 'Medium',
-            preview_mode: false
+            preview_mode: false,
+            typos_enabled: true // Medium profile is 70 WPM, enable typos
           })
           
           toast.success('✨ AI generated and typing started!')
@@ -475,7 +483,8 @@ export default function GlobalHotkeyListener() {
           await axios.post(`${TYPING_API_URL}/api/typing/start`, {
             text: generatedText,
             profile: 'Medium',
-            preview_mode: false
+            preview_mode: false,
+            typos_enabled: true // Medium profile is 70 WPM, enable typos
           })
           
           toast.success('✨ AI generated and typing started!')
