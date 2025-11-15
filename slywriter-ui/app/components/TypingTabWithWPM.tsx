@@ -2121,11 +2121,14 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             <div className="flex-1">
               <span className="text-white font-medium text-sm">Natural Typos</span>
               <p className="text-xs text-gray-400">
-                {customWpm < 100 ? (
-                  <span className="text-green-400">✓ Auto-enabled (&lt;100 WPM)</span>
-                ) : (
-                  humanMode ? '2% instant fixes' : 'Disabled (can enable)'
-                )}
+                {(() => {
+                  const currentWpm = getProfileWpm(selectedProfile, testWpm)
+                  return currentWpm < 100 ? (
+                    <span className="text-green-400">✓ Auto-enabled (&lt;100 WPM)</span>
+                  ) : (
+                    humanMode ? '2% instant fixes' : 'Disabled (can enable)'
+                  )
+                })()}
               </p>
             </div>
             {/* Human Mode Tooltip */}
