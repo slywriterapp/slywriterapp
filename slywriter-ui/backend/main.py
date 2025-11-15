@@ -2180,7 +2180,7 @@ async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
                 "successful": referrals_successful,
                 "pending": 0,
                 "bonus_words": bonus_words,
-                "share_link": f"https://slywriter.app/signup?ref={referral_code}"
+                "share_link": f"https://slywriter.ai/signup?ref={referral_code}"
             },
             "stats": {
                 "total_generations": user.total_ai_generations or 0,
