@@ -5,7 +5,7 @@ This package provides a desktop typing automation application built with Python 
 The app simulates human-like typing with realistic delays, typos, and pausing patterns.
 """
 
-__version__ = "2.7.1"
+__version__ = "2.7.8"
 __author__ = "SlyWriter"
 
 # Avoid importing main at package level to prevent circular imports
