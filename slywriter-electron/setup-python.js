@@ -47,30 +47,38 @@ function init(userDataPath) {
   console.log('[setup-python] PYTHON_EXE:', PYTHON_EXE)
 }
 
-async function downloadFile(url, dest, retries = 3) {
+async function downloadFile(url, dest, retries = 3, redirectCount = 0) {
+  const MAX_REDIRECTS = 5
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`Downloading ${url} (attempt ${attempt}/${retries})...`)
       await new Promise((resolve, reject) => {
         const file = fs.createWriteStream(dest)
+        let fileOpened = true
 
         const request = https.get(url, (response) => {
           // Handle redirects
           if (response.statusCode === 301 || response.statusCode === 302) {
-            console.log(`Following redirect to: ${response.headers.location}`)
-            https.get(response.headers.location, (redirectResponse) => {
-              redirectResponse.pipe(file)
-              file.on('finish', () => {
-                file.close(resolve)
-              })
-            }).on('error', (err) => {
+            if (redirectCount >= MAX_REDIRECTS) {
+              file.close()
               fs.unlink(dest, () => {})
-              reject(err)
-            })
+              reject(new Error('Too many redirects'))
+              return
+            }
+
+            const redirectUrl = response.headers.location
+            console.log(`Following redirect to: ${redirectUrl}`)
+            file.close()
+            fileOpened = false
+
+            // Recursively call downloadFile with the redirect URL
+            downloadFile(redirectUrl, dest, 1, redirectCount + 1).then(resolve).catch(reject)
             return
           }
 
           if (response.statusCode !== 200) {
+            file.close()
             fs.unlink(dest, () => {})
             reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`))
             return
@@ -78,9 +86,24 @@ async function downloadFile(url, dest, retries = 3) {
 
           response.pipe(file)
           file.on('finish', () => {
-            file.close(resolve)
+            file.close(() => {
+              fileOpened = false
+              resolve()
+            })
+          })
+          file.on('error', (err) => {
+            if (fileOpened) {
+              file.close()
+              fileOpened = false
+            }
+            fs.unlink(dest, () => {})
+            reject(err)
           })
         }).on('error', (err) => {
+          if (fileOpened) {
+            file.close()
+            fileOpened = false
+          }
           fs.unlink(dest, () => {})
           reject(err)
         })
@@ -88,6 +111,10 @@ async function downloadFile(url, dest, retries = 3) {
         // Timeout after 120 seconds (larger files for macOS)
         request.setTimeout(120000, () => {
           request.abort()
+          if (fileOpened) {
+            file.close()
+            fileOpened = false
+          }
           fs.unlink(dest, () => {})
           reject(new Error('Download timeout'))
         })
