@@ -1909,18 +1909,47 @@ app.whenReady().then(async () => {
                       let aiTypingWpm = null
 
                       try {
-                        aiTypingProfile = await mainWindow.webContents.executeJavaScript(`
-                          localStorage.getItem('slywriter-selected-profile') || 'Medium'
+                        // MIGRATION: Clean up localStorage before reading
+                        console.error('🔥🔥🔥 [ELECTRON MIGRATION] BEFORE READING LOCALSTORAGE 🔥🔥🔥')
+
+                        const profileAndWpm = await mainWindow.webContents.executeJavaScript(`
+                          (() => {
+                            let profile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
+                            let customWpm = localStorage.getItem('slywriter-custom-wpm')
+
+                            console.error('🔥 [MIGRATION] BEFORE: profile =', profile, ', customWpm =', customWpm)
+
+                            // MIGRATION: If profile is NOT Custom but custom WPM exists, clear it
+                            if (profile !== 'Custom' && customWpm) {
+                              console.error('🔥🔥🔥 [MIGRATION] MISMATCH DETECTED! 🔥🔥🔥')
+                              console.error('🔥 Profile:', profile, '| Custom WPM:', customWpm)
+                              console.error('🔥 CLEARING custom WPM from localStorage')
+                              localStorage.removeItem('slywriter-custom-wpm')
+                              customWpm = null
+                            }
+
+                            // MIGRATION: If profile is Custom but no custom WPM, force to Medium
+                            if (profile === 'Custom' && !customWpm) {
+                              console.error('🔥🔥🔥 [MIGRATION] ORPHAN Custom PROFILE! 🔥🔥🔥')
+                              console.error('🔥 FORCING profile to Medium')
+                              localStorage.setItem('slywriter-selected-profile', 'Medium')
+                              profile = 'Medium'
+                            }
+
+                            console.error('🔥 [MIGRATION] AFTER: profile =', profile, ', customWpm =', customWpm)
+
+                            return {
+                              profile: profile,
+                              customWpm: customWpm ? parseInt(customWpm) : null
+                            }
+                          })()
                         `)
 
-                        const savedWpm = await mainWindow.webContents.executeJavaScript(`
-                          localStorage.getItem('slywriter-custom-wpm')
-                        `)
+                        aiTypingProfile = profileAndWpm.profile
+                        aiTypingWpm = profileAndWpm.customWpm
 
-                        if (savedWpm) {
-                          aiTypingWpm = parseInt(savedWpm)
-                          console.log('🔥 [AI-GEN] Retrieved custom WPM from localStorage:', aiTypingWpm)
-                        }
+                        console.error('🔥🔥🔥 [ELECTRON MIGRATION] FINAL VALUES 🔥🔥🔥')
+                        console.error('🔥 Profile:', aiTypingProfile, '| Custom WPM:', aiTypingWpm)
                       } catch (err) {
                         console.log('Error getting AI typing settings, using defaults:', err.message)
                       }
