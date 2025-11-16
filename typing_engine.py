@@ -9,7 +9,25 @@ from datetime import datetime
 import config
 import clipboard
 import webbrowser
-import keyboard  # for actual keystrokes
+import platform
+
+# Cross-platform keyboard handling
+IS_MACOS = platform.system() == 'Darwin'
+if IS_MACOS:
+    import pyautogui
+    # macOS-compatible keyboard wrapper
+    class KeyboardWrapper:
+        @staticmethod
+        def write(text, delay=0):
+            pyautogui.write(text, interval=delay)
+
+        @staticmethod
+        def send(key):
+            pyautogui.press(key)
+
+    keyboard = KeyboardWrapper()
+else:
+    import keyboard  # Windows/Linux - use original library
 
 _typing_thread = None
 _stop_flag = threading.Event()
