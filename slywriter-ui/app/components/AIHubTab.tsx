@@ -626,15 +626,32 @@ export default function AIHubTab() {
       toast.success('📋 Text copied to clipboard!')
     } else {
       try {
+        // EXTREMELY VISIBLE DEBUG - Check localStorage BEFORE any logic
+        console.error('🔥🔥🔥 [AIHub autoOutput] BEFORE MIGRATION 🔥🔥🔥')
+        console.error('🔥 localStorage profile:', localStorage.getItem('slywriter-selected-profile'))
+        console.error('🔥 localStorage custom WPM:', localStorage.getItem('slywriter-custom-wpm'))
+
         // Get the current typing profile and WPM from localStorage
-        const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
-        const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+        let savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
+        let savedWpm = localStorage.getItem('slywriter-custom-wpm')
 
         // MIGRATION: Clean up localStorage if there's a mismatch
         // If profile is NOT Custom but custom WPM exists, clear it
         if (savedProfile !== 'Custom' && savedWpm) {
-          console.log('[AIHub MIGRATION] Profile is', savedProfile, 'but custom WPM exists (', savedWpm, ') - clearing it')
+          console.error('🔥🔥🔥 [AIHub MIGRATION] MISMATCH DETECTED! 🔥🔥🔥')
+          console.error('🔥 Profile:', savedProfile, '| Custom WPM:', savedWpm)
+          console.error('🔥 CLEARING custom WPM from localStorage')
           localStorage.removeItem('slywriter-custom-wpm')
+          savedWpm = null // Update the variable too
+        }
+
+        // If profile is Custom but no custom WPM, force to Medium
+        if (savedProfile === 'Custom' && !savedWpm) {
+          console.error('🔥🔥🔥 [AIHub MIGRATION] ORPHAN Custom PROFILE! 🔥🔥🔥')
+          console.error('🔥 Profile is Custom but no custom WPM value')
+          console.error('🔥 FORCING profile to Medium')
+          localStorage.setItem('slywriter-selected-profile', 'Medium')
+          savedProfile = 'Medium'
         }
 
         // Calculate actual WPM to use - same logic as TypingTabWithWPM
@@ -653,8 +670,10 @@ export default function AIHubTab() {
           actualWpm = wpmMap[savedProfile] || 70
         }
 
-        console.log('[AIHub] Starting auto-output with profile:', savedProfile, 'Actual WPM:', actualWpm)
-        console.log('[AIHub] Custom WPM in localStorage:', localStorage.getItem('slywriter-custom-wpm'))
+        console.error('🔥🔥🔥 [AIHub autoOutput] FINAL VALUES 🔥🔥🔥')
+        console.error('🔥 Profile:', savedProfile, '| WPM:', actualWpm)
+        console.error('🔥 localStorage profile:', localStorage.getItem('slywriter-selected-profile'))
+        console.error('🔥 localStorage custom WPM:', localStorage.getItem('slywriter-custom-wpm'))
 
         const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
           method: 'POST',
