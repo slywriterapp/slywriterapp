@@ -872,15 +872,19 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
 
       // EXTREMELY VISIBLE DEBUG - User MUST see this
       console.error('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥')
-      console.error('🚨 TYPING START - VERSION 2.5.5 🚨')
-      console.error('🔥 Selected Profile:', selectedProfile)
-      console.error('🔥 Test WPM (from state):', testWpm)
+      console.error('🚨 TYPING START - VERSION 2.7.4 🚨')
+      console.error('🔥 Selected Profile (state):', selectedProfile)
+      console.error('🔥 Selected Profile (localStorage):', localStorage.getItem('slywriter-selected-profile'))
+      console.error('🔥 Test WPM (state):', testWpm)
+      console.error('🔥 Custom WPM (localStorage):', localStorage.getItem('slywriter-custom-wpm'))
       console.error('🔥 Calculated WPM to send to backend:', customWpm)
       console.error('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥')
 
       console.log('========== TYPING START DEBUG ==========')
-      console.log('[TypingTab] Selected Profile:', selectedProfile)
-      console.log('[TypingTab] Test WPM:', testWpm)
+      console.log('[TypingTab] Selected Profile (state):', selectedProfile)
+      console.log('[TypingTab] Selected Profile (localStorage):', localStorage.getItem('slywriter-selected-profile'))
+      console.log('[TypingTab] Test WPM (state):', testWpm)
+      console.log('[TypingTab] Custom WPM (localStorage):', localStorage.getItem('slywriter-custom-wpm'))
       console.log('[TypingTab] Profile Default WPM:', getProfileWpm(selectedProfile))
       console.log('[TypingTab] Actual WPM (will be sent):', actualWpm)
       console.log('[TypingTab] Custom WPM parameter:', customWpm)
@@ -1686,14 +1690,26 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
+                  console.log(`[Profile Change] Selecting profile: ${profile.name}`)
                   setSelectedProfile(profile.name)
-                  // Set custom WPM to the profile's WPM value (makes profiles work like shortcuts)
-                  const profileWpm = getProfileWpm(profile.name)
-                  setTestWpm(profileWpm)
+
+                  // Immediately save to localStorage for consistency
                   if (typeof window !== 'undefined') {
-                    localStorage.setItem('slywriter-custom-wpm', profileWpm.toString())
+                    localStorage.setItem('slywriter-selected-profile', profile.name)
+                    console.log(`[Profile Change] Saved ${profile.name} to localStorage`)
                   }
-                  console.log(`[Profile Change] Set ${profile.name} profile WPM to ${profileWpm}`)
+
+                  // For non-Custom profiles, clear any saved custom WPM to avoid confusion
+                  if (profile.name !== 'Custom') {
+                    setTestWpm(0) // Reset to 0, getProfileWpm will use the default for the profile
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('slywriter-custom-wpm')
+                      console.log(`[Profile Change] Cleared custom WPM for ${profile.name} profile`)
+                    }
+                  }
+
+                  const profileWpm = getProfileWpm(profile.name)
+                  console.log(`[Profile Change] ${profile.name} will use ${profileWpm} WPM`)
                 }}
                 disabled={isTyping}
                 className={`
