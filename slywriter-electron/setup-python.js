@@ -199,7 +199,8 @@ async function setupPython(onProgress) {
           'google-auth',
           'google-api-python-client',
           'PyJWT',
-          'bcrypt'
+          'bcrypt',
+          'ttkbootstrap'
         ]
 
         for (const pkg of allPackages) {
@@ -328,7 +329,8 @@ async function setupPython(onProgress) {
       'google-auth',
       'google-api-python-client',
       'PyJWT',
-      'bcrypt'
+      'bcrypt',
+      'ttkbootstrap'
     ]
 
     const failedPackages = []
