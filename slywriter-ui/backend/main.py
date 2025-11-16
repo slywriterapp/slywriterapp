@@ -2268,6 +2268,126 @@ async def google_auth_desktop():
         "auth_url": "https://accounts.google.com/o/oauth2/auth"
     }
 
+# Manual login endpoints - store verification codes temporarily
+manual_login_codes = {}  # {email: {code: str, expires: datetime}}
+
+@app.post("/manual_login_start")
+async def manual_login_start(request: dict, db: Session = Depends(get_db)):
+    """Desktop App: Start manual login by sending verification code to email"""
+    email = request.get("email", "").strip().lower()
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    # Generate 6-digit code
+    import random
+    code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
+    # Store code with expiration (10 minutes)
+    manual_login_codes[email] = {
+        "code": code,
+        "expires": datetime.utcnow() + timedelta(minutes=10)
+    }
+
+    logger.info(f"Manual login verification code for {email}: {code}")
+
+    # TODO: Send code via email (requires SMTP configuration)
+    # For now, we'll log it so user can get it from server logs
+    # In production, you'd use SendGrid, AWS SES, or SMTP
+
+    print(f"\n{'='*60}")
+    print(f"VERIFICATION CODE FOR {email}: {code}")
+    print(f"{'='*60}\n")
+
+    return {
+        "success": True,
+        "message": f"Verification code sent to {email}",
+        # TEMPORARY: Include code in response for testing (REMOVE IN PRODUCTION)
+        "code": code  # Remove this in production!
+    }
+
+@app.post("/manual_login_verify")
+async def manual_login_verify(request: dict, db: Session = Depends(get_db)):
+    """Desktop App: Verify code and complete manual login"""
+    email = request.get("email", "").strip().lower()
+    code = request.get("code", "").strip()
+
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="Email and code required")
+
+    # Check if code exists and is valid
+    if email not in manual_login_codes:
+        raise HTTPException(status_code=400, detail="No verification code found for this email")
+
+    stored_data = manual_login_codes[email]
+
+    # Check expiration
+    if datetime.utcnow() > stored_data["expires"]:
+        del manual_login_codes[email]
+        raise HTTPException(status_code=400, detail="Verification code expired")
+
+    # Verify code
+    if code != stored_data["code"]:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+
+    # Code is valid - remove it
+    del manual_login_codes[email]
+
+    # Get or create user
+    user = get_user_by_email(db, email)
+    if not user:
+        # Create new user
+        user = create_user(db, email, plan="Free")
+
+        # Generate referral code
+        import secrets
+        user.referral_code = secrets.token_urlsafe(8)
+        db.commit()
+
+        logger.info(f"Created new user via manual login: {email}")
+    else:
+        # Update last login
+        user.last_login = datetime.utcnow()
+        db.commit()
+        logger.info(f"User logged in via manual login: {email}")
+
+    # Check if Pro/Premium from referrals has expired
+    if user.premium_until and user.premium_until < datetime.utcnow():
+        if not user.subscription_status or user.subscription_status != "active":
+            user.plan = "Free"
+            user.premium_until = None
+            db.commit()
+
+    # Check for weekly reset
+    check_weekly_reset(db, user)
+
+    # Generate JWT token
+    access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+
+    # Get user limits
+    limits = get_user_limits(user)
+
+    # Build user response (compatible with desktop app)
+    user_data = {
+        "id": user.id,
+        "email": user.email,
+        "plan": user.plan,
+        "usage": user.words_used_this_week,
+        "humanizer_usage": user.humanizer_used_this_week,
+        "ai_gen_usage": user.ai_gen_used_this_week,
+        "referrals": {
+            "code": user.referral_code,
+            "count": user.referral_count,
+            "tier_claimed": user.referral_tier_claimed,
+            "bonus_words": user.referral_bonus
+        },
+        "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+        "token": access_token,  # Desktop app expects token at top level
+        **limits
+    }
+
+    return user_data
+
 @app.post("/api/profiles/generate-from-wpm")
 async def generate_profile_from_wpm(request: dict):
     """Desktop App: Generate a custom profile based on WPM"""
