@@ -339,9 +339,9 @@ async function setupPython(onProgress) {
       try {
         await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', '--no-cache-dir', pkg], PYTHON_DIR)
 
-        // Verify it installed
+        // Verify it installed (case-insensitive check for package names like PyAutoGUI)
         const verifyResult = await runCommand(PYTHON_EXE, ['-m', 'pip', 'show', pkgName], PYTHON_DIR)
-        if (verifyResult.includes(`Name: ${pkgName}`)) {
+        if (verifyResult.toLowerCase().includes(`name: ${pkgName.toLowerCase()}`)) {
           console.log(`✅ ${pkg} installed successfully`)
         } else {
           console.error(`❌ ${pkg} installation verification failed`)
