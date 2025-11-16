@@ -118,6 +118,16 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
       // Only load profile if not already loaded or forced
       if (!profileLoaded || forceReloadProfile) {
         const savedProfile = localStorage.getItem('slywriter-selected-profile')
+        const savedCustomWpm = localStorage.getItem('slywriter-custom-wpm')
+
+        // MIGRATION: Clean up localStorage if there's a mismatch
+        // If profile is NOT Custom but custom WPM exists, clear it
+        if (savedProfile && savedProfile !== 'Custom' && savedCustomWpm) {
+          console.log('[MIGRATION] Profile is', savedProfile, 'but custom WPM exists (', savedCustomWpm, ') - clearing it')
+          localStorage.removeItem('slywriter-custom-wpm')
+          setTestWpm(0) // Clear the state too
+        }
+
         if (savedProfile) {
           console.log('Loading saved profile:', savedProfile)
           setSelectedProfile(savedProfile)
@@ -131,6 +141,9 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
               setTestWpm(wpm)
               console.log('Loaded custom WPM from localStorage:', wpm)
             }
+          } else {
+            // For non-Custom profiles, ensure testWpm is 0
+            setTestWpm(0)
           }
         }
       }

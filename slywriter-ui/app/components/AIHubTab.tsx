@@ -630,6 +630,13 @@ export default function AIHubTab() {
         const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
         const savedWpm = localStorage.getItem('slywriter-custom-wpm')
 
+        // MIGRATION: Clean up localStorage if there's a mismatch
+        // If profile is NOT Custom but custom WPM exists, clear it
+        if (savedProfile !== 'Custom' && savedWpm) {
+          console.log('[AIHub MIGRATION] Profile is', savedProfile, 'but custom WPM exists (', savedWpm, ') - clearing it')
+          localStorage.removeItem('slywriter-custom-wpm')
+        }
+
         // Calculate actual WPM to use - same logic as TypingTabWithWPM
         let actualWpm: number
         if (savedProfile === 'Custom' && savedWpm) {
@@ -647,6 +654,7 @@ export default function AIHubTab() {
         }
 
         console.log('[AIHub] Starting auto-output with profile:', savedProfile, 'Actual WPM:', actualWpm)
+        console.log('[AIHub] Custom WPM in localStorage:', localStorage.getItem('slywriter-custom-wpm'))
 
         const response = await fetch(`${LOCAL_API_URL}/api/typing/start`, {
           method: 'POST',
@@ -948,11 +956,17 @@ export default function AIHubTab() {
       toast.error('No output to type')
       return
     }
-    
+
     try {
       // Get the current typing profile and WPM from localStorage
       const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
       const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+
+      // MIGRATION: Clean up localStorage if there's a mismatch
+      if (savedProfile !== 'Custom' && savedWpm) {
+        console.log('[AIHub startTyping MIGRATION] Clearing custom WPM for', savedProfile, 'profile')
+        localStorage.removeItem('slywriter-custom-wpm')
+      }
 
       // Calculate actual WPM to use - same logic as TypingTabWithWPM
       let actualWpm: number
@@ -1570,6 +1584,13 @@ export default function AIHubTab() {
                         try {
                           const savedProfile = localStorage.getItem('slywriter-selected-profile') || 'Medium'
                           const savedWpm = localStorage.getItem('slywriter-custom-wpm')
+
+                          // MIGRATION: Clean up localStorage if there's a mismatch
+                          if (savedProfile !== 'Custom' && savedWpm) {
+                            console.log('[AIHub Review MIGRATION] Clearing custom WPM for', savedProfile, 'profile')
+                            localStorage.removeItem('slywriter-custom-wpm')
+                          }
+
                           const wpmMap: { [key: string]: number } = { Slow: 40, Medium: 70, Fast: 100, Lightning: 250, Custom: parseInt(savedWpm || '70') }
                           const actualWpm = wpmMap[savedProfile] || 70
 
