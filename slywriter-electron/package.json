@@ -10,7 +10,7 @@
     "dist": "electron-builder --win --publish never",
     "dist:nsis": "electron-builder --win nsis",
     "dist:squirrel": "electron-builder --win squirrel",
-    "dist:mac": "electron-builder --mac dmg",
+    "dist:mac": "electron-builder --mac dmg --publish never",
     "pack:win": "electron-builder --win --dir"
   },
   "keywords": [
