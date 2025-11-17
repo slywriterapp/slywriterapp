@@ -392,21 +392,13 @@ def show_word_limit_dialog(app):
     Show a dialog when user runs out of words, promoting referrals and upgrade options.
     Explains: Get 5 referrals = Free Premium forever!
     """
-    # Check current referral status if available
-    referral_info = ""
+    # Check current referral count if available
+    current_referrals = 0
     try:
-        if hasattr(app, 'account_tab') and hasattr(app.account_tab, 'usage_mgr'):
-            status = app.account_tab.usage_mgr.get_referral_pass_status()
-            if status:
-                referrals_needed = status.get('referrals_needed', 5)
-                current_referrals = status.get('referrals_progress', '0/5').split('/')[0]
-
-                if status.get('qualified', False):
-                    referral_info = "\n🎉 You've earned Free Premium through referrals!"
-                else:
-                    referral_info = f"\n\n💡 You have {current_referrals} referrals. Get {referrals_needed} more for FREE Premium!"
+        if hasattr(app, 'user') and app.user:
+            current_referrals = app.user.get('referral_count', 0)
     except:
-        referral_info = "\n\n💡 Get 5 referrals and unlock FREE Premium forever!"
+        current_referrals = 0
 
     dialog = tk.Toplevel(app)
     dialog.title("Word Limit Reached")
@@ -443,12 +435,29 @@ def show_word_limit_dialog(app):
     )
     title_label.pack(pady=(0, 10))
 
-    message_text = f"""You've reached your weekly word limit.{referral_info}
+    # Determine next referral milestone
+    next_milestone = ""
+    if current_referrals == 0:
+        next_milestone = "Get your first referral = 1,000 bonus words!"
+    elif current_referrals == 1:
+        next_milestone = "1 more referral = 2,500 words total!"
+    elif current_referrals == 2:
+        next_milestone = "1 more referral = 1 WEEK of Pro!"
+    elif current_referrals >= 3:
+        next_milestone = f"You have {current_referrals} referrals! Keep going for bigger rewards!"
+    else:
+        next_milestone = "Refer friends to unlock amazing rewards!"
+
+    message_text = f"""You've reached your weekly word limit.
+
+💡 {next_milestone}
 
 🎁 REFERRAL REWARDS:
-• Get 1000 bonus words per referral
-• 5 referrals = FREE Premium forever!
-• Your friends get 1000 words too!
+• 1 referral = 1,000 words
+• 2 referrals = 2,500 words
+• 3 referrals = 1 WEEK Pro
+• 5 referrals = 5,000 words
+• Plus even bigger rewards for more!
 
 ⬆️ OR UPGRADE:
 • Pro: 40,000 words/week
@@ -494,7 +503,7 @@ def show_word_limit_dialog(app):
     # Referral button (primary action - purple)
     referral_btn = tk.Button(
         button_frame,
-        text="🎁 Get Free Premium",
+        text="🎁 Earn Rewards",
         command=view_referrals,
         bg="#8b5cf6",
         fg="white",
