@@ -36,6 +36,7 @@ from sly_hotkeys import (
     register_hotkeys, set_start_hotkey, set_stop_hotkey, set_pause_hotkey,
     set_overlay_hotkey, set_ai_generation_hotkey, reset_hotkeys, validate_and_set_hotkey
 )
+from mac_onboarding import check_and_show_mac_onboarding
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
@@ -276,6 +277,9 @@ class TypingApp(tb.Window):
 
         register_hotkeys(self)
 
+        # Mac onboarding for first-run permission setup
+        self.after(500, self._check_mac_onboarding)  # Delay to let window finish rendering
+
     # ─── Profile handlers ───────────────────
     def _add_profile(self):
         add_profile(self)
@@ -327,6 +331,13 @@ class TypingApp(tb.Window):
         except Exception as e:
             # Silently handle errors to prevent breaking tab switching
             print(f"[TAB_CHANGE] Error refreshing display: {e}")
+
+    def _check_mac_onboarding(self):
+        """Check if Mac onboarding is needed and show dialog if so"""
+        try:
+            check_and_show_mac_onboarding(self)
+        except Exception as e:
+            print(f"[MAC_ONBOARDING] Error checking Mac onboarding: {e}")
 
     # ─── Login/Logout ──────────────────────
     def on_login(self, user_info):
