@@ -39,6 +39,8 @@ nul
 
 # Large files and build outputs
 *.zip
+*.tar.gz
+*.dmg
 SlyWriter_Beta_Complete/slywriter-electron/out/
 slywriter-electron/out/
 *.exe

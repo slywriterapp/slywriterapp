@@ -47,7 +47,7 @@ export default function StatisticsTab() {
   const loadStats = async () => {
     try {
       // Get auth token from localStorage
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('auth_token')
       if (!token) {
         console.log('No auth token found')
         return
