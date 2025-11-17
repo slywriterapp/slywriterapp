@@ -348,13 +348,24 @@ class OverlayTab(tk.Frame):
     def _create_overlay(self):
         if self.overlay_window:
             return
-            
+
         # Create overlay window
         self.overlay_window = tk.Toplevel(self.app)
         self.overlay_window.title("SlyWriter Overlay")
         self.overlay_window.overrideredirect(True)  # Remove window borders
         self.overlay_window.attributes('-topmost', True)  # Always on top
         self.overlay_window.attributes('-alpha', self.overlay_opacity.get())  # User-controlled transparency
+
+        # Mac-specific: Prevent main window from stealing focus when overlay is shown
+        import platform
+        if platform.system() == 'Darwin':
+            # Make overlay truly independent - doesn't activate parent on click
+            try:
+                self.overlay_window.attributes('-type', 'utility')  # Floating panel type
+                # Prevent focus stealing to main app
+                self.overlay_window.bind('<FocusOut>', lambda e: None)  # Don't propagate focus loss
+            except:
+                pass  # Fallback if attributes not supported
         
         # Position overlay using stored position and size
         width = self.overlay_width.get()

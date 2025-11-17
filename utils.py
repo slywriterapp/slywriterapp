@@ -56,7 +56,9 @@ class HotkeyRecorder(tk.Frame):
         self.theme_dark = False
 
         # --- UI ---
-        self.label = tk.Label(self, text=f"Current hotkey: {self.current}")
+        # Format hotkey for display (Cmd on Mac, Ctrl on Windows)
+        display_hotkey = self._format_hotkey_for_display(self.current)
+        self.label = tk.Label(self, text=f"Current hotkey: {display_hotkey}")
         self.label.pack(pady=5)
 
         self.entry_var = tk.StringVar()
@@ -90,6 +92,17 @@ class HotkeyRecorder(tk.Frame):
 
         # Set theme AFTER widgets exist
         self.set_theme(False)
+
+    def _format_hotkey_for_display(self, hotkey):
+        """Format hotkey string for display - Cmd on Mac, Ctrl on Windows/Linux"""
+        if not hotkey:
+            return ""
+
+        import platform
+        if platform.system() == 'Darwin':  # Mac
+            # Replace 'ctrl' with 'cmd' for Mac display
+            return hotkey.replace('ctrl', 'cmd').replace('Ctrl', 'Cmd')
+        return hotkey
 
     def set_theme(self, dark):
         """

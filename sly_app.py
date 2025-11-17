@@ -238,11 +238,14 @@ class TypingApp(tb.Window):
         # --- Modern Notebook tabs ---
         self.notebook = tb.Notebook(self)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=5)
-        
+
         # Apply modern notebook styling
         is_dark = self.cfg['settings'].get('dark_mode', False)
         apply_modern_notebook_style(self.notebook, is_dark)
-        
+
+        # Bind tab change event to refresh usage display
+        self.notebook.bind('<<NotebookTabChanged>>', self._on_tab_changed)
+
         self.tabs = {}
         for name in ['Dashboard', 'Account', 'Typing', 'Hotkeys', 'Diagnostics', 'Humanizer', 'Overlay', 'Learn']:
             f = tb.Frame(self.notebook)
@@ -298,6 +301,31 @@ class TypingApp(tb.Window):
         self.cfg['active_profile'] = self.active_profile.get()
         save_config(self.cfg)
         on_profile_change(self)
+
+    def _on_tab_changed(self, event=None):
+        """Refresh usage display when Dashboard or Account tab is selected"""
+        try:
+            # Get the currently selected tab
+            current_tab = self.notebook.select()
+            tab_name = None
+
+            # Find which tab is selected
+            for name, frame in self.tabs.items():
+                if str(frame) == current_tab:
+                    tab_name = name
+                    break
+
+            # Refresh usage display for Dashboard and Account tabs
+            if tab_name in ['Dashboard', 'Account'] and self.user:
+                if hasattr(self, 'account_tab') and hasattr(self.account_tab, 'usage_mgr'):
+                    self.account_tab.usage_mgr.update_usage_display()
+
+                # Also refresh dashboard if it's the dashboard tab
+                if tab_name == 'Dashboard' and hasattr(self, 'dashboard_tab'):
+                    self.dashboard_tab.update_dashboard_data()
+        except Exception as e:
+            # Silently handle errors to prevent breaking tab switching
+            print(f"[TAB_CHANGE] Error refreshing display: {e}")
 
     # ─── Login/Logout ──────────────────────
     def on_login(self, user_info):
