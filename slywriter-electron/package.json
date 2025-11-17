@@ -345,7 +345,10 @@
       "target": ["dmg"],
       "category": "public.app-category.productivity",
       "icon": "assets/icon-1024.png",
-      "artifactName": "SlyWriter-${version}.${ext}"
+      "artifactName": "SlyWriter-${version}.${ext}",
+      "notarize": {
+        "teamId": "${process.env.APPLE_TEAM_ID}"
+      }
     }
   }
 }
