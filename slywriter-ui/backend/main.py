@@ -1673,10 +1673,10 @@ async def generate_ai_text(request: AIGenerateRequest):
             5: 800    # 15+ sentences
         }
 
-        # For essays, use higher token counts
+        # For essays, use higher token counts (match humanizer limit of 4000 tokens for ~3000 words)
         if response_type == 'essay':
             required_pages = settings.get('required_pages', 1)
-            calculated_max_tokens = min(2000, required_pages * 500)  # ~500 tokens per page
+            calculated_max_tokens = min(4000, required_pages * 500)  # ~500 tokens per page, max 4000
         else:
             calculated_max_tokens = token_map.get(response_length, 300)
 
@@ -1732,7 +1732,7 @@ async def humanize_text(request: AIHumanizeRequest):
                 {"role": "system", "content": "You are an expert at making text sound more natural and human-like."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=1000
+            max_tokens=4000  # Support up to 3000 words
         )
 
         humanized_text = response.choices[0].message.content
