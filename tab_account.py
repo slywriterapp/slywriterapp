@@ -220,7 +220,31 @@ class AccountTab(tk.Frame):
         try:
             r = requests.post(f"{SERVER_URL}/manual_login_start", json={"email": email})
             if r.status_code == 200:
-                code = sd.askstring("Verify Email", "Enter the verification code sent to your email:")
+                data = r.json()
+                email_sent = data.get('email_sent', False)
+                verification_code = data.get('code', '')
+
+                # Show different messages based on whether email was sent
+                if email_sent:
+                    messagebox.showinfo(
+                        "Check Your Email",
+                        f"A verification code has been sent to:\n{email}\n\n"
+                        f"Please check your email and enter the code below."
+                    )
+                    prompt_msg = f"Enter the 6-digit code sent to {email}:"
+                elif verification_code:
+                    # Email not configured - show code directly
+                    messagebox.showinfo(
+                        "Verification Code",
+                        f"Your verification code is:\n\n{verification_code}\n\n"
+                        f"(Email delivery not configured - showing code directly)"
+                    )
+                    prompt_msg = "Enter the verification code shown above:"
+                else:
+                    messagebox.showerror("Error", "Could not generate verification code")
+                    return
+
+                code = sd.askstring("Verify Email", prompt_msg)
                 if not code:
                     return
                 r2 = requests.post(f"{SERVER_URL}/manual_login_verify", json={"email": email, "code": code})
@@ -231,14 +255,16 @@ class AccountTab(tk.Frame):
                     self._render_user_status()
                     self.usage_mgr.update_usage_display()
                     self.app.on_login(user_info)
-                    
+
                     # Force immediate UI update for words left bar
                     self.update_idletasks()
                     messagebox.showinfo("Manual Sign-In", "Logged in successfully!")
                 else:
-                    messagebox.showerror("Manual Sign-In", "Invalid code. Try again.")
+                    error_msg = r2.json().get('detail', 'Invalid code. Try again.')
+                    messagebox.showerror("Manual Sign-In", error_msg)
             else:
-                messagebox.showerror("Manual Sign-In", "Could not send verification code. Try again.")
+                error_msg = r.json().get('detail', 'Could not generate verification code. Try again.')
+                messagebox.showerror("Manual Sign-In", error_msg)
         except Exception as e:
             messagebox.showerror("Manual Sign-In", f"Error: {e}")
 

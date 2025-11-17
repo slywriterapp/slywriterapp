@@ -2291,19 +2291,61 @@ async def manual_login_start(request: dict, db: Session = Depends(get_db)):
 
     logger.info(f"Manual login verification code for {email}: {code}")
 
-    # TODO: Send code via email (requires SMTP configuration)
-    # For now, we'll log it so user can get it from server logs
-    # In production, you'd use SendGrid, AWS SES, or SMTP
+    # Send verification code via email
+    smtp_username = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
 
+    email_sent = False
+    if smtp_username and smtp_password:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = "SlyWriter Verification Code"
+            msg['From'] = f"SlyWriter <{smtp_username}>"
+            msg['To'] = email
+
+            html_body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
+                    <h1 style="color: #333;">SlyWriter Verification Code</h1>
+                    <p>Your verification code is:</p>
+                    <h2 style="color: #7c3aed; font-size: 32px; letter-spacing: 5px; text-align: center; padding: 20px; background-color: #f3f4f6; border-radius: 5px;">{code}</h2>
+                    <p style="color: #666;">This code will expire in 10 minutes.</p>
+                    <p style="color: #666;">If you didn't request this code, please ignore this email.</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            msg.attach(MIMEText(html_body, 'html'))
+
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+            server.quit()
+
+            email_sent = True
+            logger.info(f"Verification email sent to {email}")
+        except Exception as e:
+            logger.error(f"Failed to send email: {e}")
+            # Continue even if email fails - will fall back to showing code
+
+    # Log code for debugging (always log even if email works)
     print(f"\n{'='*60}")
     print(f"VERIFICATION CODE FOR {email}: {code}")
     print(f"{'='*60}\n")
 
     return {
         "success": True,
-        "message": f"Verification code sent to {email}",
-        # TEMPORARY: Include code in response for testing (REMOVE IN PRODUCTION)
-        "code": code  # Remove this in production!
+        "message": f"Verification code sent to {email}" if email_sent else "Verification code generated",
+        # Include code in response for testing/fallback when email isn't configured
+        "code": code if not email_sent else None,
+        "email_sent": email_sent
     }
 
 @app.post("/manual_login_verify")
