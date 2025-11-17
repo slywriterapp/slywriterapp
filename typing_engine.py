@@ -10,6 +10,7 @@ import config
 import clipboard
 import webbrowser
 import platform
+from utils import show_word_limit_dialog
 
 # Cross-platform keyboard handling
 IS_MACOS = platform.system() == 'Darwin'
@@ -39,6 +40,12 @@ _custom_typos = config.custom_typos
 _account_tab = None
 _stats_tab = None   # Diagnostics tab reference
 _overlay_tab = None  # Overlay tab reference
+_app = None  # Main app reference for dialogs
+
+def set_app_reference(app):
+    global _app
+    _app = app
+    print("App reference set in typing_engine")
 
 def set_account_tab_reference(tab):
     global _account_tab
@@ -110,6 +117,9 @@ def start_typing_from_input(
         if _account_tab and not _account_tab.has_words_remaining():
             status_callback("Limit reached – upgrade plan to continue.")
             print("[BLOCKED] Typing blocked: word limit reached.")
+            # Show referral promotion dialog (thread-safe)
+            if _app:
+                _app.after(0, lambda: show_word_limit_dialog(_app))
             return
 
         for i in range(5, 0, -1):
@@ -184,6 +194,9 @@ def start_typing_from_input(
             if _account_tab and not _account_tab.has_words_remaining():
                 status_callback("Limit reached – upgrade plan to continue.")
                 print("[LIMIT] Typing interrupted: limit reached mid-session.")
+                # Show referral promotion dialog (thread-safe)
+                if _app:
+                    _app.after(0, lambda: show_word_limit_dialog(_app))
                 return
             
             # Add random breaks throughout typing (not just at punctuation)

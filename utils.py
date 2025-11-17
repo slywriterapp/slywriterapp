@@ -386,3 +386,154 @@ def require_premium_old(app, feature_name="this feature"):
         f"Upgrade to SlyWriter Premium to unlock {feature_name}!"
     )
     return False
+
+def show_word_limit_dialog(app):
+    """
+    Show a dialog when user runs out of words, promoting referrals and upgrade options.
+    Explains: Get 5 referrals = Free Premium forever!
+    """
+    # Check current referral status if available
+    referral_info = ""
+    try:
+        if hasattr(app, 'account_tab') and hasattr(app.account_tab, 'usage_mgr'):
+            status = app.account_tab.usage_mgr.get_referral_pass_status()
+            if status:
+                referrals_needed = status.get('referrals_needed', 5)
+                current_referrals = status.get('referrals_progress', '0/5').split('/')[0]
+
+                if status.get('qualified', False):
+                    referral_info = "\n🎉 You've earned Free Premium through referrals!"
+                else:
+                    referral_info = f"\n\n💡 You have {current_referrals} referrals. Get {referrals_needed} more for FREE Premium!"
+    except:
+        referral_info = "\n\n💡 Get 5 referrals and unlock FREE Premium forever!"
+
+    dialog = tk.Toplevel(app)
+    dialog.title("Word Limit Reached")
+    dialog.geometry("450x340")
+    dialog.resizable(False, False)
+
+    # Center the dialog
+    dialog.update_idletasks()
+    x = (dialog.winfo_screenwidth() // 2) - (450 // 2)
+    y = (dialog.winfo_screenheight() // 2) - (340 // 2)
+    dialog.geometry(f"450x340+{x}+{y}")
+
+    # Make it modal
+    dialog.transient(app)
+    dialog.grab_set()
+
+    # Header with icon
+    header_frame = tk.Frame(dialog, bg="#f5f5f5", height=70)
+    header_frame.pack(fill='x')
+    header_frame.pack_propagate(False)
+
+    icon_label = tk.Label(header_frame, text="⚠️", font=('Segoe UI', 28), bg="#f5f5f5")
+    icon_label.pack(pady=15)
+
+    # Message content
+    message_frame = tk.Frame(dialog, bg="white")
+    message_frame.pack(fill='both', expand=True, padx=20, pady=15)
+
+    title_label = tk.Label(
+        message_frame,
+        text="You've Used All Your Words This Week",
+        font=('Segoe UI', 12, 'bold'),
+        bg="white"
+    )
+    title_label.pack(pady=(0, 10))
+
+    message_text = f"""You've reached your weekly word limit.{referral_info}
+
+🎁 REFERRAL REWARDS:
+• Get 1000 bonus words per referral
+• 5 referrals = FREE Premium forever!
+• Your friends get 1000 words too!
+
+⬆️ OR UPGRADE:
+• Pro: 40,000 words/week
+• Premium: 100,000 words/month"""
+
+    message_label = tk.Label(
+        message_frame,
+        text=message_text,
+        font=('Segoe UI', 9),
+        bg="white",
+        justify='left',
+        wraplength=400
+    )
+    message_label.pack()
+
+    # Buttons
+    button_frame = tk.Frame(dialog, bg="white")
+    button_frame.pack(fill='x', padx=20, pady=(0, 15))
+
+    def view_referrals():
+        """Navigate to Account tab and show referral info"""
+        try:
+            # Switch to Account tab
+            if hasattr(app, 'notebook') and hasattr(app, 'tabs'):
+                for tab_name, tab_frame in app.tabs.items():
+                    if tab_name == 'Account':
+                        app.notebook.select(tab_frame)
+                        break
+
+            # Show referral pass info dialog
+            if hasattr(app, 'account_tab') and hasattr(app.account_tab, 'show_referral_pass_info'):
+                app.account_tab.show_referral_pass_info()
+        except Exception as e:
+            print(f"Error navigating to referrals: {e}")
+        finally:
+            dialog.destroy()
+
+    def view_upgrade():
+        """Open pricing page"""
+        webbrowser.open("https://www.slywriter.ai/pricing")
+        dialog.destroy()
+
+    # Referral button (primary action - purple)
+    referral_btn = tk.Button(
+        button_frame,
+        text="🎁 Get Free Premium",
+        command=view_referrals,
+        bg="#8b5cf6",
+        fg="white",
+        font=('Segoe UI', 10, 'bold'),
+        relief='flat',
+        padx=15,
+        pady=8,
+        cursor="hand2"
+    )
+    referral_btn.pack(side='left', padx=(0, 8))
+
+    # Upgrade button (secondary action - gray)
+    upgrade_btn = tk.Button(
+        button_frame,
+        text="⬆️ View Plans",
+        command=view_upgrade,
+        bg="#6b7280",
+        fg="white",
+        font=('Segoe UI', 10, 'bold'),
+        relief='flat',
+        padx=15,
+        pady=8,
+        cursor="hand2"
+    )
+    upgrade_btn.pack(side='left', padx=(0, 8))
+
+    # Cancel button
+    cancel_btn = tk.Button(
+        button_frame,
+        text="Cancel",
+        command=dialog.destroy,
+        bg="#e0e0e0",
+        fg="#333",
+        font=('Segoe UI', 10),
+        relief='flat',
+        padx=15,
+        pady=8,
+        cursor="hand2"
+    )
+    cancel_btn.pack(side='left')
+
+    dialog.wait_window()

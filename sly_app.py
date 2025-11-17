@@ -267,6 +267,7 @@ class TypingApp(tb.Window):
         engine.set_overlay_tab_reference(self.overlay_tab)
 
         engine.set_account_tab_reference(self.account_tab)
+        engine.set_app_reference(self)  # For showing dialogs from typing thread
 
         # Lock down all but Account and Dashboard until login
         for name, frame in self.tabs.items():
