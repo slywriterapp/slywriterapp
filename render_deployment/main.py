@@ -1085,10 +1085,15 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
         referee.referred_by = referral_code
         referee.referral_bonus = (referee.referral_bonus or 0) + 500
 
+        # Increment referrer's count (someone used their code)
         referrer.referral_count = (referrer.referral_count or 0) + 1
         referrer.referral_bonus = (referrer.referral_bonus or 0) + 500
 
-        # Auto-apply tier rewards for both users
+        # Increment referee's count (redeeming a code counts as 1 referral action)
+        # This counts toward their tier progression
+        referee.referral_count = (referee.referral_count or 0) + 1
+
+        # Auto-apply tier rewards based on EACH user's OWN referral count
         import re
         TIER_REQUIREMENTS = [
             {"tier": 1, "referrals": 1, "reward": "1000 words"},
@@ -1104,7 +1109,7 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
         ]
 
         def auto_claim_tier_rewards(user):
-            """Automatically claim all eligible tier rewards for a user"""
+            """Automatically claim all eligible tier rewards for a user based on THEIR OWN referral count"""
             tier_claimed = user.referral_tier_claimed or 0
             user_referrals = user.referral_count or 0
             rewards_applied = []
@@ -1143,42 +1148,9 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
 
             return rewards_applied
 
-        # Apply tier rewards to referrer first
+        # Apply tier rewards to BOTH users based on their OWN referral counts
+        referee_tier_rewards = auto_claim_tier_rewards(referee)
         referrer_tier_rewards = auto_claim_tier_rewards(referrer)
-
-        # Give referee the SAME tier rewards as referrer (matching rewards)
-        referee_tier_rewards = []
-        if referrer_tier_rewards:
-            # Apply the same rewards to referee
-            for tier_data in TIER_REQUIREMENTS:
-                tier = tier_data["tier"]
-                reward_text = tier_data["reward"]
-
-                # Only apply tiers that referrer just got
-                if tier > (referee.referral_tier_claimed or 0) and tier <= (referrer.referral_tier_claimed or 0):
-                    if "words" in reward_text:
-                        match = re.search(r'(\d+)', reward_text)
-                        if match:
-                            words = int(match.group(1))
-                            referee.referral_bonus = (referee.referral_bonus or 0) + words
-                            referee_tier_rewards.append(f"+{words:,} words (Tier {tier})")
-                    elif "Pro" in reward_text:
-                        match = re.search(r'(\d+)\s*(week|month)', reward_text)
-                        if match:
-                            amount = int(match.group(1))
-                            unit = match.group(2)
-                            days = amount * 7 if unit == "week" else amount * 30
-
-                            current_end = referee.premium_until if referee.premium_until and referee.premium_until > datetime.utcnow() else datetime.utcnow()
-                            referee.premium_until = current_end + timedelta(days=days)
-
-                            if referee.plan not in ["Pro", "Premium"]:
-                                referee.plan = "Pro"
-
-                            referee_tier_rewards.append(f"+{amount} {unit}(s) Pro (Tier {tier})")
-
-                    # Update referee's claimed tier to match referrer
-                    referee.referral_tier_claimed = tier
 
         db.commit()
         db.refresh(referee)
