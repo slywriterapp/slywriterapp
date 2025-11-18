@@ -2301,6 +2301,60 @@ async def get_enabled_features():
 
     return license_manager.license_data.get('features_enabled', {})
 
+# Admin Endpoints
+class UpdateUserPlanRequest(BaseModel):
+    email: str
+    plan: str  # "Free", "Pro", or "Premium"
+    duration_days: Optional[int] = None  # Optional: Set premium_until if provided
+
+@app.post("/api/admin/update_plan")
+async def admin_update_user_plan(
+    request: UpdateUserPlanRequest,
+    _: bool = Depends(verify_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin: Update a user's plan"""
+    try:
+        # Validate plan
+        valid_plans = ["Free", "Pro", "Premium"]
+        if request.plan not in valid_plans:
+            raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {valid_plans}")
+
+        # Find user by email
+        user = db.query(User).filter(User.email == request.email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User not found: {request.email}")
+
+        # Update plan
+        old_plan = user.plan
+        user.plan = request.plan
+
+        # If duration_days is provided, set premium_until
+        if request.duration_days and request.duration_days > 0:
+            from datetime import datetime, timedelta
+            user.premium_until = datetime.utcnow() + timedelta(days=request.duration_days)
+            user.subscription_status = "active"
+
+        db.commit()
+
+        logger.info(f"Admin updated user {request.email} from {old_plan} to {request.plan}")
+
+        return {
+            "success": True,
+            "message": f"Updated {request.email} to {request.plan} plan",
+            "user": {
+                "email": user.email,
+                "plan": user.plan,
+                "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+                "subscription_status": user.subscription_status
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Admin update plan error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
