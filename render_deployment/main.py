@@ -1081,23 +1081,95 @@ async def redeem_referral_code(request: RedeemReferralRequest, auth_request: Req
         if referrer.email == referee.email:
             raise HTTPException(status_code=400, detail="You cannot use your own referral code")
 
-        # Apply bonuses
+        # Apply flat bonuses
         referee.referred_by = referral_code
         referee.referral_bonus = (referee.referral_bonus or 0) + 500
 
         referrer.referral_count = (referrer.referral_count or 0) + 1
         referrer.referral_bonus = (referrer.referral_bonus or 0) + 500
 
+        # Auto-apply tier rewards for both users
+        import re
+        TIER_REQUIREMENTS = [
+            {"tier": 1, "referrals": 1, "reward": "1000 words"},
+            {"tier": 2, "referrals": 2, "reward": "2500 words"},
+            {"tier": 3, "referrals": 3, "reward": "1 week Pro"},
+            {"tier": 4, "referrals": 5, "reward": "5000 words"},
+            {"tier": 5, "referrals": 7, "reward": "2 weeks Pro"},
+            {"tier": 6, "referrals": 10, "reward": "10000 words"},
+            {"tier": 7, "referrals": 15, "reward": "1 month Pro"},
+            {"tier": 8, "referrals": 20, "reward": "25000 words"},
+            {"tier": 9, "referrals": 30, "reward": "2 months Pro"},
+            {"tier": 10, "referrals": 50, "reward": "6 months Pro"},
+        ]
+
+        def auto_claim_tier_rewards(user):
+            """Automatically claim all eligible tier rewards for a user"""
+            tier_claimed = user.referral_tier_claimed or 0
+            user_referrals = user.referral_count or 0
+            rewards_applied = []
+
+            for tier_data in TIER_REQUIREMENTS:
+                tier = tier_data["tier"]
+                required_referrals = tier_data["referrals"]
+                reward_text = tier_data["reward"]
+
+                # Check if user qualifies and hasn't claimed this tier yet
+                if user_referrals >= required_referrals and tier > tier_claimed:
+                    # Apply reward
+                    if "words" in reward_text:
+                        match = re.search(r'(\d+)', reward_text)
+                        if match:
+                            words = int(match.group(1))
+                            user.referral_bonus = (user.referral_bonus or 0) + words
+                            rewards_applied.append(f"+{words:,} words (Tier {tier})")
+                    elif "Pro" in reward_text:
+                        match = re.search(r'(\d+)\s*(week|month)', reward_text)
+                        if match:
+                            amount = int(match.group(1))
+                            unit = match.group(2)
+                            days = amount * 7 if unit == "week" else amount * 30
+
+                            current_end = user.premium_until if user.premium_until and user.premium_until > datetime.utcnow() else datetime.utcnow()
+                            user.premium_until = current_end + timedelta(days=days)
+
+                            if user.plan not in ["Pro", "Premium"]:
+                                user.plan = "Pro"
+
+                            rewards_applied.append(f"+{amount} {unit}(s) Pro (Tier {tier})")
+
+                    # Update claimed tier
+                    user.referral_tier_claimed = tier
+
+            return rewards_applied
+
+        # Apply tier rewards
+        referee_tier_rewards = auto_claim_tier_rewards(referee)
+        referrer_tier_rewards = auto_claim_tier_rewards(referrer)
+
         db.commit()
         db.refresh(referee)
         db.refresh(referrer)
 
-        logger.info(f"[REFERRAL] {referee.email} redeemed code {referral_code} from {referrer.email}. Both got 500 bonus words!")
+        # Build response message
+        rewards_summary = []
+        rewards_summary.append(f"You received: +500 words")
+        if referee_tier_rewards:
+            rewards_summary.extend([f"  {r}" for r in referee_tier_rewards])
+        rewards_summary.append(f"{getattr(referrer, 'name', None) or referrer.email.split('@')[0]} received: +500 words")
+        if referrer_tier_rewards:
+            rewards_summary.extend([f"  {r}" for r in referrer_tier_rewards])
+
+        logger.info(f"[REFERRAL] {referee.email} redeemed code {referral_code} from {referrer.email}. Flat: 500 each. Tier rewards: referee={referee_tier_rewards}, referrer={referrer_tier_rewards}")
 
         return {
             "success": True,
-            "message": "Referral code redeemed successfully!",
+            "message": "Referral code redeemed successfully! " + " • ".join(rewards_summary),
             "bonus_words": referee.referral_bonus,
+            "tier_rewards_applied": {
+                "referee": referee_tier_rewards,
+                "referrer": referrer_tier_rewards
+            },
             "referrer_name": getattr(referrer, 'name', None) or referrer.email.split('@')[0],
             "referral_code_used": referral_code
         }
