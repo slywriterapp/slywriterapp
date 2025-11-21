@@ -1,5 +1,51 @@
-import tkinter as tk
-from tkinter import messagebox
+# Optional tkinter import for GUI dialogs (not needed for headless/Electron mode)
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    TKINTER_AVAILABLE = True
+except ImportError:
+    TKINTER_AVAILABLE = False
+    # Create dummy classes for headless mode
+    class tk:
+        class Toplevel:
+            def __init__(self, *args, **kwargs): pass
+            def wm_overrideredirect(self, *args): pass
+            def wm_geometry(self, *args): pass
+            def destroy(self, *args): pass
+        class Label:
+            def __init__(self, *args, **kwargs): pass
+            def pack(self, *args, **kwargs): pass
+            def grid(self, *args, **kwargs): pass
+            def config(self, *args, **kwargs): pass
+        class Frame:
+            def __init__(self, *args, **kwargs): pass
+            def pack(self, *args, **kwargs): pass
+            def grid(self, *args, **kwargs): pass
+            def bind(self, *args, **kwargs): pass
+            def unbind(self, *args, **kwargs): pass
+            def focus_set(self, *args): pass
+        class Entry:
+            def __init__(self, *args, **kwargs): pass
+            def pack(self, *args, **kwargs): pass
+            def delete(self, *args): pass
+            def get(self, *args): pass
+            def config(self, *args, **kwargs): pass
+        class Button:
+            def __init__(self, *args, **kwargs): pass
+            def pack(self, *args, **kwargs): pass
+            def grid(self, *args, **kwargs): pass
+            def config(self, *args, **kwargs): pass
+        class StringVar:
+            def __init__(self, *args, **kwargs):
+                self.value = ""
+            def get(self): return self.value
+            def set(self, val): self.value = val
+    class messagebox:
+        @staticmethod
+        def showinfo(*args, **kwargs): pass
+        @staticmethod
+        def showerror(*args, **kwargs): pass
+
 import keyboard
 import webbrowser
 

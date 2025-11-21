@@ -991,6 +991,94 @@ async def get_enabled_features():
 
     return license_manager.license_data.get('features_enabled', {})
 
+# Mac Permission Endpoints
+@app.post("/api/test-typing-permission")
+async def test_typing_permission():
+    """
+    Test typing permission by attempting to type a single space.
+    This triggers macOS accessibility permission popup if not granted.
+    """
+    try:
+        import platform
+
+        # Check if we're on macOS
+        if platform.system() != 'Darwin':
+            return {
+                "success": True,
+                "has_permission": True,
+                "message": "Permission check not needed on this platform"
+            }
+
+        # Import pyautogui for Mac
+        import pyautogui
+
+        # Attempt to type a space character - this will trigger permission popup
+        pyautogui.write(" ", interval=0.01)
+
+        return {
+            "success": True,
+            "has_permission": True,
+            "triggered": True,
+            "message": "Permission test successful"
+        }
+
+    except Exception as e:
+        # Permission denied or other error
+        error_msg = str(e)
+
+        # Check if it's a permission error
+        if "Accessibility" in error_msg or "permission" in error_msg.lower():
+            return {
+                "success": False,
+                "has_permission": False,
+                "triggered": True,
+                "message": "Accessibility permission not granted",
+                "error": error_msg
+            }
+        else:
+            return {
+                "success": False,
+                "has_permission": False,
+                "triggered": True,
+                "message": "Error testing permission",
+                "error": error_msg
+            }
+
+@app.get("/api/check-typing-permission")
+async def check_typing_permission():
+    """
+    Quick check if typing permission is granted without triggering popup.
+    Returns True if permission exists, False otherwise.
+    """
+    try:
+        import platform
+
+        # Check if we're on macOS
+        if platform.system() != 'Darwin':
+            return {
+                "has_permission": True,
+                "platform": "non-mac"
+            }
+
+        # Import pyautogui for Mac
+        import pyautogui
+
+        # Try to type empty string (minimal action to check permission)
+        pyautogui.write("", interval=0.01)
+
+        return {
+            "has_permission": True,
+            "platform": "mac"
+        }
+
+    except Exception as e:
+        # Permission not granted
+        return {
+            "has_permission": False,
+            "platform": "mac",
+            "error": str(e)
+        }
+
 @app.get("/api/admin/telemetry/stats")
 async def get_telemetry_stats():
     """Get telemetry statistics"""

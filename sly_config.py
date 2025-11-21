@@ -1,7 +1,28 @@
 import os
 import json
 import config
-from tkinter import simpledialog, messagebox
+
+# Optional tkinter import for GUI dialogs (not needed for headless mode)
+try:
+    from tkinter import simpledialog, messagebox
+    TKINTER_AVAILABLE = True
+except ImportError:
+    TKINTER_AVAILABLE = False
+    # Create dummy functions for headless mode
+    class simpledialog:
+        @staticmethod
+        def askstring(*args, **kwargs):
+            return None
+    class messagebox:
+        @staticmethod
+        def showwarning(*args, **kwargs):
+            pass
+        @staticmethod
+        def showinfo(*args, **kwargs):
+            pass
+        @staticmethod
+        def askyesno(*args, **kwargs):
+            return False
 
 # Path to your JSON config file
 CONFIG_FILE = config.CONFIG_FILE

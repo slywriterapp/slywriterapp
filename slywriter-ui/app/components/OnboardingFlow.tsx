@@ -20,10 +20,31 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
   const [isTyping, setIsTyping] = useState(false)
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
 
+  // Mac permission states
+  const [isMac, setIsMac] = useState(false)
+  const [hasPermission, setHasPermission] = useState(false)
+  const [checkingPermission, setCheckingPermission] = useState(true)
+  const [requestingPermission, setRequestingPermission] = useState(false)
+  const [permissionError, setPermissionError] = useState(false)
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     const seen = localStorage.getItem('slywriter-onboarding-complete')
     if (seen) {
       setHasSeenOnboarding(true)
+    }
+
+    // Detect if Mac
+    const platform = navigator.platform.toLowerCase()
+    const isMacOS = platform.includes('mac')
+    setIsMac(isMacOS)
+
+    // Check permission on mount (Mac only)
+    if (isMacOS) {
+      checkTypingPermission()
+    } else {
+      setCheckingPermission(false)
+      setHasPermission(true)
     }
   }, [])
 
@@ -32,7 +53,87 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
     if (profile) {
       localStorage.setItem('slywriter-selected-profile', profile)
     }
+    // Clean up polling if active
+    if (pollingInterval) {
+      clearInterval(pollingInterval)
+      setPollingInterval(null)
+    }
     onComplete(profile, triggerTest)
+  }
+
+  // Check if typing permission is granted (Mac only)
+  const checkTypingPermission = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/check-typing-permission')
+      const data = await response.json()
+      setHasPermission(data.has_permission)
+      setCheckingPermission(false)
+      return data.has_permission
+    } catch (error) {
+      console.error('Error checking permission:', error)
+      setCheckingPermission(false)
+      setHasPermission(false)
+      return false
+    }
+  }
+
+  // Request typing permission (triggers Mac popup)
+  const requestTypingPermission = async () => {
+    setRequestingPermission(true)
+    setPermissionError(false)
+
+    try {
+      const response = await fetch('http://localhost:8000/api/test-typing-permission', {
+        method: 'POST'
+      })
+      const data = await response.json()
+
+      // Start polling for permission
+      if (!data.has_permission) {
+        startPollingPermission()
+      } else {
+        setHasPermission(true)
+        setRequestingPermission(false)
+      }
+    } catch (error) {
+      console.error('Error requesting permission:', error)
+      setPermissionError(true)
+      setRequestingPermission(false)
+    }
+  }
+
+  // Poll for permission every 2 seconds
+  const startPollingPermission = () => {
+    let pollCount = 0
+    const interval = setInterval(async () => {
+      pollCount++
+      const granted = await checkTypingPermission()
+      if (granted) {
+        clearInterval(interval)
+        setPollingInterval(null)
+        setHasPermission(true)
+        setRequestingPermission(false)
+        // Auto-advance to normal onboarding after 1 second
+        setTimeout(() => {
+          setCurrentStep(0) // Reset to first normal onboarding step
+        }, 1000)
+      } else if (pollCount >= 7) {
+        // After 15 seconds (7 polls * 2 seconds), show retry button
+        setPermissionError(true)
+      }
+    }, 2000)
+
+    setPollingInterval(interval)
+  }
+
+  // Retry permission request
+  const retryPermission = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval)
+      setPollingInterval(null)
+    }
+    setPermissionError(false)
+    requestTypingPermission()
   }
 
   const steps = [
@@ -364,6 +465,162 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
   ]
 
   if (hasSeenOnboarding || !isVisible) {
+    return null
+  }
+
+  // Show Mac permission screen if needed
+  if (isMac && !hasPermission && !checkingPermission) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="w-full max-w-2xl bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl border border-purple-500/30 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6">
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center">
+                  <KeyboardIcon className="w-10 h-10 text-white" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-bold text-white text-center">SlyWriter Needs Your Permission</h2>
+              <p className="text-purple-100 mt-2 text-center">One-time setup for macOS</p>
+            </div>
+
+            {/* Content */}
+            <div className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                    <span className="text-purple-400 font-bold text-lg">🔒</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-lg mb-2">Why We Need This Permission</h3>
+                    <p className="text-gray-300 leading-relaxed">
+                      SlyWriter automatically types text for you. To do this on Mac, we need "Accessibility" permission.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
+                  <p className="text-gray-300 text-sm"><span className="font-semibold text-white">Think of it like this:</span></p>
+                  <ul className="space-y-2 text-sm text-gray-400">
+                    <li className="flex items-start gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <span>You wouldn't let just any app control your keyboard, right?</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <span>Mac requires apps to ask permission first</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <span>This keeps you safe from malicious apps</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                      <span>You can revoke this anytime in System Settings</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
+                  <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
+                    <SparklesIcon className="w-5 h-5 text-blue-400" />
+                    What Happens Next:
+                  </h4>
+                  <ol className="space-y-2 text-sm text-gray-300">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">1.</span>
+                      <span>Click "Enable SlyWriter" below</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">2.</span>
+                      <span>We'll test typing to trigger Mac's permission popup</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">3.</span>
+                      <span>Click "Open System Settings" in the popup</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">4.</span>
+                      <span>Toggle SlyWriter ON in Accessibility settings</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 font-bold">5.</span>
+                      <span>Come back here - we'll detect it automatically!</span>
+                    </li>
+                  </ol>
+                </div>
+
+                {requestingPermission && (
+                  <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30 flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-400"></div>
+                    <div>
+                      <p className="text-green-300 font-medium">
+                        {permissionError ? 'Waiting for permission...' : 'Requesting permission from your Mac...'}
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Enable SlyWriter in System Settings and we'll continue automatically
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {hasPermission && (
+                  <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30 flex items-center gap-3">
+                    <CheckCircleIcon className="w-6 h-6 text-green-400" />
+                    <div>
+                      <p className="text-green-300 font-medium">✅ Permission granted!</p>
+                      <p className="text-gray-400 text-sm mt-1">Loading SlyWriter...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 pt-0">
+              {!requestingPermission && !hasPermission && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={requestTypingPermission}
+                  className="w-full py-4 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg font-medium text-white text-lg flex items-center justify-center gap-2"
+                >
+                  <KeyboardIcon className="w-5 h-5" />
+                  Enable SlyWriter
+                </motion.button>
+              )}
+
+              {requestingPermission && !hasPermission && permissionError && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={retryPermission}
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg font-medium text-white text-lg flex items-center justify-center gap-2"
+                >
+                  <ArrowRightIcon className="w-5 h-5" />
+                  Retry Permission
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+
+  // Show loading while checking permission
+  if (checkingPermission) {
     return null
   }
 

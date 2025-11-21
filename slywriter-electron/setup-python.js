@@ -180,7 +180,6 @@ async function setupPython(onProgress) {
       // Install missing packages
       if (missingPackages.length > 0) {
         console.log(`Installing missing packages: ${missingPackages.join(', ')}`)
-        if (onProgress) onProgress(`Installing ${missingPackages.length} missing packages...`, 50)
 
         const allPackages = [
           'fastapi',
@@ -203,9 +202,24 @@ async function setupPython(onProgress) {
           'ttkbootstrap'
         ]
 
-        for (const pkg of allPackages) {
+        const tips = [
+          'Updating packages...',
+          'This should take 2-5 minutes...',
+          'Installing core dependencies...',
+          'Setting up authentication...',
+          'Almost done...'
+        ]
+
+        for (let i = 0; i < allPackages.length; i++) {
+          const pkg = allPackages[i]
+          const progress = 50 + Math.floor((i / allPackages.length) * 50) // 50-100%
+          const tipIndex = Math.floor((i / allPackages.length) * tips.length)
+          const tip = tips[tipIndex] || 'Installing packages...'
+
+          if (onProgress) onProgress(`${tip} (${i + 1}/${allPackages.length})`, progress)
+
           try {
-            console.log(`Installing ${pkg}...`)
+            console.log(`Installing ${pkg}... (${i + 1}/${allPackages.length})`)
             await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', '--no-cache-dir', pkg], PYTHON_DIR)
           } catch (e) {
             console.error(`Failed to install ${pkg}:`, e.message)
@@ -309,8 +323,6 @@ async function setupPython(onProgress) {
       }
     }
 
-    if (onProgress) onProgress('Installing dependencies...', 80)
-
     // Install required packages with verification
     const packages = [
       'fastapi',
@@ -333,10 +345,30 @@ async function setupPython(onProgress) {
       'ttkbootstrap'
     ]
 
+    // Installation tips to show progress
+    const tips = [
+      'Setting up your workspace...',
+      'Installing core dependencies...',
+      'Almost there! This may take 2-5 minutes...',
+      'Configuring authentication modules...',
+      'Setting up the typing engine...',
+      'Installing UI components...',
+      'Just a few more packages...',
+      'Finalizing setup...'
+    ]
+
     const failedPackages = []
-    for (const pkg of packages) {
+    for (let i = 0; i < packages.length; i++) {
+      const pkg = packages[i]
       const pkgName = pkg.split('[')[0] // Handle uvicorn[standard]
-      console.log(`Installing ${pkg}...`)
+      const progress = 80 + Math.floor((i / packages.length) * 15) // 80-95%
+
+      // Show current package with progress
+      const tipIndex = Math.floor((i / packages.length) * tips.length)
+      const tip = tips[tipIndex] || 'Installing dependencies...'
+      if (onProgress) onProgress(`${tip} (${i + 1}/${packages.length})`, progress)
+
+      console.log(`Installing ${pkg}... (${i + 1}/${packages.length})`)
 
       try {
         await runCommand(PYTHON_EXE, ['-m', 'pip', 'install', '--no-cache-dir', pkg], PYTHON_DIR)
