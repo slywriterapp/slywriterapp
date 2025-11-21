@@ -1390,6 +1390,85 @@ async def get_user_stats(request: Request, db: Session = Depends(get_db)):
         logger.error(f"User stats error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Weekly statistics endpoint for analytics charts
+@app.get("/api/stats/weekly")
+async def get_weekly_stats(request: Request, db: Session = Depends(get_db)):
+    """Get last 7 days of user statistics for charts"""
+    try:
+        # Get token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.replace("Bearer ", "")
+
+        # Verify JWT token
+        JWT_SECRET = os.getenv("JWT_SECRET_KEY") or os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            email = payload.get("sub") or payload.get("email")
+
+            if not email:
+                raise HTTPException(status_code=401, detail="Invalid token: no email")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Invalid token: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get user by email
+        user = get_user_by_email(db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Get last 7 days of data
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days_ago = today - timedelta(days=6)
+
+        # Query sessions for each day
+        weekly_data = []
+        for i in range(7):
+            day_start = seven_days_ago + timedelta(days=i)
+            day_end = day_start + timedelta(days=1)
+
+            # Get sessions for this day
+            day_sessions = db.query(TypingSession).filter(
+                TypingSession.user_id == user.id,
+                TypingSession.started_at >= day_start,
+                TypingSession.started_at < day_end
+            ).all()
+
+            # Aggregate stats for this day
+            day_words = sum(session.words_typed or 0 for session in day_sessions)
+            day_characters = sum(session.characters_typed or 0 for session in day_sessions)
+            day_sessions_count = len(day_sessions)
+
+            # Calculate average WPM for the day
+            wpms = [s.average_wpm for s in day_sessions if s.average_wpm and s.average_wpm > 0]
+            day_avg_wpm = sum(wpms) / len(wpms) if wpms else 0
+
+            weekly_data.append({
+                "date": day_start.strftime("%Y-%m-%d"),
+                "dayName": day_start.strftime("%a"),  # Mon, Tue, etc.
+                "words": day_words,
+                "characters": day_characters,
+                "sessions": day_sessions_count,
+                "avgSpeed": round(day_avg_wpm, 1)
+            })
+
+        return {
+            "success": True,
+            "weeklyData": weekly_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Weekly stats error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 def get_milestone_text(words: int) -> str:
     """Get a fun milestone description"""
     if words >= 10_000_000:

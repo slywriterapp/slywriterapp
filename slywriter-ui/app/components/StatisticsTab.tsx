@@ -137,30 +137,41 @@ export default function StatisticsTab() {
     
     window.addEventListener('typing-complete', handleTypingComplete as EventListener)
     
-    // Load real weekly stats from localStorage
-    const loadWeeklyStats = () => {
-      const today = new Date()
-      const weekStats: DailyStats[] = []
-      const dailyData = JSON.parse(localStorage.getItem('slywriter-daily-stats') || '{}')
-      
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today)
-        date.setDate(date.getDate() - i)
-        const dateKey = date.toISOString().split('T')[0]
-        
-        const dayData = dailyData[dateKey] || { words: 0, characters: 0, sessions: 0, avgSpeed: 0 }
-        
-        weekStats.push({
-          date: date.toLocaleDateString('en', { weekday: 'short' }),
-          words: dayData.words || 0,
-          characters: dayData.characters || 0,
-          sessions: dayData.sessions || 0,
-          avgSpeed: dayData.avgSpeed || 0,
+    // Load weekly stats from backend
+    const loadWeeklyStats = async () => {
+      try {
+        const token = localStorage.getItem('auth_token')
+        if (!token) {
+          console.log('No auth token found for weekly stats')
+          return
+        }
+
+        const response = await fetch(`${RENDER_API_URL}/api/stats/weekly`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.weeklyData) {
+            const weekStats: DailyStats[] = data.weeklyData.map((day: any) => ({
+              date: day.dayName,
+              words: day.words || 0,
+              characters: day.characters || 0,
+              sessions: day.sessions || 0,
+              avgSpeed: day.avgSpeed || 0,
+            }))
+            setWeeklyStats(weekStats)
+          }
+        } else {
+          console.error('Failed to load weekly stats:', response.status)
+        }
+      } catch (error) {
+        console.error('Failed to load weekly stats from backend:', error)
       }
-      setWeeklyStats(weekStats)
     }
-    
+
     loadWeeklyStats()
     
     return () => {
