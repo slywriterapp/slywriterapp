@@ -346,7 +346,7 @@
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.productivity",
-      "icon": "assets/icon.png",
+      "icon": "assets/icon-1024.png",
       "artifactName": "SlyWriter-${version}.${ext}",
       "notarize": {
         "teamId": "55S897P97X"
