@@ -1436,15 +1436,7 @@ app.whenReady().then(async () => {
 
     if (!licenseData.valid) {
       console.warn('[App] License is no longer valid!')
-
-      // Show warning dialog but don't quit immediately (grace period)
-      await dialog.showMessageBox({
-        type: 'warning',
-        title: 'License Verification Failed',
-        message: 'Your license could not be verified',
-        detail: 'Please check your internet connection. The app will continue working for the next 24 hours.',
-        buttons: ['OK']
-      })
+      // Removed annoying popup - just log it
     } else {
       // Update global license data
       global.licenseData = licenseData
