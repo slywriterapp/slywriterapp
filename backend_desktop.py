@@ -255,7 +255,7 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
         # Calculate from profile or custom WPM
         wpm = typing_req.custom_wpm
         print(f"\n{'='*60}")
-        print(f"🚨 BACKEND RECEIVED TYPING REQUEST - v2.5.6")
+        print(f"[!] BACKEND RECEIVED TYPING REQUEST - v2.5.6")
         print(f"Profile: {typing_req.profile}")
         print(f"custom_wpm from request: {wpm}")
         print(f"Type of custom_wpm: {type(wpm)}")
@@ -295,7 +295,7 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
     # Use the calculated WPM value
     state.typing_progress['wpm'] = wpm
 
-    print(f"\n🔥 SETTING STATE WPM TO: {wpm} 🔥")
+    print(f"\n[*] SETTING STATE WPM TO: {wpm}")
     print(f"[DEBUG] Starting typing with text length: {len(typing_req.text)} chars")
     print(f"[DEBUG] Text preview: {typing_req.text[:50]}...")
     print(f"[DEBUG] Profile: {typing_req.profile}, State WPM: {state.typing_progress['wpm']}")
