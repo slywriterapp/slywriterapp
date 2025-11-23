@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-mac:
-    runs-on: macos-13  # Intel runner required for universal binary builds
+    runs-on: macos-latest  # ARM64 runner can build universal binaries via Rosetta 2
 
     steps:
       - name: Checkout code
