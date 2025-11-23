@@ -56,7 +56,7 @@ jobs:
         run: |
           cd slywriter-electron
           # Build universal binary (both x64 and arm64)
-          npx electron-builder --mac --universal
+          npx electron-builder --mac --universal --publish never
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
