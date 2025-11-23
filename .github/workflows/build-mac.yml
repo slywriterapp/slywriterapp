@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    runs-on: macos-13  # Intel runner required for universal binary builds
 
     steps:
       - name: Checkout code
