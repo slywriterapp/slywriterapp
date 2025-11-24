@@ -1667,7 +1667,115 @@ app.whenReady().then(async () => {
             console.log('🚀 [ELECTRON] Review mode type:', typeof settings.review_mode)
             console.log('🚀 [ELECTRON] Review mode decision:', reviewMode)
             console.log('🚀 [ELECTRON] Humanizer enabled:', humanizerEnabled)
-            
+
+            // Check AI generation and humanizer balances BEFORE making the request
+            try {
+              const userString = await mainWindow.webContents.executeJavaScript(`
+                localStorage.getItem('slywriter-user')
+              `).catch(() => null)
+
+              if (userString) {
+                const user = JSON.parse(userString)
+                const userId = user.id || user.user_id
+
+                if (userId) {
+                  console.log('🔍 Checking usage limits for user:', userId)
+
+                  // Fetch limits from server
+                  const limitsResponse = await new Promise((resolve, reject) => {
+                    const req = https.request({
+                      hostname: 'slywriterapp.onrender.com',
+                      port: 443,
+                      path: `/api/usage/limits?user_id=${userId}`,
+                      method: 'GET'
+                    }, (res) => {
+                      let data = ''
+                      res.on('data', chunk => data += chunk)
+                      res.on('end', () => {
+                        if (res.statusCode === 200) {
+                          try {
+                            resolve(JSON.parse(data))
+                          } catch (e) {
+                            reject(e)
+                          }
+                        } else {
+                          reject(new Error(`Failed to fetch limits: ${res.statusCode}`))
+                        }
+                      })
+                    })
+                    req.on('error', reject)
+                    req.end()
+                  })
+
+                  console.log('📊 Usage limits:', limitsResponse)
+
+                  // Check AI generation balance
+                  const aiGenRemaining = limitsResponse.ai_gen_remaining
+                  const aiGenLimit = limitsResponse.ai_gen_limit
+
+                  if (aiGenLimit !== -1 && aiGenRemaining <= 0) {
+                    const plan = user.plan || 'Free'
+                    const errorMsg = plan.toLowerCase() === 'free'
+                      ? `You've used all ${aiGenLimit} AI generations this week! Upgrade to Pro for unlimited.`
+                      : 'AI generation limit reached. Resets Monday!'
+
+                    console.log('❌ AI generation limit reached')
+                    mainWindow.webContents.send('global-hotkey-error', errorMsg)
+                    mainWindow.webContents.send('show-upgrade-modal')
+
+                    if (overlayWindow && !overlayWindow.isDestroyed()) {
+                      overlayWindow.webContents.send('update-display', {
+                        type: 'error',
+                        status: `❌ ${errorMsg}`,
+                        progress: 0
+                      })
+                    }
+
+                    // Restore original clipboard
+                    if (originalClipboard) {
+                      clipboard.writeText(originalClipboard)
+                    }
+                    return
+                  }
+
+                  // Check humanizer balance if humanizer is enabled
+                  if (humanizerEnabled) {
+                    const humanizerRemaining = limitsResponse.humanizer_remaining
+                    const humanizerLimit = limitsResponse.humanizer_limit
+
+                    if (humanizerLimit !== -1 && humanizerRemaining <= 0) {
+                      const plan = user.plan || 'Free'
+                      const errorMsg = plan.toLowerCase() === 'free'
+                        ? `You've used all ${humanizerLimit} humanizer uses this week! Upgrade to Pro for unlimited.`
+                        : 'Humanizer limit reached. Resets Monday!'
+
+                      console.log('❌ Humanizer limit reached')
+                      mainWindow.webContents.send('global-hotkey-error', errorMsg)
+                      mainWindow.webContents.send('show-upgrade-modal')
+
+                      if (overlayWindow && !overlayWindow.isDestroyed()) {
+                        overlayWindow.webContents.send('update-display', {
+                          type: 'error',
+                          status: `❌ ${errorMsg}`,
+                          progress: 0
+                        })
+                      }
+
+                      // Restore original clipboard
+                      if (originalClipboard) {
+                        clipboard.writeText(originalClipboard)
+                      }
+                      return
+                    }
+                  }
+
+                  console.log('✅ Balance checks passed, proceeding with AI generation')
+                }
+              }
+            } catch (err) {
+              console.log('⚠️ Could not check balances, proceeding anyway:', err.message)
+            }
+
             // Update overlay - loaded settings
             if (overlayWindow && !overlayWindow.isDestroyed()) {
               overlayWindow.webContents.send('update-display', {
@@ -2199,6 +2307,75 @@ app.whenReady().then(async () => {
             } catch (err) {
               console.log('Error getting profile/WPM, using default:', err.message)
               customWpm = 70  // Default fallback
+            }
+
+            // Check word balance BEFORE making the request
+            try {
+              const userString = await mainWindow.webContents.executeJavaScript(`
+                localStorage.getItem('slywriter-user')
+              `).catch(() => null)
+
+              if (userString) {
+                const user = JSON.parse(userString)
+                const userId = user.id || user.user_id
+
+                if (userId) {
+                  console.log('🔍 Checking word balance for user:', userId)
+
+                  // Fetch limits from server
+                  const limitsResponse = await new Promise((resolve, reject) => {
+                    const req = https.request({
+                      hostname: 'slywriterapp.onrender.com',
+                      port: 443,
+                      path: `/api/usage/limits?user_id=${userId}`,
+                      method: 'GET'
+                    }, (res) => {
+                      let data = ''
+                      res.on('data', chunk => data += chunk)
+                      res.on('end', () => {
+                        if (res.statusCode === 200) {
+                          try {
+                            resolve(JSON.parse(data))
+                          } catch (e) {
+                            reject(e)
+                          }
+                        } else {
+                          reject(new Error(`Failed to fetch limits: ${res.statusCode}`))
+                        }
+                      })
+                    })
+                    req.on('error', reject)
+                    req.end()
+                  })
+
+                  console.log('📊 Usage limits:', limitsResponse)
+
+                  // Check word balance
+                  const wordsRemaining = limitsResponse.words_remaining
+                  const wordsLimit = limitsResponse.words_limit
+
+                  if (wordsLimit !== -1 && wordsRemaining <= 0) {
+                    const errorMsg = 'Daily word limit reached. Upgrade to premium for unlimited typing.'
+
+                    console.log('❌ Word limit reached')
+                    mainWindow.webContents.send('global-hotkey-error', errorMsg)
+                    mainWindow.webContents.send('show-upgrade-modal')
+
+                    if (overlayWindow && !overlayWindow.isDestroyed()) {
+                      overlayWindow.webContents.send('update-display', {
+                        type: 'error',
+                        status: `❌ ${errorMsg}`,
+                        progress: 0
+                      })
+                    }
+                    return
+                  }
+
+                  console.log('✅ Word balance check passed, proceeding with typing')
+                }
+              }
+            } catch (err) {
+              console.log('⚠️ Could not check word balance, proceeding anyway:', err.message)
             }
 
             console.log('🔥 [HOTKEY] Making API call with profile:', profile, 'custom_wpm:', customWpm, 'text length:', text.length)

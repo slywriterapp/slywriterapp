@@ -18,6 +18,7 @@ import auth  # Changed - import module directly
 from config import *
 import os
 from dotenv import load_dotenv
+import requests
 
 # Import license manager
 try:
@@ -237,6 +238,24 @@ async def logout():
     state.usage_manager = None
     return {"success": True}
 
+# Helper function to fetch user limits from server
+def get_user_limits(user_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch user usage limits from the server"""
+    try:
+        response = requests.get(
+            f"https://slywriterapp.onrender.com/api/usage/limits",
+            params={"user_id": user_id},
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"[Warning] Failed to fetch user limits: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"[Error] Failed to fetch user limits: {e}")
+        return None
+
 # Typing control endpoints
 @app.post("/api/typing/start")
 async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTasks):
@@ -245,7 +264,7 @@ async def start_typing(typing_req: TypingRequest, background_tasks: BackgroundTa
         # If already typing, just return success instead of error
         # This prevents 400 errors when multiple start requests come in
         return {"status": "already_running", "session_id": state.current_session or "active"}
-    
+
     # Check usage limits
     if state.usage_manager and not state.usage_manager.has_words_remaining():
         raise HTTPException(status_code=403, detail="Daily word limit reached. Upgrade to premium for unlimited typing.")
