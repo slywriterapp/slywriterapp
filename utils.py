@@ -46,8 +46,19 @@ except ImportError:
         @staticmethod
         def showerror(*args, **kwargs): pass
 
-import keyboard
+import platform
 import webbrowser
+
+# Cross-platform keyboard handling - keyboard module doesn't work well on Mac
+IS_MACOS = platform.system() == 'Darwin'
+if IS_MACOS:
+    # On Mac, we skip keyboard validation since the module has compatibility issues
+    keyboard = None
+else:
+    try:
+        import keyboard
+    except ImportError:
+        keyboard = None
 
 class Tooltip:
     """
@@ -265,16 +276,17 @@ class HotkeyRecorder(tk.Frame):
                 )
                 self.entry_var.set('')
                 return
-        # Validate hotkey using keyboard library
-        try:
-            keyboard.parse_hotkey_combinations(new_hotkey)
-        except Exception:
-            messagebox.showerror(
-                "Invalid Hotkey",
-                f"'{new_hotkey}' is not a valid or supported hotkey combination."
-            )
-            self.entry_var.set('')
-            return
+        # Validate hotkey using keyboard library (not available on Mac)
+        if keyboard is not None:
+            try:
+                keyboard.parse_hotkey_combinations(new_hotkey)
+            except Exception:
+                messagebox.showerror(
+                    "Invalid Hotkey",
+                    f"'{new_hotkey}' is not a valid or supported hotkey combination."
+                )
+                self.entry_var.set('')
+                return
         self._stop_recording()
         self.callback(new_hotkey)
 

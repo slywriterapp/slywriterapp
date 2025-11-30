@@ -162,8 +162,8 @@ async function setupPython(onProgress) {
       console.log('Python executable found at:', PYTHON_EXE)
       console.log('Checking for missing packages...')
 
-      // Required packages
-      const requiredPackages = ['fastapi', 'clipboard', 'requests', 'pydantic', 'google-auth-oauthlib']
+      // Required packages - these must be present for the app to work
+      const requiredPackages = ['fastapi', 'clipboard', 'requests', 'pydantic', 'google-auth-oauthlib', 'keyboard', 'pyautogui', 'uvicorn']
       const missingPackages = []
 
       // Check each required package
