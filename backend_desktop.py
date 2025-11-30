@@ -727,19 +727,26 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             "data": state.typing_progress
         })
         
+        # Track if this connection has received the completion message
+        completion_sent_for_session = None
+
         while True:
             # Check for typing completion FIRST
+            # Use a session-based flag instead of resetting the global flag
             if hasattr(state, 'typing_complete') and state.typing_complete:
-                print(f"[DEBUG WS] Sending typing_complete message")
-                await websocket.send_json({
-                    "type": "typing_complete",
-                    "data": {
-                        "status": "completed",
-                        "progress": 100
-                    }
-                })
-                state.typing_complete = False  # Reset flag
-            
+                # Only send if we haven't sent for this completion session
+                current_session = getattr(state, 'typing_complete_session', 0)
+                if completion_sent_for_session != current_session:
+                    print(f"[DEBUG WS] Sending typing_complete message to connection")
+                    await websocket.send_json({
+                        "type": "typing_complete",
+                        "data": {
+                            "status": "completed",
+                            "progress": 100
+                        }
+                    })
+                    completion_sent_for_session = current_session
+
             # Send current status if typing
             if state.typing_active:
                 progress_data = {
@@ -854,6 +861,8 @@ def run_regular_typing(text, preview_callback, status_callback, typing_req):
         state.typing_progress['status'] = '✅ Finished!'
         state.typing_progress['progress'] = 100
         state.typing_complete = True  # Flag for WebSocket to check
+        # Increment session counter so all connections can receive the completion
+        state.typing_complete_session = getattr(state, 'typing_complete_session', 0) + 1
 
         # Broadcast the completion status to all WebSocket clients
         try:
@@ -901,6 +910,8 @@ def run_premium_typing(text, preview_callback, status_callback, typing_req):
         state.typing_progress['status'] = '✅ Finished!'
         state.typing_progress['progress'] = 100
         state.typing_complete = True  # Flag for WebSocket to check
+        # Increment session counter so all connections can receive the completion
+        state.typing_complete_session = getattr(state, 'typing_complete_session', 0) + 1
 
         # Broadcast the completion status to all WebSocket clients
         try:
