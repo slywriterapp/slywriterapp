@@ -15,16 +15,59 @@ from utils import show_word_limit_dialog
 # Cross-platform keyboard handling
 IS_MACOS = platform.system() == 'Darwin'
 if IS_MACOS:
-    import pyautogui
-    # macOS-compatible keyboard wrapper
+    import subprocess
+    # macOS-compatible keyboard wrapper using AppleScript (avoids pyobjc issues)
     class KeyboardWrapper:
         @staticmethod
         def write(text, delay=0):
-            pyautogui.write(text, interval=delay)
+            # Type character by character for human-like typing with delay
+            for char in text:
+                # Escape special characters for AppleScript
+                if char == '"':
+                    escaped = '\\"'
+                elif char == '\\':
+                    escaped = '\\\\'
+                elif char == '\n':
+                    # For newlines, use key code for Return
+                    subprocess.run(['osascript', '-e', 'tell application "System Events" to key code 36'],
+                                   capture_output=True)
+                    if delay > 0:
+                        time.sleep(delay)
+                    continue
+                elif char == '\t':
+                    # For tabs, use key code for Tab
+                    subprocess.run(['osascript', '-e', 'tell application "System Events" to key code 48'],
+                                   capture_output=True)
+                    if delay > 0:
+                        time.sleep(delay)
+                    continue
+                else:
+                    escaped = char
+                subprocess.run(['osascript', '-e', f'tell application "System Events" to keystroke "{escaped}"'],
+                               capture_output=True)
+                if delay > 0:
+                    time.sleep(delay)
 
         @staticmethod
         def send(key):
-            pyautogui.press(key)
+            # Map common key names to macOS key codes
+            key_codes = {
+                'enter': 36, 'return': 36,
+                'tab': 48,
+                'space': 49,
+                'delete': 51, 'backspace': 51,
+                'escape': 53, 'esc': 53,
+                'up': 126, 'down': 125, 'left': 123, 'right': 124,
+            }
+            key_lower = key.lower()
+            if key_lower in key_codes:
+                code = key_codes[key_lower]
+                subprocess.run(['osascript', '-e', f'tell application "System Events" to key code {code}'],
+                               capture_output=True)
+            else:
+                # Single character, use keystroke
+                subprocess.run(['osascript', '-e', f'tell application "System Events" to keystroke "{key}"'],
+                               capture_output=True)
 
     keyboard = KeyboardWrapper()
 else:

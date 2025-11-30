@@ -157,14 +157,6 @@ function extractTarGz(archivePath, destDir) {
 
 async function setupPython(onProgress) {
   try {
-    // On Mac, skip bundled Python and use system Python
-    // The standalone Python build has pyobjc compatibility issues with newer macOS
-    if (IS_MACOS) {
-      console.log('[setup-python] macOS detected - skipping bundled Python, will use system Python')
-      if (onProgress) onProgress('Using system Python on macOS', 100)
-      return null  // Return null to signal main.js to use system Python fallback
-    }
-
     // Check if Python exists
     if (fs.existsSync(PYTHON_EXE)) {
       console.log('Python executable found at:', PYTHON_EXE)
@@ -333,12 +325,12 @@ async function setupPython(onProgress) {
     }
 
     // Install required packages with verification
-    const packages = [
+    // On Mac, skip keyboard/pyautogui which install pyobjc (causes crashes with bundled Python)
+    // The Python code uses AppleScript via subprocess on Mac instead
+    const basePackages = [
       'fastapi',
       'uvicorn[standard]',
       'python-multipart',
-      'keyboard',
-      'pyautogui',
       'openai',
       'python-dotenv',
       'pyperclip',
@@ -353,6 +345,9 @@ async function setupPython(onProgress) {
       'bcrypt',
       'ttkbootstrap'
     ]
+
+    // Add keyboard/pyautogui only on Windows (they use pyobjc on Mac which crashes bundled Python)
+    const packages = IS_WINDOWS ? [...basePackages, 'keyboard', 'pyautogui'] : basePackages
 
     // Installation tips to show progress
     const tips = [
