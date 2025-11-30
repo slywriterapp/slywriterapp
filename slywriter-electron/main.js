@@ -1384,26 +1384,18 @@ function setupAutoUpdater() {
 
 // App event handlers
 app.whenReady().then(async () => {
-  console.log('[Startup] App ready, beginning startup sequence...')
-
   // Simple startup - no cleanup needed
-  console.log('[Startup] Cleaning up previous instances...')
   cleanupPreviousInstances()
 
   // Show splash screen FIRST
-  console.log('[Startup] Creating splash screen...')
   createSplashScreen()
 
   // Create windows (but don't show them yet - splash is showing)
-  console.log('[Startup] Creating main window...')
   createWindow()
-  console.log('[Startup] Creating overlay...')
   createOverlay()
-  console.log('[Startup] Creating tray...')
   createTray()
 
   // Start the typing server (with visible progress in splash)
-  console.log('[Startup] Starting typing server...')
   sendSplashProgress('Initializing...')
   startTypingServer()
 
