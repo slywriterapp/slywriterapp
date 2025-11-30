@@ -1798,31 +1798,115 @@ async def generate_ai_text(request: AIGenerateRequest):
 
 @app.post("/api/ai/humanize")
 async def humanize_text(request: AIHumanizeRequest):
-    """Humanize text using AI"""
+    """Humanize text using aiundetect.com API"""
+    import httpx
+
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Get aiundetect.com API credentials from environment
+        api_key = os.getenv("AIUNDETECT_API_KEY")
+        api_email = os.getenv("AIUNDETECT_EMAIL")
 
-        prompt = f"Rewrite the following text to make it sound more natural and human-like while preserving the original meaning:\\n\\n{request.text}"
+        if not api_key or not api_email:
+            logger.error("AIUNDETECT_API_KEY or AIUNDETECT_EMAIL not configured")
+            raise HTTPException(status_code=500, detail="Humanizer API not configured")
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an expert at making text sound more natural and human-like."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=4000  # Support up to 3000 words
-        )
+        # Validate text length (API requires 100-10000 characters)
+        text_length = len(request.text)
+        if text_length < 100:
+            raise HTTPException(status_code=400, detail=f"Text too short. Minimum 100 characters required, got {text_length}")
+        if text_length > 10000:
+            raise HTTPException(status_code=400, detail=f"Text too long. Maximum 10000 characters allowed, got {text_length}")
 
-        humanized_text = response.choices[0].message.content
+        # Call aiundetect.com rewrite API
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://aiundetect.com/api/v1/rewrite",
+                headers={
+                    "Authorization": api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "0",  # 0: more quality, 1: balance, 2: more human
+                    "mail": api_email,
+                    "auto": "0",  # 0: close, 1: open (auto mode deducts double points)
+                    "data": request.text
+                }
+            )
 
-        return {
-            "success": True,
-            "original": request.text,
-            "humanized": humanized_text
-        }
+            result = response.json()
+            logger.info(f"AIUndetect API response: code={result.get('code')}, msg={result.get('msg')}")
+
+            # Handle response codes
+            if result.get("code") == 200:
+                return {
+                    "success": True,
+                    "original": request.text,
+                    "humanized": result.get("data", "")
+                }
+            else:
+                # Handle error codes
+                error_messages = {
+                    1001: "Missing API key",
+                    1002: "Rate limit exceeded",
+                    1003: "Invalid API Key",
+                    1004: "Request parameter error",
+                    1005: "Text language not supported",
+                    1006: "You don't have enough words",
+                    1007: "Server Error"
+                }
+                error_code = result.get("code", 0)
+                error_msg = error_messages.get(error_code, result.get("msg", "Unknown error"))
+                logger.error(f"AIUndetect API error: {error_code} - {error_msg}")
+                raise HTTPException(status_code=400, detail=f"Humanizer error: {error_msg}")
+
+    except httpx.TimeoutException:
+        logger.error("AIUndetect API timeout")
+        raise HTTPException(status_code=504, detail="Humanizer API timeout")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"AI humanize error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ai/humanize/balance")
+async def get_humanizer_balance():
+    """Get remaining word balance from aiundetect.com"""
+    import httpx
+
+    try:
+        api_key = os.getenv("AIUNDETECT_API_KEY")
+        api_email = os.getenv("AIUNDETECT_EMAIL")
+
+        if not api_key or not api_email:
+            raise HTTPException(status_code=500, detail="Humanizer API not configured")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://aiundetect.com/api/v1/surplus",
+                headers={
+                    "Authorization": api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "mail": api_email
+                }
+            )
+
+            result = response.json()
+
+            if result.get("code") == 200:
+                return {
+                    "success": True,
+                    "balance": result.get("data", 0)
+                }
+            else:
+                raise HTTPException(status_code=400, detail=f"Error getting balance: {result.get('msg')}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Balance check error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate_filler")
