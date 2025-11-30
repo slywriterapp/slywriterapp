@@ -39,9 +39,9 @@ export default function MissionTab() {
         setTotalReferrals(user.referrals?.count || 0)
         setCurrentTier(user.referrals?.tier_claimed || 0)
 
-        // Calculate donations (10 cents per referral)
-        const referralDonations = (user.referrals?.count || 0) * 0.1
-        setTotalDonated(referralDonations)
+        // Fixed donation amount - manually updated when donations are made
+        // Do not auto-calculate from referrals
+        setTotalDonated(0)
       } catch (error) {
         console.error('Failed to parse user data:', error)
       }
@@ -424,9 +424,11 @@ export default function MissionTab() {
           <p className="text-gray-400 text-sm">
             Every referral helps us grow and increases our donation to humanitarian causes
           </p>
-          <p className="text-purple-400 font-semibold mt-2">
-            Together, we've donated ${(totalReferrals * 0.10).toFixed(2)} through referrals!
-          </p>
+          {totalDonated > 0 && (
+            <p className="text-purple-400 font-semibold mt-2">
+              Together, we've donated ${totalDonated.toFixed(2)} to humanitarian causes!
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

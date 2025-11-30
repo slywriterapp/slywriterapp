@@ -525,20 +525,6 @@ export default function UserDashboard({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <h4 className="text-white font-medium">Share on Social Media</h4>
-                    <div className="flex gap-3">
-                      <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm cursor-pointer">
-                        Twitter
-                      </button>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm cursor-pointer">
-                        Facebook
-                      </button>
-                      <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm cursor-pointer">
-                        WhatsApp
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
