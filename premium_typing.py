@@ -2,9 +2,25 @@ import threading
 import time
 import random
 import requests
-import keyboard
 import json
 import os
+import platform
+
+# Cross-platform keyboard handling
+IS_MACOS = platform.system() == 'Darwin'
+if IS_MACOS:
+    import pyautogui
+    # Create keyboard-compatible wrapper for Mac
+    class KeyboardWrapper:
+        @staticmethod
+        def write(text, delay=0):
+            pyautogui.write(text, interval=delay)
+        @staticmethod
+        def send(key):
+            pyautogui.press(key)
+    keyboard = KeyboardWrapper()
+else:
+    import keyboard  # Windows/Linux - use original library
 
 # ------------------ Configurable Parameters -------------------
 EDIT_POINT_CHARS = " .,!?;"      # "Edit-friendly" points (space, punct, etc)
