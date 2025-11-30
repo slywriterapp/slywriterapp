@@ -157,6 +157,14 @@ function extractTarGz(archivePath, destDir) {
 
 async function setupPython(onProgress) {
   try {
+    // On Mac, skip bundled Python and use system Python
+    // The standalone Python build has pyobjc compatibility issues with newer macOS
+    if (IS_MACOS) {
+      console.log('[setup-python] macOS detected - skipping bundled Python, will use system Python')
+      if (onProgress) onProgress('Using system Python on macOS', 100)
+      return null  // Return null to signal main.js to use system Python fallback
+    }
+
     // Check if Python exists
     if (fs.existsSync(PYTHON_EXE)) {
       console.log('Python executable found at:', PYTHON_EXE)
