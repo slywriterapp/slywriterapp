@@ -1838,10 +1838,12 @@ async def humanize_text(request: AIHumanizeRequest):
 
             # Handle response codes
             if result.get("code") == 200:
+                humanized_text = result.get("data", "")
                 return {
                     "success": True,
                     "original": request.text,
-                    "humanized": result.get("data", "")
+                    "humanized": humanized_text,
+                    "text": humanized_text  # Alias for frontend compatibility
                 }
             else:
                 # Handle error codes
