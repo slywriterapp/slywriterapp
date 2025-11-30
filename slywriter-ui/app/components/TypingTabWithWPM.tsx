@@ -1058,6 +1058,12 @@ export default function TypingTabWithWPM({ connected, initialProfile, shouldOpen
             setSessionId(data.session_id || 'active')
             setProgress(data.progress || 0)
             setStatus(data.status || '⌨️ Typing in progress')
+          } else {
+            // Backend says typing is not active - sync the state
+            // This handles the case where typing was started from overlay
+            // and the React component needs to know it's done
+            setIsTyping(false)
+            setIsPaused(false)
           }
         }
       } catch (error) {
