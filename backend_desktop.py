@@ -848,12 +848,23 @@ def run_regular_typing(text, preview_callback, status_callback, typing_req):
         elapsed = time.time() - start_time
         if elapsed < 1.0:
             time.sleep(1.0 - elapsed)
-        
+
         print(f"[DEBUG] Typing finished - setting typing_active=False, progress=100")
         state.typing_active = False
         state.typing_progress['status'] = '✅ Finished!'
         state.typing_progress['progress'] = 100
         state.typing_complete = True  # Flag for WebSocket to check
+
+        # Broadcast the completion status to all WebSocket clients
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(broadcast_status(), loop)
+            else:
+                # Create a new loop if none exists
+                asyncio.run(broadcast_status())
+        except Exception as e:
+            print(f"[DEBUG] Could not broadcast completion: {e}")
 
 def run_premium_typing(text, preview_callback, status_callback, typing_req):
     """Run premium typing with AI filler"""
@@ -884,12 +895,23 @@ def run_premium_typing(text, preview_callback, status_callback, typing_req):
         elapsed = time.time() - start_time
         if elapsed < 1.0:
             time.sleep(1.0 - elapsed)
-        
-        print(f"[DEBUG] Typing finished - setting typing_active=False, progress=100")
+
+        print(f"[DEBUG] Premium typing finished - setting typing_active=False, progress=100")
         state.typing_active = False
         state.typing_progress['status'] = '✅ Finished!'
         state.typing_progress['progress'] = 100
         state.typing_complete = True  # Flag for WebSocket to check
+
+        # Broadcast the completion status to all WebSocket clients
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.run_coroutine_threadsafe(broadcast_status(), loop)
+            else:
+                # Create a new loop if none exists
+                asyncio.run(broadcast_status())
+        except Exception as e:
+            print(f"[DEBUG] Could not broadcast completion: {e}")
 
 # Beta Telemetry Endpoints
 class TelemetryData(BaseModel):

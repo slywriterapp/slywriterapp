@@ -119,6 +119,128 @@ try {
   console.log('Python setup module not found, will use system Python')
 }
 
+// ============== MAC ACCESSIBILITY PERMISSION ONBOARDING ==============
+// macOS requires explicit accessibility permission for keyboard simulation
+// This function triggers the permission dialog and guides the user through setup
+
+async function checkMacAccessibilityPermission() {
+  // Only run on macOS
+  if (process.platform !== 'darwin') {
+    return true
+  }
+
+  console.log('[Mac] Checking accessibility permission...')
+
+  // Check if we've already completed onboarding
+  const store = require('electron-store')
+  const appStore = new store()
+  const onboardingCompleted = appStore.get('macAccessibilityOnboarded', false)
+
+  if (onboardingCompleted) {
+    console.log('[Mac] Accessibility onboarding already completed')
+    return true
+  }
+
+  // Show onboarding dialog
+  const result = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Keyboard Permission Required',
+    message: 'SlyWriter needs permission to type',
+    detail: 'To simulate typing, macOS requires you to grant accessibility permission to SlyWriter.\n\nClick "Grant Permission" and a system dialog will appear. Follow these steps:\n\n1. Click "Open System Preferences"\n2. Enable SlyWriter in the list\n3. You may need to restart the app\n\nThis is a one-time setup.',
+    buttons: ['Grant Permission', 'Quit App'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  })
+
+  if (result.response === 1) {
+    // User clicked Quit
+    app.quit()
+    return false
+  }
+
+  // Try to trigger the permission prompt by simulating a keypress
+  console.log('[Mac] Attempting to trigger accessibility permission prompt...')
+
+  try {
+    // Use AppleScript to simulate a keypress - this triggers the permission dialog
+    const { execSync } = require('child_process')
+
+    // This AppleScript will attempt to type something, triggering the permission dialog
+    execSync(`osascript -e 'tell application "System Events" to keystroke ""'`, {
+      timeout: 5000
+    })
+
+    console.log('[Mac] Keystroke simulation attempted')
+  } catch (e) {
+    console.log('[Mac] Keystroke simulation failed (expected if permission not granted):', e.message)
+  }
+
+  // Wait a moment for the user to see the permission dialog
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  // Show follow-up dialog
+  const followUp = await dialog.showMessageBox({
+    type: 'info',
+    title: 'Enable Accessibility Permission',
+    message: 'Did you see a permission request?',
+    detail: 'If a "System Preferences" popup appeared:\n\n1. Click "Open System Preferences"\n2. In Privacy & Security > Accessibility\n3. Enable the checkbox next to SlyWriter\n4. Click "Done" here when finished\n\nIf no popup appeared, you may need to:\n1. Go to System Preferences manually\n2. Privacy & Security > Accessibility\n3. Click the + button and add SlyWriter',
+    buttons: ['Done - I Enabled It', 'Open System Preferences', 'Quit'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true
+  })
+
+  if (followUp.response === 2) {
+    app.quit()
+    return false
+  }
+
+  if (followUp.response === 1) {
+    // Open System Preferences to Accessibility
+    const { shell } = require('electron')
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
+
+    // Wait for user to grant permission
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Waiting for Permission',
+      message: 'Grant permission in System Preferences',
+      detail: 'After enabling SlyWriter in the Accessibility list, click OK to continue.',
+      buttons: ['OK'],
+      defaultId: 0
+    })
+  }
+
+  // Mark onboarding as completed (user said they enabled it)
+  appStore.set('macAccessibilityOnboarded', true)
+
+  // Test if permission was actually granted
+  try {
+    const { execSync } = require('child_process')
+    execSync(`osascript -e 'tell application "System Events" to keystroke ""'`, {
+      timeout: 5000
+    })
+    console.log('[Mac] Accessibility permission appears to be granted!')
+    return true
+  } catch (e) {
+    console.log('[Mac] Accessibility permission may not be granted yet')
+
+    // Show warning but continue anyway (user may have granted it)
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Permission May Not Be Enabled',
+      message: 'Keyboard typing may not work yet',
+      detail: 'If typing doesn\'t work, please:\n\n1. Go to System Preferences\n2. Privacy & Security > Accessibility\n3. Make sure SlyWriter is checked\n4. Restart SlyWriter',
+      buttons: ['OK'],
+      defaultId: 0
+    })
+
+    return true // Continue anyway
+  }
+}
+// ============== END MAC ACCESSIBILITY PERMISSION ONBOARDING ==============
+
 // Start the typing server (backend_desktop.py - desktop app backend)
 async function startTypingServer() {
   console.log('Starting typing server...')
@@ -1386,6 +1508,16 @@ function setupAutoUpdater() {
 app.whenReady().then(async () => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
+
+  // ============== MAC ACCESSIBILITY CHECK (FIRST!) ==============
+  // On Mac, check/request accessibility permission BEFORE anything else
+  // This is non-skippable and required for keyboard typing to work
+  const accessibilityGranted = await checkMacAccessibilityPermission()
+  if (!accessibilityGranted) {
+    console.log('[App] User quit during accessibility onboarding')
+    return // Don't continue app startup
+  }
+  // ==============================================================
 
   // Show splash screen FIRST
   createSplashScreen()
