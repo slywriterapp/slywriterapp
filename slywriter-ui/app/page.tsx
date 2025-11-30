@@ -688,15 +688,25 @@ function SlyWriterApp() {
               </div>
             </motion.div>
             
-            {/* Upgrade Banner */}
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4">
+            {/* Dashboard Link */}
+            <div
+              className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4 cursor-pointer hover:from-indigo-500 hover:to-blue-500 transition-all"
+              onClick={() => {
+                // Open dashboard in browser
+                if (typeof window !== 'undefined' && (window as any).electron) {
+                  (window as any).electron.openExternal('https://slywriter.com/dashboard')
+                } else {
+                  window.open('https://slywriter.com/dashboard', '_blank')
+                }
+              }}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-900/20 backdrop-blur rounded-full flex items-center justify-center">
                   <CrownIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Go Premium</p>
-                  <p className="text-xs text-white/70">Unlimited AI automation</p>
+                  <p className="text-sm font-semibold text-white">My Account</p>
+                  <p className="text-xs text-white/70">View dashboard & usage</p>
                 </div>
               </div>
             </div>
