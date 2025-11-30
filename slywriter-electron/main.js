@@ -828,6 +828,57 @@ function createWindow() {
   // Log when page loads successfully
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('Page loaded successfully!')
+
+    // Mac fix: Inject script to sync textarea DOM value with React state
+    // On Mac, automated typing doesn't trigger React's onChange properly
+    if (process.platform === 'darwin') {
+      mainWindow.webContents.executeJavaScript(`
+        (function() {
+          console.log('[SlyWriter Mac Fix] Initializing textarea sync...');
+
+          // Function to dispatch proper React-compatible input event
+          function syncTextareaWithReact() {
+            const textarea = document.querySelector('textarea[placeholder*="Type here"]');
+            if (!textarea) return;
+
+            const currentValue = textarea.value;
+            const lastKnownValue = textarea._lastSyncedValue || '';
+
+            // Only dispatch event if value actually changed
+            if (currentValue !== lastKnownValue) {
+              console.log('[SlyWriter Mac Fix] Syncing textarea value:', currentValue.substring(0, 50) + '...');
+
+              // Store the current value
+              textarea._lastSyncedValue = currentValue;
+
+              // Create and dispatch input event (React uses these for controlled inputs)
+              const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+              nativeInputValueSetter.call(textarea, currentValue);
+
+              // Dispatch input event which React listens to
+              const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+              textarea.dispatchEvent(inputEvent);
+
+              // Also dispatch change event for good measure
+              const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+              textarea.dispatchEvent(changeEvent);
+            }
+          }
+
+          // Poll every 500ms to check for value changes
+          setInterval(syncTextareaWithReact, 500);
+
+          // Also sync on focus events (when user clicks into textarea)
+          document.addEventListener('focusin', (e) => {
+            if (e.target && e.target.matches && e.target.matches('textarea[placeholder*="Type here"]')) {
+              setTimeout(syncTextareaWithReact, 100);
+            }
+          });
+
+          console.log('[SlyWriter Mac Fix] Textarea sync initialized!');
+        })();
+      `).catch(err => console.error('Failed to inject Mac textarea sync:', err));
+    }
   })
 
   // Add keyboard shortcuts for the window
