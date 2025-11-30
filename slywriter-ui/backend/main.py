@@ -1044,7 +1044,7 @@ async def track_ai_gen_endpoint(user_id: str, db: Session = Depends(get_db)):
 
     return {"status": "tracked", "ai_gen_usage": user.ai_gen_used_this_week}
 
-@app.post("/api/usage/check-reset")
+@app.get("/api/usage/check-reset")
 async def check_reset_endpoint(user_id: str, db: Session = Depends(get_db)):
     """Check if weekly usage should be reset"""
     # Find user by email or ID
