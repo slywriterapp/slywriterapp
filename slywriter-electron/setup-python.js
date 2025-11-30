@@ -11,10 +11,11 @@ const IS_MACOS = process.platform === 'darwin'
 const IS_LINUX = process.platform === 'linux'
 
 // Python URLs for different platforms
+// Note: python-build-standalone repo was transferred from indygreg to astral-sh
 const PYTHON_URLS = {
   win32: 'https://www.python.org/ftp/python/3.11.7/python-3.11.7-embed-amd64.zip',
-  darwin_x64: 'https://github.com/indygreg/python-build-standalone/releases/download/20231002/cpython-3.11.6%2B20231002-x86_64-apple-darwin-install_only.tar.gz',
-  darwin_arm64: 'https://github.com/indygreg/python-build-standalone/releases/download/20231002/cpython-3.11.6%2B20231002-aarch64-apple-darwin-install_only.tar.gz'
+  darwin_x64: 'https://github.com/astral-sh/python-build-standalone/releases/download/20231002/cpython-3.11.6%2B20231002-x86_64-apple-darwin-install_only.tar.gz',
+  darwin_arm64: 'https://github.com/astral-sh/python-build-standalone/releases/download/20231002/cpython-3.11.6%2B20231002-aarch64-apple-darwin-install_only.tar.gz'
 }
 
 // Get platform-specific Python URL
