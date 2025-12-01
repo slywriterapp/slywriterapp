@@ -570,7 +570,7 @@ async function startTypingServer() {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.executeJavaScript(`
             console.error('⚠️ Typing server is not running');
-            console.log('📥 Python environment is being set up. This may take a few minutes on first run.');
+            console.log('📥 Python environment is being set up. Please wait...');
             console.log('The app will download Python (~20MB) and install dependencies (~50MB).');
             console.log('If this doesn\\'t work automatically, you may need to:');
             console.log('  1. Install Python from https://python.org');
@@ -2057,9 +2057,10 @@ app.whenReady().then(async () => {
                     
                     // Apply humanizer if enabled
                     let finalText = generatedText
+                    let humanizerSucceeded = false  // Track if humanizer actually worked
                     if (humanizerEnabled) {
                       console.log('Applying humanizer to AI response...')
-                      
+
                       // Update overlay - humanizing
                       if (overlayWindow && !overlayWindow.isDestroyed()) {
                         overlayWindow.webContents.send('update-display', {
@@ -2070,26 +2071,36 @@ app.whenReady().then(async () => {
                           charsTyped: generatedText.length
                         })
                       }
-                      
-                      // Call humanizer API
+
+                      // Call humanizer API on Render server
                       const humanizeData = JSON.stringify({
-                        text: generatedText,
-                        settings: settings
+                        text: generatedText
                       })
-                      
+
                       const humanizeOptions = {
-                        hostname: '127.0.0.1',
-                        port: 8000,
-                        path: '/api/humanizer/process',
+                        hostname: 'slywriterapp.onrender.com',
+                        port: 443,
+                        path: '/api/ai/humanize',
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
                           'Content-Length': Buffer.byteLength(humanizeData)
                         }
                       }
-                      
+
+                      // Update overlay to show humanizing status
+                      if (overlayWindow && !overlayWindow.isDestroyed()) {
+                        overlayWindow.webContents.send('update-display', {
+                          type: 'typing',
+                          status: '🔄 Humanizing text...',
+                          progress: 85,
+                          wpm: 0,
+                          charsTyped: generatedText.length
+                        })
+                      }
+
                       await new Promise((resolve, reject) => {
-                        const humanizeReq = http.request(humanizeOptions, (res) => {
+                        const humanizeReq = https.request(humanizeOptions, (res) => {
                           let responseData = ''
                           res.on('data', (chunk) => {
                             responseData += chunk
@@ -2098,11 +2109,20 @@ app.whenReady().then(async () => {
                             if (res.statusCode === 200) {
                               try {
                                 const parsed = JSON.parse(responseData)
-                                finalText = parsed.text || generatedText
-                                console.log('Humanized text successfully')
+                                // Server returns 'text' or 'humanized' field
+                                const humanizedText = parsed.text || parsed.humanized
+                                if (humanizedText && humanizedText !== generatedText) {
+                                  finalText = humanizedText
+                                  humanizerSucceeded = true  // Only mark success if we got different text
+                                  console.log('Humanized text successfully via aiundetect.com')
+                                } else {
+                                  console.log('Humanizer returned same text or empty, not counting as use')
+                                }
                               } catch (e) {
                                 console.error('Failed to parse humanizer response:', e)
                               }
+                            } else {
+                              console.error('Humanizer API returned status:', res.statusCode, responseData)
                             }
                             resolve()
                           })
@@ -2110,6 +2130,11 @@ app.whenReady().then(async () => {
                         humanizeReq.on('error', (error) => {
                           console.error('Humanizer error:', error)
                           resolve() // Continue with original text
+                        })
+                        humanizeReq.setTimeout(60000, () => {
+                          console.error('Humanizer request timeout')
+                          humanizeReq.destroy()
+                          resolve()
                         })
                         humanizeReq.write(humanizeData)
                         humanizeReq.end()
@@ -2297,12 +2322,16 @@ app.whenReady().then(async () => {
                                       });
                                       console.log('📊 Typing tracked:', ${wordCount}, 'words');
 
-                                      // Track humanizer if enabled
+                                      // Track humanizer only if it actually succeeded
                                       ${humanizerEnabled ? `
-                                      await fetch(API_URL + '/api/usage/track-humanizer?user_id=' + userId, {
-                                        method: 'POST'
-                                      });
-                                      console.log('📊 Humanizer tracked');
+                                      if (${humanizerSucceeded}) {
+                                        await fetch(API_URL + '/api/usage/track-humanizer?user_id=' + userId, {
+                                          method: 'POST'
+                                        });
+                                        console.log('📊 Humanizer tracked');
+                                      } else {
+                                        console.log('📊 Humanizer not tracked (failed or returned same text)');
+                                      }
                                       ` : ''}
                                     }
                                   }

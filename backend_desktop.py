@@ -747,8 +747,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                     })
                     completion_sent_for_session = current_session
 
-            # Send current status if typing
-            if state.typing_active:
+            # Send current status if typing (but not if typing is complete for this session)
+            if state.typing_active and completion_sent_for_session != getattr(state, 'typing_complete_session', 0):
                 progress_data = {
                     "status": state.typing_progress.get('status', 'typing'),
                     "progress": state.typing_progress.get('progress', 0),
