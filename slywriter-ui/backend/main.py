@@ -2,6 +2,7 @@
 SlyWriter Backend Server - MERGED VERSION
 FastAPI server that handles all typing automation and backend functionality
 Includes both web app endpoints and desktop app endpoints
+Last deploy: 2025-11-30 - v2.9.19 fixes
 """
 
 from fastapi import FastAPI, WebSocket, HTTPException, Depends, BackgroundTasks, Request, Header
