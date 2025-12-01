@@ -1842,14 +1842,18 @@ app.whenReady().then(async () => {
             `).catch(() => false)
             
             const reviewMode = settings.review_mode === true || settings.review_mode === 'true'
-            const humanizerEnabled = settings.humanizer || false
-            
+            // Check for both humanizer and humanizer_enabled keys (different storage formats)
+            const humanizerEnabled = settings.humanizer_enabled === true || settings.humanizer_enabled === 'true' ||
+                                     settings.humanizer === true || settings.humanizer === 'true'
+
             console.log('🚀 [ELECTRON] AI settings:', settings)
             console.log('🚀 [ELECTRON] Paste mode:', pasteMode)
             console.log('🚀 [ELECTRON] Review mode value:', settings.review_mode)
             console.log('🚀 [ELECTRON] Review mode type:', typeof settings.review_mode)
             console.log('🚀 [ELECTRON] Review mode decision:', reviewMode)
-            console.log('🚀 [ELECTRON] Humanizer enabled:', humanizerEnabled)
+            console.log('🚀 [ELECTRON] Humanizer settings.humanizer_enabled:', settings.humanizer_enabled)
+            console.log('🚀 [ELECTRON] Humanizer settings.humanizer:', settings.humanizer)
+            console.log('🚀 [ELECTRON] Humanizer enabled decision:', humanizerEnabled)
 
             // Check AI generation and humanizer balances BEFORE making the request
             try {

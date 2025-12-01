@@ -37,5 +37,12 @@ contextBridge.exposeInMainWorld('electron', {
         return shell.openExternal(url)
       }
     }
+  },
+  // Also expose openExternal directly for backwards compatibility
+  openExternal: (url) => {
+    // Only allow http/https URLs for security
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return shell.openExternal(url)
+    }
   }
 })
