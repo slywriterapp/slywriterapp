@@ -205,9 +205,9 @@ async function setupPython(onProgress) {
 
         const tips = [
           'Updating packages...',
-          'This should take 2-5 minutes...',
           'Installing core dependencies...',
           'Setting up authentication...',
+          'Configuring modules...',
           'Almost done...'
         ]
 
@@ -353,10 +353,10 @@ async function setupPython(onProgress) {
     const tips = [
       'Setting up your workspace...',
       'Installing core dependencies...',
-      'Almost there! This may take 2-5 minutes...',
       'Configuring authentication modules...',
       'Setting up the typing engine...',
       'Installing UI components...',
+      'Preparing AI features...',
       'Just a few more packages...',
       'Finalizing setup...'
     ]
