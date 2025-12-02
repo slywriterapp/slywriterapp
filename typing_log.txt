@@ -181,3 +181,18 @@ test test test test ttest te (profile=Speed-Type, duration=3.40)
 [2025-08-31T15:16:40.820123] test test test test
 [2025-08-31T15:21:17.804473] test test test test test
 [2025-09-26T22:39:39.566743] test test test
+[2025-11-20T22:34:20.609835] Gravity is a fundamental force of nature that governs the interactions and movements of objects in the universe. First introduced by Sir Isaac Newton in the 17th century, gravity is the attractive force that pulls objects with mass toward each other. It is responsible for the phenomenon of weight and keeps planets in orbit around the Sun. According to Einstein's theory of general relativity, gravity is caused by the curvature of spacetime around massive objects. This means that massive objects like planets and stars warp the fabric of spacetime, causing other objects to move along curved paths around them. The understanding of gravity plays a crucial role in physics and astronomy, shaping our comprehension of the universe.
+[2025-11-21T19:49:04.291318] 1. What causes the seasons on Earth?
+
+The seasons are caused by the tilt of Earth’s rotational axis (about 23.5°).
+Because of this tilt, different parts of the Earth receive varying amounts of sunlight throughout the year as the planet orbits the Sun. When the Northern Hemisphere is tilted toward the Sun, it gets more direct sunlight and experiences summer, while the Southern Hemisphere experiences winter, and vice versa.
+
+2. Explain the difference between weather and climate.
+
+Weather is the short-term condition of the atmosphere—things like daily temperature, rain, wind, or storms.
+Climate is the long-term average of weather patterns over 30 years or more.
+Example:
+
+“It rained today” → weather
+
+“It’s usually dry and hot in July here” → climate

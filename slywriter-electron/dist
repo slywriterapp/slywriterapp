@@ -1,0 +1,17 @@
+version: 2.9.20
+files:
+  - url: SlyWriter-2.9.20.zip
+    sha512: uchZBwyC/Nouemfw6+G3L3Oq1qKSF9TNwoUYuUGAU2E9W/tOFkelVoNd9hn29jznIoiSVCTQcar4/PfqYFtS7g==
+    size: 44040192
+  - url: SlyWriter-2.9.20.zip
+    sha512: ZuueR2W0DuoTN0SoxN9pYASux1Q2JTj78BD33+lir2DCI+K3Qj1KWDMsDkt4b/m/g0RQD4/Rr3BpBsICNcXRuA==
+    size: 99414978
+  - url: SlyWriter-2.9.20.dmg
+    sha512: j+1AmKgwq+DInRIRlNK8gzX/4Syl+gk9ytnRLHdD/GhMQxVtFcmvlsmDoaEzJ/TV8hZBxy01Y3wISPu3oqiCkQ==
+    size: 103384739
+  - url: SlyWriter-2.9.20.dmg
+    sha512: lBRBwUSboPzDN6q4uX4lLFkDVvKuNBVmgcPeDNhqhPKEPs0HpyYACwZDNqXx90nwNUdTlbER+n64JM7m2Lo47g==
+    size: 96862674
+path: SlyWriter-2.9.20.zip
+sha512: uchZBwyC/Nouemfw6+G3L3Oq1qKSF9TNwoUYuUGAU2E9W/tOFkelVoNd9hn29jznIoiSVCTQcar4/PfqYFtS7g==
+releaseDate: '2025-12-01T01:43:47.347Z'
