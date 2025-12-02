@@ -119,48 +119,59 @@ try {
   console.log('Python setup module not found, will use system Python')
 }
 
-// ============== MAC ACCESSIBILITY PERMISSION ONBOARDING ==============
-// macOS requires explicit accessibility permission for keyboard simulation
+// ============== MAC AUTOMATION PERMISSION ONBOARDING ==============
+// macOS requires explicit Automation permission for keyboard simulation
 // This function triggers the permission dialog and guides the user through setup
+// IMPORTANT: This is now called AFTER user sign-in to maximize trust
 
-async function checkMacAccessibilityPermission() {
+async function checkMacAutomationPermission() {
   // Only run on macOS
   if (process.platform !== 'darwin') {
     return true
   }
 
-  console.log('[Mac] Checking accessibility permission...')
+  console.log('[Mac] Checking automation permission...')
 
   // Check if we've already completed onboarding
   const store = require('electron-store')
   const appStore = new store()
-  const onboardingCompleted = appStore.get('macAccessibilityOnboarded', false)
+  const onboardingCompleted = appStore.get('macAutomationOnboarded', false)
 
   if (onboardingCompleted) {
-    console.log('[Mac] Accessibility onboarding already completed')
+    console.log('[Mac] Automation onboarding already completed')
     return true
   }
 
-  // Show onboarding dialog
+  // Show friendly onboarding dialog AFTER user has seen the app
   const result = await dialog.showMessageBox({
     type: 'info',
-    title: 'Keyboard Permission Required',
-    message: 'SlyWriter needs permission to type',
-    detail: 'To simulate typing, macOS requires you to grant accessibility permission to SlyWriter.\n\nClick "Grant Permission" and a system dialog will appear. Follow these steps:\n\n1. Click "Open System Preferences"\n2. Enable SlyWriter in the list\n3. You may need to restart the app\n\nThis is a one-time setup.',
-    buttons: ['Grant Permission', 'Quit App'],
+    title: 'One Quick Step to Enable Typing',
+    message: 'SlyWriter needs your permission to type for you',
+    detail: `To simulate natural typing, macOS needs you to grant SlyWriter permission to control your keyboard.
+
+This is a standard macOS security feature - you'll see it with any typing automation app. Your data stays private and local.
+
+What happens next:
+1. Click "Enable Typing"
+2. macOS will show a permission prompt
+3. Go to System Settings > Privacy & Security > Automation
+4. Check the box next to SlyWriter
+
+This only takes 30 seconds and you'll only need to do it once!`,
+    buttons: ['Enable Typing', 'Later'],
     defaultId: 0,
     cancelId: 1,
     noLink: true
   })
 
   if (result.response === 1) {
-    // User clicked Quit
-    app.quit()
-    return false
+    // User clicked Later - don't quit, just skip for now
+    console.log('[Mac] User postponed permission setup')
+    return true
   }
 
   // Try to trigger the permission prompt by simulating a keypress
-  console.log('[Mac] Attempting to trigger accessibility permission prompt...')
+  console.log('[Mac] Attempting to trigger automation permission prompt...')
 
   try {
     // Use AppleScript to simulate a keypress - this triggers the permission dialog
@@ -179,41 +190,51 @@ async function checkMacAccessibilityPermission() {
   // Wait a moment for the user to see the permission dialog
   await new Promise(resolve => setTimeout(resolve, 500))
 
-  // Show follow-up dialog
+  // Show follow-up dialog with clear instructions
   const followUp = await dialog.showMessageBox({
     type: 'info',
-    title: 'Enable Accessibility Permission',
-    message: 'Did you see a permission request?',
-    detail: 'If a "System Preferences" popup appeared:\n\n1. Click "Open System Preferences"\n2. In Privacy & Security > Accessibility\n3. Enable the checkbox next to SlyWriter\n4. Click "Done" here when finished\n\nIf no popup appeared, you may need to:\n1. Go to System Preferences manually\n2. Privacy & Security > Accessibility\n3. Click the + button and add SlyWriter',
-    buttons: ['Done - I Enabled It', 'Open System Preferences', 'Quit'],
+    title: 'Enable SlyWriter in System Settings',
+    message: 'Almost there! Just enable SlyWriter in your settings.',
+    detail: `If you saw a macOS prompt:
+• Click "Open System Settings"
+• Find SlyWriter in the Automation list
+• Check the box to enable it
+
+If no prompt appeared:
+1. Open System Settings (click the Apple menu)
+2. Go to Privacy & Security > Automation
+3. Find SlyWriter and check the box
+
+Once enabled, typing will work automatically!`,
+    buttons: ['Done - I Enabled It', 'Open System Settings', 'Skip for Now'],
     defaultId: 0,
     cancelId: 2,
     noLink: true
   })
 
   if (followUp.response === 2) {
-    app.quit()
-    return false
+    console.log('[Mac] User skipped permission setup')
+    return true
   }
 
   if (followUp.response === 1) {
-    // Open System Preferences to Accessibility
+    // Open System Preferences to Automation (not Accessibility)
     const { shell } = require('electron')
-    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Automation')
 
     // Wait for user to grant permission
     await dialog.showMessageBox({
       type: 'info',
-      title: 'Waiting for Permission',
-      message: 'Grant permission in System Preferences',
-      detail: 'After enabling SlyWriter in the Accessibility list, click OK to continue.',
+      title: 'Enable SlyWriter',
+      message: 'Check the box next to SlyWriter',
+      detail: 'Once you\'ve enabled SlyWriter in the Automation list, click OK.',
       buttons: ['OK'],
       defaultId: 0
     })
   }
 
   // Mark onboarding as completed (user said they enabled it)
-  appStore.set('macAccessibilityOnboarded', true)
+  appStore.set('macAutomationOnboarded', true)
 
   // Test if permission was actually granted
   try {
@@ -221,25 +242,32 @@ async function checkMacAccessibilityPermission() {
     execSync(`osascript -e 'tell application "System Events" to keystroke ""'`, {
       timeout: 5000
     })
-    console.log('[Mac] Accessibility permission appears to be granted!')
+    console.log('[Mac] Automation permission appears to be granted!')
     return true
   } catch (e) {
-    console.log('[Mac] Accessibility permission may not be granted yet')
+    console.log('[Mac] Automation permission may not be granted yet')
 
-    // Show warning but continue anyway (user may have granted it)
+    // Show helpful tip but continue anyway
     await dialog.showMessageBox({
-      type: 'warning',
-      title: 'Permission May Not Be Enabled',
-      message: 'Keyboard typing may not work yet',
-      detail: 'If typing doesn\'t work, please:\n\n1. Go to System Preferences\n2. Privacy & Security > Accessibility\n3. Make sure SlyWriter is checked\n4. Restart SlyWriter',
-      buttons: ['OK'],
+      type: 'info',
+      title: 'Typing Permission Not Yet Enabled',
+      message: 'You can enable this anytime',
+      detail: `If typing doesn't work when you try it:
+
+1. Open System Settings (Apple menu)
+2. Privacy & Security > Automation
+3. Check the box next to SlyWriter
+4. Try typing again - no restart needed!
+
+The app will work for everything else in the meantime.`,
+      buttons: ['Got It'],
       defaultId: 0
     })
 
     return true // Continue anyway
   }
 }
-// ============== END MAC ACCESSIBILITY PERMISSION ONBOARDING ==============
+// ============== END MAC AUTOMATION PERMISSION ONBOARDING ==============
 
 // Start the typing server (backend_desktop.py - desktop app backend)
 async function startTypingServer() {
@@ -1559,16 +1587,6 @@ function setupAutoUpdater() {
 app.whenReady().then(async () => {
   // Simple startup - no cleanup needed
   cleanupPreviousInstances()
-
-  // ============== MAC ACCESSIBILITY CHECK (FIRST!) ==============
-  // On Mac, check/request accessibility permission BEFORE anything else
-  // This is non-skippable and required for keyboard typing to work
-  const accessibilityGranted = await checkMacAccessibilityPermission()
-  if (!accessibilityGranted) {
-    console.log('[App] User quit during accessibility onboarding')
-    return // Don't continue app startup
-  }
-  // ==============================================================
 
   // Show splash screen FIRST
   createSplashScreen()
@@ -3321,6 +3339,15 @@ ipcMain.handle('clear-auth', async () => {
 
 ipcMain.handle('navigate-to-app', async () => {
   try {
+    // ============== MAC AUTOMATION PERMISSION CHECK (AFTER LOGIN) ==============
+    // Check/request Mac automation permission AFTER user has signed in
+    // This is when users trust the app more, having seen it looks legit
+    if (process.platform === 'darwin') {
+      console.log('[App] User logged in - checking Mac automation permission...')
+      await checkMacAutomationPermission()
+    }
+    // ==========================================================================
+
     // Navigate to main app after successful login
     if (mainWindow && !mainWindow.isDestroyed()) {
       // Navigate to the root page, not login

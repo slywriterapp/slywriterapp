@@ -19,7 +19,7 @@ import GlobalHotkeys from './components/GlobalHotkeys'
 import GlobalHotkeyListener from './components/GlobalHotkeyListener'
 import OnboardingFlow from './components/OnboardingFlow'
 import SplashScreen from './components/SplashScreen'
-import BetaDisclosure from './components/BetaDisclosure'
+// import BetaDisclosure from './components/BetaDisclosure' // REMOVED FOR LAUNCH
 import UserProfile from './components/UserProfile'
 import axios from 'axios'
 import { 
@@ -526,8 +526,8 @@ function SlyWriterApp() {
       {/* Splash Screen */}
       <SplashScreen />
       
-      {/* Beta Testing Disclosure */}
-      <BetaDisclosure />
+      {/* Beta Testing Disclosure - REMOVED FOR LAUNCH */}
+      {/* <BetaDisclosure /> */}
       
       {/* Global hotkey listener for Electron */}
       <GlobalHotkeyListener />
