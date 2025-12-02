@@ -1278,17 +1278,23 @@ function createUpdateWindow() {
   const primaryDisplay = screen.getPrimaryDisplay()
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
 
+  // Center the window on screen
+  const windowWidth = 420
+  const windowHeight = 280
+  const x = Math.round((screenWidth - windowWidth) / 2)
+  const y = Math.round((screenHeight - windowHeight) / 2)
+
   updateWindow = new BrowserWindow({
-    width: 500,
-    height: 350,
+    width: windowWidth,
+    height: windowHeight,
     frame: false,
     transparent: true,
-    alwaysOnTop: false, // NOT always on top - less intrusive
+    alwaysOnTop: true, // Always on top so user sees it
     resizable: false,
-    skipTaskbar: false, // Show in taskbar so users can find it
-    x: screenWidth - 520, // Position bottom-right with margin
-    y: screenHeight - 370,
-    modal: false, // NOT modal - don't block main window
+    skipTaskbar: false,
+    x: x,
+    y: y,
+    modal: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -1299,11 +1305,6 @@ function createUpdateWindow() {
 
   updateWindow.on('closed', () => {
     updateWindow = null
-  })
-
-  // Close update window when clicking outside (lose focus)
-  updateWindow.on('blur', () => {
-    // Don't auto-close, let user close manually or it will close on install
   })
 }
 
@@ -1559,13 +1560,19 @@ function setupAutoUpdater() {
     console.log('[AUTO-UPDATE] ✅ UPDATE DOWNLOADED SUCCESSFULLY!')
     console.log('[AUTO-UPDATE] Version:', info.version)
     console.log('[AUTO-UPDATE] Files downloaded:', info.files)
-    console.log('[AUTO-UPDATE] Ready to install on restart')
+    console.log('[AUTO-UPDATE] Auto-installing in 3 seconds...')
     console.log('[AUTO-UPDATE] ========================================')
 
     // Send to update window
     if (updateWindow && !updateWindow.isDestroyed()) {
       updateWindow.webContents.send('update-downloaded', info)
     }
+
+    // Auto quit and install after 3 seconds
+    setTimeout(() => {
+      console.log('[AUTO-UPDATE] Quitting and installing update now...')
+      autoUpdater.quitAndInstall(false, true)
+    }, 3000)
   })
 
   autoUpdater.on('error', (error) => {
