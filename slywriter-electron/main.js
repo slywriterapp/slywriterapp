@@ -30,7 +30,7 @@ try {
 }
 
 // Configure auto-updater
-autoUpdater.autoDownload = false
+autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
 
 // Wrap console methods to prevent EPIPE errors
@@ -1437,7 +1437,7 @@ function setupAutoUpdater() {
     repo: 'slywriter-releases'
   })
 
-  autoUpdater.autoDownload = false
+  autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
 
   // Check for updates on app start (after splash screen)
