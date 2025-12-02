@@ -2414,11 +2414,19 @@ async def admin_update_user_plan(
         old_plan = user.plan
         user.plan = request.plan
 
+        # Always set subscription_status to active for Pro/Premium upgrades
+        if request.plan in ["Pro", "Premium"]:
+            user.subscription_status = "active"
+
         # If duration_days is provided, set premium_until
         if request.duration_days and request.duration_days > 0:
             from datetime import datetime, timedelta
             user.premium_until = datetime.utcnow() + timedelta(days=request.duration_days)
-            user.subscription_status = "active"
+        else:
+            # Default to 30 days if no duration specified for Pro/Premium
+            if request.plan in ["Pro", "Premium"]:
+                from datetime import datetime, timedelta
+                user.premium_until = datetime.utcnow() + timedelta(days=30)
 
         db.commit()
 
