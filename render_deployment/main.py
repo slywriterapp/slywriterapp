@@ -2449,6 +2449,321 @@ async def admin_update_user_plan(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/admin/dashboard")
+async def admin_dashboard(
+    _: bool = Depends(verify_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin dashboard with all key metrics"""
+    try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+
+        now = datetime.utcnow()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+
+        # User counts
+        total_users = db.query(User).count()
+        pro_users = db.query(User).filter(User.plan == "Pro").count()
+        premium_users = db.query(User).filter(User.plan == "Premium").count()
+        free_users = db.query(User).filter(User.plan == "Free").count()
+        active_subscribers = db.query(User).filter(User.subscription_status == "active").count()
+
+        # New users by time period
+        users_today = db.query(User).filter(User.created_at >= today).count()
+        users_this_week = db.query(User).filter(User.created_at >= week_ago).count()
+        users_this_month = db.query(User).filter(User.created_at >= month_ago).count()
+
+        # Words typed (from telemetry if available)
+        total_words = 0
+        words_today = 0
+        words_this_week = 0
+        try:
+            # Check if TelemetryEvent table exists
+            total_words = db.query(func.sum(TelemetryEvent.word_count)).scalar() or 0
+            words_today = db.query(func.sum(TelemetryEvent.word_count)).filter(
+                TelemetryEvent.timestamp >= today
+            ).scalar() or 0
+            words_this_week = db.query(func.sum(TelemetryEvent.word_count)).filter(
+                TelemetryEvent.timestamp >= week_ago
+            ).scalar() or 0
+        except:
+            pass
+
+        # Daily signups for last 30 days (for graphs)
+        daily_signups = []
+        for i in range(30):
+            day = today - timedelta(days=i)
+            next_day = day + timedelta(days=1)
+            count = db.query(User).filter(
+                User.created_at >= day,
+                User.created_at < next_day
+            ).count()
+            daily_signups.append({
+                "date": day.strftime("%Y-%m-%d"),
+                "count": count
+            })
+        daily_signups.reverse()  # Oldest first
+
+        # Recent users list
+        recent_users = db.query(User).order_by(User.created_at.desc()).limit(10).all()
+        recent_users_list = [{
+            "email": u.email,
+            "plan": u.plan,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "subscription_status": u.subscription_status
+        } for u in recent_users]
+
+        # Plan distribution for pie chart
+        plan_distribution = {
+            "Free": free_users,
+            "Pro": pro_users,
+            "Premium": premium_users
+        }
+
+        return {
+            "success": True,
+            "generated_at": now.isoformat(),
+            "summary": {
+                "total_users": total_users,
+                "active_subscribers": active_subscribers,
+                "total_words_typed": total_words
+            },
+            "users": {
+                "total": total_users,
+                "by_plan": plan_distribution,
+                "pro": pro_users,
+                "premium": premium_users,
+                "free": free_users,
+                "active_subscribers": active_subscribers
+            },
+            "growth": {
+                "today": users_today,
+                "this_week": users_this_week,
+                "this_month": users_this_month,
+                "daily_signups": daily_signups
+            },
+            "words": {
+                "total": total_words,
+                "today": words_today,
+                "this_week": words_this_week
+            },
+            "recent_users": recent_users_list
+        }
+    except Exception as e:
+        logger.error(f"Admin dashboard error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/dashboard/html")
+async def admin_dashboard_html(
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Admin dashboard as a visual HTML page with charts"""
+    # Verify admin
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=500, detail="Admin authentication not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    token = authorization.replace("Bearer ", "")
+    if token != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid admin credentials")
+
+    # Get data
+    data = await admin_dashboard(_=True, db=db)
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>SlyWriter Admin Dashboard</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                color: white;
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            .container {{ max-width: 1200px; margin: 0 auto; }}
+            h1 {{
+                text-align: center;
+                margin-bottom: 30px;
+                background: linear-gradient(90deg, #8b5cf6, #a855f7);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                font-size: 2.5rem;
+            }}
+            .stats-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 30px;
+            }}
+            .stat-card {{
+                background: rgba(139, 92, 246, 0.1);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                border-radius: 12px;
+                padding: 20px;
+                text-align: center;
+            }}
+            .stat-value {{
+                font-size: 2.5rem;
+                font-weight: bold;
+                color: #a855f7;
+            }}
+            .stat-label {{
+                color: rgba(255,255,255,0.7);
+                margin-top: 5px;
+            }}
+            .charts-grid {{
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 20px;
+                margin-bottom: 30px;
+            }}
+            .chart-card {{
+                background: rgba(255,255,255,0.05);
+                border-radius: 12px;
+                padding: 20px;
+            }}
+            .chart-title {{
+                margin-bottom: 15px;
+                color: rgba(255,255,255,0.9);
+            }}
+            .recent-users {{
+                background: rgba(255,255,255,0.05);
+                border-radius: 12px;
+                padding: 20px;
+            }}
+            .user-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 10px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }}
+            .user-email {{ color: rgba(255,255,255,0.9); }}
+            .user-plan {{
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 0.8rem;
+            }}
+            .plan-Pro {{ background: #8b5cf6; }}
+            .plan-Premium {{ background: #f59e0b; }}
+            .plan-Free {{ background: rgba(255,255,255,0.2); }}
+            .updated {{ text-align: center; color: rgba(255,255,255,0.5); margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>SlyWriter Dashboard</h1>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{data['users']['total']}</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{data['users']['active_subscribers']}</div>
+                    <div class="stat-label">Active Subscribers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{data['growth']['today']}</div>
+                    <div class="stat-label">Signups Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{data['growth']['this_week']}</div>
+                    <div class="stat-label">This Week</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{data['growth']['this_month']}</div>
+                    <div class="stat-label">This Month</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{data['words']['total']:,}</div>
+                    <div class="stat-label">Words Typed</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 class="chart-title">Daily Signups (Last 30 Days)</h3>
+                    <canvas id="signupsChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Users by Plan</h3>
+                    <canvas id="plansChart"></canvas>
+                </div>
+            </div>
+
+            <div class="recent-users">
+                <h3 class="chart-title">Recent Users</h3>
+                {"".join([f'''
+                <div class="user-row">
+                    <span class="user-email">{u['email']}</span>
+                    <span class="user-plan plan-{u['plan']}">{u['plan']}</span>
+                </div>
+                ''' for u in data['recent_users']])}
+            </div>
+
+            <p class="updated">Last updated: {data['generated_at']}</p>
+        </div>
+
+        <script>
+            const signupsData = {str([d['count'] for d in data['growth']['daily_signups']])};
+            const signupsLabels = {str([d['date'][-5:] for d in data['growth']['daily_signups']])};
+
+            new Chart(document.getElementById('signupsChart'), {{
+                type: 'line',
+                data: {{
+                    labels: signupsLabels,
+                    datasets: [{{
+                        label: 'New Users',
+                        data: signupsData,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{
+                        y: {{ beginAtZero: true, grid: {{ color: 'rgba(255,255,255,0.1)' }} }},
+                        x: {{ grid: {{ display: false }} }}
+                    }}
+                }}
+            }});
+
+            new Chart(document.getElementById('plansChart'), {{
+                type: 'doughnut',
+                data: {{
+                    labels: ['Free', 'Pro', 'Premium'],
+                    datasets: [{{
+                        data: [{data['users']['free']}, {data['users']['pro']}, {data['users']['premium']}],
+                        backgroundColor: ['rgba(255,255,255,0.2)', '#8b5cf6', '#f59e0b']
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{ legend: {{ position: 'bottom', labels: {{ color: 'white' }} }} }}
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
