@@ -103,27 +103,26 @@ export default function MissionTab() {
         
         <div className="grid md:grid-cols-2 gap-8">
           <div>
-            <h3 className="text-xl font-semibold text-white mb-3">What We Stand For</h3>
-            <p className="text-gray-300 leading-relaxed mb-4">
-              SlyWriter is built to enhance productivity and accessibility in digital writing. 
+            <p className="text-gray-300 leading-relaxed mb-6">
+              SlyWriter is built to enhance productivity and accessibility in digital writing.
               We believe in empowering users with tools that make typing more natural and efficient.
             </p>
             <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
               <p className="text-sm text-yellow-300">
-                <strong>Important:</strong> SlyWriter is designed for legitimate productivity, 
-                content creation, and accessibility purposes. We do not condone or support 
+                <strong>Important:</strong> SlyWriter is designed for legitimate productivity,
+                content creation, and accessibility purposes. We do not condone or support
                 academic dishonesty or any form of cheating.
               </p>
             </div>
           </div>
-          
+
           <div>
-            <h3 className="text-xl font-semibold text-white mb-3">Our Commitment</h3>
+            <h3 className="text-xl font-semibold text-white mb-3">Humanitarian Support</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-green-400 rounded-full" />
                 <p className="text-gray-300">
-                  <strong className="text-purple-400">10%</strong> of every subscription goes directly to Gaza humanitarian aid
+                  <strong className="text-purple-400">10%</strong> of every subscription goes toward civilian relief efforts in areas affected by conflict
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -139,7 +138,11 @@ export default function MissionTab() {
                 </p>
               </div>
             </div>
-            
+
+            <p className="text-gray-400 text-sm mt-4">
+              We support humanitarian aid for civilians everywhere, regardless of nationality or region.
+            </p>
+
             {/* Donation Counter */}
             <div className="mt-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4">
               <div className="flex items-center justify-between">
@@ -147,7 +150,7 @@ export default function MissionTab() {
                 <span className="text-3xl font-bold text-white">${totalDonated.toFixed(2)}</span>
               </div>
               <div className="mt-2 text-sm text-purple-100">
-                Supporting humanitarian efforts in Gaza
+                Supporting humanitarian relief for those in need
               </div>
             </div>
           </div>
