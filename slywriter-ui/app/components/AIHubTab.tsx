@@ -96,7 +96,7 @@ export default function AIHubTab() {
     tone: 'Neutral',
     humanizer_enabled: true,
     review_mode: false,
-    learning_mode: false,
+    learning_mode: true,
     auto_output: false,
     auto_output_delay: 5
   })

@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
-import { 
-  BookOpen, Brain, Target, TrendingUp, Award, Clock, 
+import {
+  BookOpen, Brain, Target, TrendingUp, Award, Clock,
   CheckCircle, Circle, Lock, Unlock, BarChart, Sparkles,
   ChevronRight, RefreshCw, PlayCircle
 } from 'lucide-react'
+import { RENDER_API_URL } from '../config/api'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = RENDER_API_URL
 
 interface LearningTopic {
   id: string
