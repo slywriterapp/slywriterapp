@@ -825,11 +825,43 @@ async def broadcast_typo_update(typo_count):
             state.websocket_clients.remove(client)
 
 # Helper functions
+def sync_words_to_cloud(word_count: int):
+    """Sync word count to the cloud backend"""
+    try:
+        # Get user email from localStorage via the frontend or saved state
+        user_email = None
+        if state.user:
+            user_email = state.user.get('email')
+
+        if not user_email:
+            print(f"[CLOUD SYNC] No user email found, skipping sync")
+            return
+
+        # Convert email to user_id format expected by the API
+        # The API expects email with @ replaced by _ and . replaced by _
+        user_id = user_email.replace("@", "_").replace(".", "_")
+        print(f"[CLOUD SYNC] Syncing {word_count} words for {user_email} (user_id: {user_id})")
+
+        # Use query parameters as expected by the /api/usage/track endpoint
+        response = requests.post(
+            f"https://slywriterapp.onrender.com/api/usage/track?user_id={user_id}&words={word_count}",
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            print(f"[CLOUD SYNC] Success! Total words used this week: {data.get('usage', 'unknown')}")
+        else:
+            print(f"[CLOUD SYNC] Failed with status {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"[CLOUD SYNC] Error syncing to cloud: {e}")
+
 def run_regular_typing(text, preview_callback, status_callback, typing_req):
     """Run regular typing engine"""
     import time
     start_time = time.time()
-    
+    word_count = len(text.split())  # Count words before typing
+
     try:
         # Start typing (this creates a thread and returns immediately)
         engine.start_typing_from_input(
@@ -845,11 +877,11 @@ def run_regular_typing(text, preview_callback, status_callback, typing_req):
             grammarly_delay=typing_req.grammarly_delay,
             typo_rate=typing_req.typo_rate
         )
-        
+
         # Wait for typing to complete by checking the typing thread
         if hasattr(engine, '_typing_thread') and engine._typing_thread:
             engine._typing_thread.join()  # Wait for the typing thread to finish
-        
+
     finally:
         # Ensure minimum duration of 1 second to prevent UI flashing
         elapsed = time.time() - start_time
@@ -863,6 +895,10 @@ def run_regular_typing(text, preview_callback, status_callback, typing_req):
         state.typing_complete = True  # Flag for WebSocket to check
         # Increment session counter so all connections can receive the completion
         state.typing_complete_session = getattr(state, 'typing_complete_session', 0) + 1
+
+        # Sync word count to cloud (don't sync for preview mode)
+        if not typing_req.preview_only and not typing_req.preview_mode:
+            sync_words_to_cloud(word_count)
 
         # Broadcast the completion status to all WebSocket clients
         try:
@@ -879,7 +915,8 @@ def run_premium_typing(text, preview_callback, status_callback, typing_req):
     """Run premium typing with AI filler"""
     import time
     start_time = time.time()
-    
+    word_count = len(text.split())  # Count words before typing
+
     try:
         # Premium typing might also use threading
         premium_typing.premium_type_with_filler(
@@ -912,6 +949,10 @@ def run_premium_typing(text, preview_callback, status_callback, typing_req):
         state.typing_complete = True  # Flag for WebSocket to check
         # Increment session counter so all connections can receive the completion
         state.typing_complete_session = getattr(state, 'typing_complete_session', 0) + 1
+
+        # Sync word count to cloud (don't sync for preview mode)
+        if not typing_req.preview_only and not typing_req.preview_mode:
+            sync_words_to_cloud(word_count)
 
         # Broadcast the completion status to all WebSocket clients
         try:
