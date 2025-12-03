@@ -2779,6 +2779,10 @@ async def admin_upgrade_user(
     old_plan = user.plan
     user.plan = request.plan
 
+    # IMPORTANT: Set subscription_status to active for Pro/Premium upgrades
+    if request.plan in ["Pro", "Premium"]:
+        user.subscription_status = "active"
+
     # If setting to Pro/Premium with duration, set premium_until date
     if request.plan in ["Pro", "Premium"] and request.duration_days:
         now = datetime.utcnow()
@@ -2790,9 +2794,14 @@ async def admin_upgrade_user(
 
         user.premium_until = start_date + timedelta(days=request.duration_days)
         logger.info(f"Admin upgraded {request.email} to {request.plan} until {user.premium_until.strftime('%Y-%m-%d')}")
+    elif request.plan in ["Pro", "Premium"] and not request.duration_days:
+        # Default to 30 days if no duration specified
+        user.premium_until = datetime.utcnow() + timedelta(days=30)
+        logger.info(f"Admin upgraded {request.email} to {request.plan} for 30 days (default)")
     elif request.plan == "Free":
-        # Clear premium_until when downgrading to Free
+        # Clear premium_until and subscription_status when downgrading to Free
         user.premium_until = None
+        user.subscription_status = None
         logger.info(f"Admin downgraded {request.email} to Free")
     else:
         logger.info(f"Admin upgraded {request.email} to {request.plan} (permanent)")
@@ -2808,9 +2817,96 @@ async def admin_upgrade_user(
         "user": {
             "email": user.email,
             "plan": user.plan,
+            "subscription_status": user.subscription_status,
             "premium_until": user.premium_until.isoformat() if user.premium_until else None,
             **limits
         }
+    }
+
+
+# Also support /api/admin/update_plan for consistency
+@app.post("/api/admin/update_plan")
+async def admin_update_plan(
+    request: AdminUpgradeUserRequest,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Admin: Update a user's plan (alias for upgrade-user)"""
+    return await admin_upgrade_user(request, db, _)
+
+
+@app.get("/api/admin/dashboard")
+async def admin_dashboard(
+    _: bool = Depends(verify_admin),
+    db: Session = Depends(get_db)
+):
+    """Admin dashboard with all key metrics"""
+    now = datetime.utcnow()
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = today - timedelta(days=7)
+    month_ago = today - timedelta(days=30)
+
+    # User counts
+    total_users = db.query(User).count()
+    pro_users = db.query(User).filter(User.plan == "Pro").count()
+    premium_users = db.query(User).filter(User.plan == "Premium").count()
+    free_users = db.query(User).filter(User.plan == "Free").count()
+    active_subscribers = db.query(User).filter(User.subscription_status == "active").count()
+
+    # New users by time period
+    users_today = db.query(User).filter(User.created_at >= today).count()
+    users_this_week = db.query(User).filter(User.created_at >= week_ago).count()
+    users_this_month = db.query(User).filter(User.created_at >= month_ago).count()
+
+    # Words typed (from analytics if available)
+    total_words = 0
+    try:
+        result = db.query(func.sum(Analytics.words_typed)).scalar()
+        total_words = result or 0
+    except:
+        pass
+
+    # Daily signups for last 30 days
+    daily_signups = []
+    for i in range(30):
+        day = today - timedelta(days=29-i)
+        next_day = day + timedelta(days=1)
+        count = db.query(User).filter(
+            User.created_at >= day,
+            User.created_at < next_day
+        ).count()
+        daily_signups.append({
+            "date": day.strftime("%Y-%m-%d"),
+            "count": count
+        })
+
+    # Recent users
+    recent_users = db.query(User).order_by(User.created_at.desc()).limit(20).all()
+    recent_users_list = [{
+        "email": u.email,
+        "plan": u.plan or "Free",
+        "created_at": u.created_at.isoformat() if u.created_at else None
+    } for u in recent_users]
+
+    return {
+        "users": {
+            "total": total_users,
+            "free": free_users,
+            "pro": pro_users,
+            "premium": premium_users,
+            "active_subscribers": active_subscribers
+        },
+        "growth": {
+            "today": users_today,
+            "this_week": users_this_week,
+            "this_month": users_this_month,
+            "daily_signups": daily_signups
+        },
+        "words": {
+            "total": total_words
+        },
+        "recent_users": recent_users_list,
+        "generated_at": now.isoformat()
     }
 
 
