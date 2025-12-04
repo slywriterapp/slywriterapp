@@ -322,9 +322,9 @@ export default function MissionTab() {
               </div>
               <button
                 onClick={redeemReferralCode}
-                disabled={redeemStatus !== 'valid' || redeemStatus === 'redeeming'}
+                disabled={redeemStatus !== 'valid' && redeemStatus !== 'redeeming'}
                 className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                  redeemStatus === 'valid'
+                  redeemStatus === 'valid' || redeemStatus === 'redeeming'
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-gray-600 cursor-not-allowed'
                 }`}
