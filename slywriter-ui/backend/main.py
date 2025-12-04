@@ -1114,6 +1114,38 @@ async def complete_typing_session(session_data: TypingSessionCompleteRequest, db
         logger.error(f"Failed to save typing session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Referral code validation endpoint (no auth required - for onboarding)
+class ValidateReferralRequest(BaseModel):
+    referral_code: str
+
+@app.post("/api/referral/validate")
+async def validate_referral_code(request: ValidateReferralRequest, db: Session = Depends(get_db)):
+    """Validate a referral code exists (no auth required - used during onboarding)"""
+    try:
+        referral_code = request.referral_code.strip()
+
+        if not referral_code:
+            return {"valid": False, "error": "Please enter a referral code"}
+
+        # Find user by referral code
+        referrer = db.query(User).filter(User.referral_code == referral_code).first()
+
+        if not referrer:
+            return {
+                "valid": False,
+                "error": "Invalid referral code. Please check and try again."
+            }
+
+        # Return success with referrer info
+        return {
+            "valid": True,
+            "referrer_name": getattr(referrer, 'name', None) or referrer.email.split('@')[0]
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to validate referral code: {e}")
+        return {"valid": False, "error": "Failed to validate code"}
+
 # Referral code redemption endpoint
 class RedeemReferralRequest(BaseModel):
     referral_code: str

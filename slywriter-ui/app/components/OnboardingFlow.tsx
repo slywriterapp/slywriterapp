@@ -28,6 +28,56 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
   const [permissionError, setPermissionError] = useState(false)
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
 
+  // Referral code states
+  const [referralCode, setReferralCode] = useState('')
+  const [referralStatus, setReferralStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle')
+  const [referralError, setReferralError] = useState('')
+  const [referrerName, setReferrerName] = useState('')
+
+  // Validate referral code against the backend
+  const validateReferralCode = async (code: string) => {
+    if (!code.trim()) {
+      setReferralStatus('idle')
+      setReferralError('')
+      setReferrerName('')
+      localStorage.removeItem('pending-referral-code')
+      return
+    }
+
+    setReferralStatus('validating')
+    setReferralError('')
+
+    try {
+      // Use production API since we're not logged in yet
+      const apiUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:5000'
+        : 'https://slywriterapp.onrender.com'
+
+      const response = await fetch(`${apiUrl}/api/referral/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referral_code: code.trim() })
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setReferralStatus('valid')
+        setReferrerName(data.referrer_name || '')
+        localStorage.setItem('pending-referral-code', code.trim())
+      } else {
+        setReferralStatus('invalid')
+        setReferralError(data.error || 'Invalid referral code')
+        localStorage.removeItem('pending-referral-code')
+      }
+    } catch (error) {
+      console.error('Failed to validate referral code:', error)
+      setReferralStatus('invalid')
+      setReferralError('Failed to validate code. Please try again.')
+      localStorage.removeItem('pending-referral-code')
+    }
+  }
+
   useEffect(() => {
     const seen = localStorage.getItem('slywriter-onboarding-complete')
     if (seen) {
@@ -379,20 +429,57 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
             <p className="text-sm text-gray-400 mb-4">
               If a friend referred you, enter their code to get bonus words and unlock rewards!
             </p>
-            <input
-              type="text"
-              placeholder="Enter referral code..."
-              className="w-full bg-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              onChange={(e) => {
-                const code = e.target.value.trim()
-                if (code) {
-                  localStorage.setItem('pending-referral-code', code)
-                }
-              }}
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              💡 You'll get 500 bonus words when you redeem a valid code
-            </p>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Enter referral code..."
+                value={referralCode}
+                className={`w-full bg-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 ${
+                  referralStatus === 'valid' ? 'focus:ring-green-500 border border-green-500' :
+                  referralStatus === 'invalid' ? 'focus:ring-red-500 border border-red-500' :
+                  'focus:ring-purple-500'
+                }`}
+                onChange={(e) => {
+                  const code = e.target.value
+                  setReferralCode(code)
+                  // Debounce validation
+                  if (code.trim().length >= 3) {
+                    validateReferralCode(code)
+                  } else if (code.trim() === '') {
+                    setReferralStatus('idle')
+                    setReferralError('')
+                    localStorage.removeItem('pending-referral-code')
+                  }
+                }}
+              />
+              {referralStatus === 'validating' && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+              {referralStatus === 'valid' && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Validation feedback */}
+            {referralStatus === 'valid' && referrerName && (
+              <p className="text-sm text-green-400 mt-2">
+                Valid code from {referrerName}! You'll both get 500 bonus words.
+              </p>
+            )}
+            {referralStatus === 'invalid' && referralError && (
+              <p className="text-sm text-red-400 mt-2">
+                {referralError}
+              </p>
+            )}
+            {referralStatus === 'idle' && (
+              <p className="text-xs text-gray-500 mt-2">
+                You'll get 500 bonus words when you redeem a valid code
+              </p>
+            )}
           </div>
 
           <div className="flex items-start gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
@@ -588,7 +675,7 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
             </div>
 
             {/* Actions */}
-            <div className="p-6 pt-0">
+            <div className="p-6 pt-0 space-y-3">
               {!requestingPermission && !hasPermission && (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -612,6 +699,22 @@ export default function OnboardingFlow({ isVisible, onComplete }: OnboardingProp
                   Retry Permission
                 </motion.button>
               )}
+
+              {/* Skip button - always visible on Mac permission screen */}
+              <button
+                onClick={() => {
+                  // Skip permission check and continue to normal onboarding
+                  if (pollingInterval) {
+                    clearInterval(pollingInterval)
+                    setPollingInterval(null)
+                  }
+                  setHasPermission(true) // Pretend we have permission to skip this screen
+                  setRequestingPermission(false)
+                }}
+                className="w-full py-3 text-gray-400 hover:text-white transition-colors text-sm"
+              >
+                Skip for now (you can enable later in System Settings)
+              </button>
             </div>
           </motion.div>
         </motion.div>

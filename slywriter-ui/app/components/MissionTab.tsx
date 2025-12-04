@@ -28,6 +28,95 @@ export default function MissionTab() {
   const [totalDonated, setTotalDonated] = useState(0)
   const [currentTier, setCurrentTier] = useState(0)
   const [copied, setCopied] = useState(false)
+
+  // Redeem referral code states
+  const [redeemCode, setRedeemCode] = useState('')
+  const [redeemStatus, setRedeemStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid' | 'redeeming'>('idle')
+  const [redeemError, setRedeemError] = useState('')
+  const [referrerName, setReferrerName] = useState('')
+
+  // Get API URL
+  const getApiUrl = () => {
+    if (typeof window === 'undefined') return 'https://slywriterapp.onrender.com'
+    return window.location.hostname === 'localhost'
+      ? 'http://localhost:5000'
+      : 'https://slywriterapp.onrender.com'
+  }
+
+  // Validate referral code
+  const validateRedeemCode = async (code: string) => {
+    if (!code.trim()) {
+      setRedeemStatus('idle')
+      setRedeemError('')
+      setReferrerName('')
+      return
+    }
+
+    setRedeemStatus('validating')
+    setRedeemError('')
+
+    try {
+      const response = await fetch(`${getApiUrl()}/api/referral/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referral_code: code.trim() })
+      })
+
+      const data = await response.json()
+
+      if (data.valid) {
+        setRedeemStatus('valid')
+        setReferrerName(data.referrer_name || '')
+      } else {
+        setRedeemStatus('invalid')
+        setRedeemError(data.error || 'Invalid referral code')
+      }
+    } catch (error) {
+      console.error('Failed to validate referral code:', error)
+      setRedeemStatus('invalid')
+      setRedeemError('Failed to validate code')
+    }
+  }
+
+  // Redeem the validated code
+  const redeemReferralCode = async () => {
+    if (redeemStatus !== 'valid' || !redeemCode.trim()) {
+      toast.error('Please enter a valid referral code first')
+      return
+    }
+
+    setRedeemStatus('redeeming')
+
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`${getApiUrl()}/api/referral/redeem`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ referral_code: redeemCode.trim() })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(`Redeemed! You and ${referrerName} both got ${data.bonus_words} bonus words!`)
+        setRedeemCode('')
+        setRedeemStatus('idle')
+        setReferrerName('')
+      } else {
+        const data = await response.json()
+        setRedeemStatus('invalid')
+        setRedeemError(data.detail || 'Failed to redeem code')
+        toast.error(data.detail || 'Failed to redeem code')
+      }
+    } catch (error) {
+      console.error('Failed to redeem referral code:', error)
+      setRedeemStatus('invalid')
+      setRedeemError('Failed to redeem code')
+      toast.error('Failed to redeem code')
+    }
+  }
   
   // Load referral data from localStorage (synced from backend on login)
   useEffect(() => {
@@ -197,56 +286,63 @@ export default function MissionTab() {
         {totalReferrals === 0 && (
           <div className="bg-gradient-to-br from-green-900/30 to-blue-900/30 rounded-xl p-4 mb-6 border border-green-500/30">
             <h4 className="text-sm font-semibold text-white mb-2">Have a Referral Code?</h4>
-            <p className="text-xs text-gray-400 mb-3">Enter a friend's code to get bonus words!</p>
+            <p className="text-xs text-gray-400 mb-3">Enter a friend's code - you'll both get 500 bonus words!</p>
             <div className="flex gap-2">
-              <input
-                type="text"
-                id="redeem-referral-input"
-                placeholder="Enter code..."
-                className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              <button
-                onClick={async () => {
-                  const input = document.getElementById('redeem-referral-input') as HTMLInputElement
-                  const code = input?.value.trim()
-                  if (!code) {
-                    toast.error('Please enter a referral code')
-                    return
-                  }
-
-                  try {
-                    const token = localStorage.getItem('auth_token')
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/referral/redeem`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ referral_code: code })
-                    })
-
-                    if (response.ok) {
-                      const data = await response.json()
-                      toast.success(`✨ Redeemed! You got ${data.bonus_words} bonus words!`)
-                      if (input) input.value = ''
-                    } else {
-                      try {
-                        const data = await response.json()
-                        toast.error(data.detail || 'Invalid referral code')
-                      } catch {
-                        toast.error('Invalid referral code')
-                      }
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={redeemCode}
+                  onChange={(e) => {
+                    const code = e.target.value
+                    setRedeemCode(code)
+                    if (code.trim().length >= 3) {
+                      validateRedeemCode(code)
+                    } else if (code.trim() === '') {
+                      setRedeemStatus('idle')
+                      setRedeemError('')
                     }
-                  } catch (error) {
-                    console.error('Failed to redeem referral code:', error)
-                    toast.error('Failed to redeem code')
-                  }
-                }}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-medium transition-colors"
+                  }}
+                  placeholder="Enter code..."
+                  className={`w-full bg-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 ${
+                    redeemStatus === 'valid' ? 'ring-2 ring-green-500 border-green-500' :
+                    redeemStatus === 'invalid' ? 'ring-2 ring-red-500 border-red-500' :
+                    'focus:ring-green-500'
+                  }`}
+                />
+                {redeemStatus === 'validating' && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                {redeemStatus === 'valid' && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={redeemReferralCode}
+                disabled={redeemStatus !== 'valid' || redeemStatus === 'redeeming'}
+                className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
+                  redeemStatus === 'valid'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-gray-600 cursor-not-allowed'
+                }`}
               >
-                Redeem
+                {redeemStatus === 'redeeming' ? 'Redeeming...' : 'Redeem'}
               </button>
             </div>
+            {/* Validation feedback */}
+            {redeemStatus === 'valid' && referrerName && (
+              <p className="text-xs text-green-400 mt-2">
+                Valid code from {referrerName}! Click Redeem to get your bonus.
+              </p>
+            )}
+            {redeemStatus === 'invalid' && redeemError && (
+              <p className="text-xs text-red-400 mt-2">
+                {redeemError}
+              </p>
+            )}
           </div>
         )}
       </div>

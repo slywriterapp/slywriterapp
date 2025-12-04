@@ -273,12 +273,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.data.access_token) {
         Cookies.set('auth_token', response.data.access_token, { expires: 7 })
+        localStorage.setItem('auth_token', response.data.access_token)
         setUser(response.data.user)
         const isPrem = response.data.user.plan === 'premium' || response.data.user.plan === 'Premium' ||
                        response.data.user.plan === 'pro' || response.data.user.plan === 'Pro'
         setIsPremium(isPrem)
         await refreshUsage()
         toast.success('Successfully logged in!')
+
+        // Auto-redeem pending referral code from onboarding
+        const pendingReferralCode = localStorage.getItem('pending-referral-code')
+        if (pendingReferralCode) {
+          try {
+            const redeemResponse = await fetch(`${getApiUrl()}/api/referral/redeem`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${response.data.access_token}`
+              },
+              body: JSON.stringify({ referral_code: pendingReferralCode })
+            })
+
+            if (redeemResponse.ok) {
+              const redeemData = await redeemResponse.json()
+              toast.success(`🎉 Referral code applied! ${redeemData.bonus_words ? `+${redeemData.bonus_words} bonus words` : ''}`)
+              // Clear the pending code
+              localStorage.removeItem('pending-referral-code')
+              // Refresh usage to show new limits
+              await refreshUsage()
+            } else {
+              console.log('Referral code redemption failed:', await redeemResponse.text())
+              // Clear invalid code
+              localStorage.removeItem('pending-referral-code')
+            }
+          } catch (referralError) {
+            console.error('Failed to redeem pending referral code:', referralError)
+            // Clear the code to avoid repeated failures
+            localStorage.removeItem('pending-referral-code')
+          }
+        }
       }
     } catch (error) {
       console.error('Login failed:', error)

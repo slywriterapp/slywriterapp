@@ -1090,9 +1090,11 @@ async def test_typing_permission():
     """
     Test typing permission by attempting to type a single space.
     This triggers macOS accessibility permission popup if not granted.
+    Uses AppleScript to properly trigger the System Events permission dialog.
     """
     try:
         import platform
+        import subprocess
 
         # Check if we're on macOS
         if platform.system() != 'Darwin':
@@ -1102,49 +1104,60 @@ async def test_typing_permission():
                 "message": "Permission check not needed on this platform"
             }
 
-        # Import pyautogui for Mac
-        import pyautogui
-
-        # Attempt to type a space character - this will trigger permission popup
-        pyautogui.write(" ", interval=0.01)
-
-        return {
-            "success": True,
-            "has_permission": True,
-            "triggered": True,
-            "message": "Permission test successful"
-        }
+        # Use AppleScript to trigger the permission popup - this is what actually works on Mac
+        # This tells System Events to simulate a keystroke, which triggers the Accessibility permission dialog
+        try:
+            subprocess.run(
+                ['osascript', '-e', 'tell application "System Events" to keystroke ""'],
+                timeout=5,
+                check=True,
+                capture_output=True
+            )
+            return {
+                "success": True,
+                "has_permission": True,
+                "triggered": True,
+                "message": "Permission test successful"
+            }
+        except subprocess.CalledProcessError as e:
+            # AppleScript failed - permission likely not granted, but popup should have appeared
+            return {
+                "success": False,
+                "has_permission": False,
+                "triggered": True,
+                "message": "Accessibility permission not granted - check System Settings",
+                "error": str(e.stderr.decode() if e.stderr else e)
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "has_permission": False,
+                "triggered": True,
+                "message": "Permission test timed out",
+                "error": "Timeout"
+            }
 
     except Exception as e:
         # Permission denied or other error
         error_msg = str(e)
-
-        # Check if it's a permission error
-        if "Accessibility" in error_msg or "permission" in error_msg.lower():
-            return {
-                "success": False,
-                "has_permission": False,
-                "triggered": True,
-                "message": "Accessibility permission not granted",
-                "error": error_msg
-            }
-        else:
-            return {
-                "success": False,
-                "has_permission": False,
-                "triggered": True,
-                "message": "Error testing permission",
-                "error": error_msg
-            }
+        return {
+            "success": False,
+            "has_permission": False,
+            "triggered": True,
+            "message": "Error testing permission",
+            "error": error_msg
+        }
 
 @app.get("/api/check-typing-permission")
 async def check_typing_permission():
     """
     Quick check if typing permission is granted without triggering popup.
+    Uses AppleScript to check if System Events can be controlled.
     Returns True if permission exists, False otherwise.
     """
     try:
         import platform
+        import subprocess
 
         # Check if we're on macOS
         if platform.system() != 'Darwin':
@@ -1153,17 +1166,31 @@ async def check_typing_permission():
                 "platform": "non-mac"
             }
 
-        # Import pyautogui for Mac
-        import pyautogui
+        # Use AppleScript to check permission - this will succeed if permission is granted
+        result = subprocess.run(
+            ['osascript', '-e', 'tell application "System Events" to keystroke ""'],
+            timeout=3,
+            capture_output=True
+        )
 
-        # Try to type empty string (minimal action to check permission)
-        pyautogui.write("", interval=0.01)
+        if result.returncode == 0:
+            return {
+                "has_permission": True,
+                "platform": "mac"
+            }
+        else:
+            return {
+                "has_permission": False,
+                "platform": "mac",
+                "error": result.stderr.decode() if result.stderr else "Permission not granted"
+            }
 
+    except subprocess.TimeoutExpired:
         return {
-            "has_permission": True,
-            "platform": "mac"
+            "has_permission": False,
+            "platform": "mac",
+            "error": "Timeout checking permission"
         }
-
     except Exception as e:
         # Permission not granted
         return {
