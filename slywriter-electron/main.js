@@ -1577,13 +1577,55 @@ function setupAutoUpdater() {
 
       // Track update install progress for debugging
       let updateDebugLogs = []
+      let restartAttempt = 0
       updateDebugLogs.push(`[${new Date().toISOString()}] Starting update installation...`)
+
+      // Function to try different restart methods
+      const tryRestartMethod = (methodNum) => {
+        restartAttempt = methodNum
+        updateDebugLogs.push(`[${new Date().toISOString()}] Trying restart method ${methodNum}...`)
+        console.log(`[AUTO-UPDATE] Trying restart method ${methodNum}...`)
+
+        // Send log to update window
+        if (updateWindow && !updateWindow.isDestroyed()) {
+          updateWindow.webContents.send('update-log', {
+            message: `Trying restart method ${methodNum}...`,
+            type: 'info'
+          })
+        }
+
+        switch (methodNum) {
+          case 1:
+            // Method 1: Standard quitAndInstall(false, true) - isSilent=false, forceRunAfter=true
+            autoUpdater.quitAndInstall(false, true)
+            break
+          case 2:
+            // Method 2: quitAndInstall with isSilent=true
+            autoUpdater.quitAndInstall(true, true)
+            break
+          case 3:
+            // Method 3: Use app.relaunch() + app.exit()
+            app.relaunch()
+            app.exit(0)
+            break
+          case 4:
+            // Method 4: Use app.quit() which should trigger the installer
+            app.quit()
+            break
+          case 5:
+            // Method 5: Force quit with process.exit
+            process.exit(0)
+            break
+        }
+      }
 
       // Force close all windows first to ensure clean quit on Mac
       const allWindows = BrowserWindow.getAllWindows()
-      updateDebugLogs.push(`[${new Date().toISOString()}] Closing ${allWindows.length} windows...`)
+      updateDebugLogs.push(`[${new Date().toISOString()}] Found ${allWindows.length} windows to close...`)
+
+      // Keep update window open but close all others
       allWindows.forEach(win => {
-        if (!win.isDestroyed()) {
+        if (!win.isDestroyed() && win !== updateWindow) {
           win.removeAllListeners('close')
           win.close()
         }
@@ -1594,11 +1636,53 @@ function setupAutoUpdater() {
         tray.destroy()
         tray = null
       }
-      updateDebugLogs.push(`[${new Date().toISOString()}] Tray destroyed, calling quitAndInstall...`)
+      updateDebugLogs.push(`[${new Date().toISOString()}] Tray destroyed, starting restart attempts...`)
 
-      // Set a timeout to show debug info if update takes too long
-      const debugTimeoutId = setTimeout(() => {
-        // If we're still here after 60 seconds, something went wrong
+      // Try restart methods with escalating timeouts
+      // Method 1 at 500ms
+      setTimeout(() => {
+        updateDebugLogs.push(`[${new Date().toISOString()}] Method 1: quitAndInstall(false, true)`)
+        tryRestartMethod(1)
+      }, 500)
+
+      // If still running after 5s, try method 2
+      setTimeout(() => {
+        updateDebugLogs.push(`[${new Date().toISOString()}] Method 2: quitAndInstall(true, true)`)
+        tryRestartMethod(2)
+      }, 5000)
+
+      // If still running after 10s, try method 3
+      setTimeout(() => {
+        updateDebugLogs.push(`[${new Date().toISOString()}] Method 3: app.relaunch() + app.exit()`)
+        tryRestartMethod(3)
+      }, 10000)
+
+      // If still running after 15s, try method 4
+      setTimeout(() => {
+        updateDebugLogs.push(`[${new Date().toISOString()}] Method 4: app.quit()`)
+        tryRestartMethod(4)
+      }, 15000)
+
+      // If still running after 20s, show manual restart button
+      setTimeout(() => {
+        console.log('[AUTO-UPDATE] All automatic restart methods failed!')
+        updateDebugLogs.push(`[${new Date().toISOString()}] All automatic methods failed, showing manual button...`)
+
+        if (updateWindow && !updateWindow.isDestroyed()) {
+          // Tell update window to show manual restart button
+          updateWindow.webContents.send('show-manual-restart', {
+            message: 'Automatic restart failed. Click the button below to restart manually.',
+            debugLogs: updateDebugLogs
+          })
+          updateWindow.webContents.send('update-log', {
+            message: 'Automatic restart failed - please click "Restart Now" button',
+            type: 'warning'
+          })
+        }
+      }, 20000)
+
+      // Final timeout - force quit if nothing worked after 60s
+      setTimeout(() => {
         console.error('[AUTO-UPDATE] ========================================')
         console.error('[AUTO-UPDATE] ❌ UPDATE INSTALL TIMEOUT - Taking too long!')
         console.error('[AUTO-UPDATE] Debug logs:')
@@ -1606,23 +1690,28 @@ function setupAutoUpdater() {
         console.error('[AUTO-UPDATE] Platform:', process.platform)
         console.error('[AUTO-UPDATE] App version:', app.getVersion())
         console.error('[AUTO-UPDATE] Target version:', info.version)
-        console.error('[AUTO-UPDATE] Update files:', JSON.stringify(info.files, null, 2))
         console.error('[AUTO-UPDATE] ========================================')
 
-        // Send debug info to update window if it still exists somehow
-        if (updateWindow && !updateWindow.isDestroyed()) {
-          updateWindow.webContents.send('update-error', 'Update installation is taking too long. Check logs for details.')
-        }
-      }, 60000) // 60 second timeout
-
-      // Small delay to let windows close, then install
-      setTimeout(() => {
-        updateDebugLogs.push(`[${new Date().toISOString()}] Calling autoUpdater.quitAndInstall(false, true)...`)
-        console.log('[AUTO-UPDATE] Installing update...')
-        autoUpdater.quitAndInstall(false, true)
-        updateDebugLogs.push(`[${new Date().toISOString()}] quitAndInstall called, app should exit now...`)
-      }, 500)
+        // Last resort: try process.exit
+        updateDebugLogs.push(`[${new Date().toISOString()}] Final attempt: process.exit(0)`)
+        tryRestartMethod(5)
+      }, 60000)
     }, 3000)
+  })
+
+  // IPC handler for manual restart from update window
+  ipcMain.on('force-restart-update', () => {
+    console.log('[AUTO-UPDATE] Manual restart requested by user')
+    isQuittingForUpdate = true
+
+    // Close update window
+    if (updateWindow && !updateWindow.isDestroyed()) {
+      updateWindow.close()
+    }
+
+    // Try relaunch + exit (most reliable manual method)
+    app.relaunch()
+    app.exit(0)
   })
 
   autoUpdater.on('error', (error) => {

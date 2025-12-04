@@ -282,6 +282,52 @@
             color: rgba(139, 92, 246, 0.6);
             margin-right: 6px;
         }
+
+        .manual-restart-section {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .manual-restart-section.visible {
+            display: block;
+        }
+
+        .restart-message {
+            font-size: 12px;
+            color: #f59e0b;
+            margin-bottom: 12px;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            border: none;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .restart-btn:active {
+            transform: translateY(0);
+        }
+
+        .restart-btn svg {
+            width: 18px;
+            height: 18px;
+        }
     </style>
 </head>
 <body>
@@ -332,6 +378,16 @@
 
         <div class="logs-console" id="logsConsole">
             <div class="logs-content" id="logsContent"></div>
+        </div>
+
+        <div class="manual-restart-section" id="manualRestartSection">
+            <p class="restart-message" id="restartMessage">Automatic restart failed. Click below to restart manually.</p>
+            <button class="restart-btn" onclick="forceRestart()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Restart Now
+            </button>
         </div>
     </div>
 
@@ -430,6 +486,39 @@
         ipcRenderer.on('update-log', (event, data) => {
             addLog(data.message, data.type || 'info');
         });
+
+        // Listen for manual restart button display
+        ipcRenderer.on('show-manual-restart', (event, data) => {
+            addLog('Showing manual restart button...', 'warning');
+
+            // Update the status text
+            const statusText = document.getElementById('statusText');
+            statusText.className = 'status-text';
+            statusText.style.background = 'rgba(245, 158, 11, 0.1)';
+            statusText.style.color = '#f59e0b';
+            statusText.innerHTML = '<span>Automatic restart failed - use button below</span>';
+
+            // Show the manual restart section
+            const section = document.getElementById('manualRestartSection');
+            section.classList.add('visible');
+
+            // Update message if provided
+            if (data.message) {
+                document.getElementById('restartMessage').textContent = data.message;
+            }
+
+            // Auto-expand logs to show what happened
+            if (!logsExpanded) {
+                toggleLogs();
+            }
+        });
+
+        // Function to force restart via IPC
+        function forceRestart() {
+            addLog('User clicked Restart Now button', 'info');
+            addLog('Sending force-restart-update to main process...', 'info');
+            ipcRenderer.send('force-restart-update');
+        }
 
         window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.send('get-current-version');
