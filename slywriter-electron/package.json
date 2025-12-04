@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {
@@ -360,6 +360,25 @@
       "notarize": {
         "teamId": "55S897P97X"
       }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 400
+      },
+      "title": "SlyWriter"
     }
   }
 }
