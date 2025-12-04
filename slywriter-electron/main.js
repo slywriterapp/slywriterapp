@@ -106,7 +106,8 @@ let nextServer
 let nextPort = 3000
 let typingServerProcess = null
 
-// Remove the isQuitting flag since we're not using it anymore
+// Flag to track if we're quitting for an auto-update installation
+let isQuittingForUpdate = false
 
 // Enable live reload for Electron in dev mode
 const isDev = process.argv.includes('--dev')
@@ -1571,6 +1572,7 @@ function setupAutoUpdater() {
     // Auto quit and install after 3 seconds
     setTimeout(() => {
       console.log('[AUTO-UPDATE] Quitting and installing update now...')
+      isQuittingForUpdate = true
       autoUpdater.quitAndInstall(false, true)
     }, 3000)
   })
@@ -2951,6 +2953,15 @@ app.on('before-quit', () => {
 })
 
 app.on('will-quit', (event) => {
+  // If quitting for auto-update, skip blocking cleanup and let electron-updater handle it
+  if (isQuittingForUpdate) {
+    console.log('[AUTO-UPDATE] Quitting for update installation - skipping blocking cleanup')
+    // Still do quick cleanup but don't block
+    globalShortcut.unregisterAll()
+    stopTypingServer()
+    return // Let the quit proceed immediately
+  }
+
   // Prevent quit until cleanup is done
   event.preventDefault()
 
@@ -3073,6 +3084,7 @@ ipcMain.on('check-for-updates', () => {
 })
 
 ipcMain.on('install-update', () => {
+  isQuittingForUpdate = true
   autoUpdater.quitAndInstall()
 })
 
