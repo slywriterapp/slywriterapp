@@ -1574,7 +1574,54 @@ function setupAutoUpdater() {
     setTimeout(() => {
       console.log('[AUTO-UPDATE] Quitting and installing update now...')
       isQuittingForUpdate = true
-      autoUpdater.quitAndInstall(false, true)
+
+      // Track update install progress for debugging
+      let updateDebugLogs = []
+      updateDebugLogs.push(`[${new Date().toISOString()}] Starting update installation...`)
+
+      // Force close all windows first to ensure clean quit on Mac
+      const allWindows = BrowserWindow.getAllWindows()
+      updateDebugLogs.push(`[${new Date().toISOString()}] Closing ${allWindows.length} windows...`)
+      allWindows.forEach(win => {
+        if (!win.isDestroyed()) {
+          win.removeAllListeners('close')
+          win.close()
+        }
+      })
+
+      // Destroy tray to prevent lingering
+      if (tray && !tray.isDestroyed()) {
+        tray.destroy()
+        tray = null
+      }
+      updateDebugLogs.push(`[${new Date().toISOString()}] Tray destroyed, calling quitAndInstall...`)
+
+      // Set a timeout to show debug info if update takes too long
+      const debugTimeoutId = setTimeout(() => {
+        // If we're still here after 60 seconds, something went wrong
+        console.error('[AUTO-UPDATE] ========================================')
+        console.error('[AUTO-UPDATE] ❌ UPDATE INSTALL TIMEOUT - Taking too long!')
+        console.error('[AUTO-UPDATE] Debug logs:')
+        updateDebugLogs.forEach(log => console.error(log))
+        console.error('[AUTO-UPDATE] Platform:', process.platform)
+        console.error('[AUTO-UPDATE] App version:', app.getVersion())
+        console.error('[AUTO-UPDATE] Target version:', info.version)
+        console.error('[AUTO-UPDATE] Update files:', JSON.stringify(info.files, null, 2))
+        console.error('[AUTO-UPDATE] ========================================')
+
+        // Send debug info to update window if it still exists somehow
+        if (updateWindow && !updateWindow.isDestroyed()) {
+          updateWindow.webContents.send('update-error', 'Update installation is taking too long. Check logs for details.')
+        }
+      }, 60000) // 60 second timeout
+
+      // Small delay to let windows close, then install
+      setTimeout(() => {
+        updateDebugLogs.push(`[${new Date().toISOString()}] Calling autoUpdater.quitAndInstall(false, true)...`)
+        console.log('[AUTO-UPDATE] Installing update...')
+        autoUpdater.quitAndInstall(false, true)
+        updateDebugLogs.push(`[${new Date().toISOString()}] quitAndInstall called, app should exit now...`)
+      }, 500)
     }, 3000)
   })
 
