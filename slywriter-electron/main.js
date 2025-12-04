@@ -1,4 +1,5 @@
-// SlyWriter Desktop v3.0.0
+// SlyWriter Desktop v3.1.0
+// Auto-update test release
 // TODO: Enable signature verification after purchasing code signing certificate
 // Temporarily disabled until EV certificate is purchased ($249/year from SSL.com)
 // SECURITY: This allows unsigned updates - MUST enable after getting certificate
