@@ -1,6 +1,6 @@
 {
   "name": "slywriter-desktop",
-  "version": "3.0.8",
+  "version": "3.0.9",
   "description": "Premium AI typing assistant with system-wide overlay",
   "main": "main.js",
   "scripts": {

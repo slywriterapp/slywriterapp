@@ -180,6 +180,108 @@
         .hidden {
             display: none;
         }
+
+        .logs-toggle {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logs-toggle-btn {
+            background: transparent;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .logs-toggle-btn:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.5);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .logs-toggle-btn svg {
+            width: 12px;
+            height: 12px;
+            transition: transform 0.2s;
+        }
+
+        .logs-toggle-btn.expanded svg {
+            transform: rotate(180deg);
+        }
+
+        .logs-console {
+            margin-top: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 8px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .logs-console.expanded {
+            max-height: 200px;
+            padding: 8px;
+        }
+
+        .logs-content {
+            height: 180px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .logs-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .logs-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .logs-content::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.4);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            padding: 2px 0;
+        }
+
+        .log-entry.info {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .log-entry.success {
+            color: #22c55e;
+        }
+
+        .log-entry.error {
+            color: #ef4444;
+        }
+
+        .log-entry.warning {
+            color: #f59e0b;
+        }
+
+        .log-time {
+            color: rgba(139, 92, 246, 0.6);
+            margin-right: 6px;
+        }
     </style>
 </head>
 <body>
@@ -218,13 +320,62 @@
             <div class="spinner"></div>
             <span id="statusMessage">Preparing update...</span>
         </div>
+
+        <div class="logs-toggle">
+            <button class="logs-toggle-btn" id="logsToggle" onclick="toggleLogs()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+                Show Logs
+            </button>
+        </div>
+
+        <div class="logs-console" id="logsConsole">
+            <div class="logs-content" id="logsContent"></div>
+        </div>
     </div>
 
     <script>
         const { ipcRenderer } = require('electron');
 
+        // Logs functionality
+        let logsExpanded = false;
+
+        function toggleLogs() {
+            logsExpanded = !logsExpanded;
+            const btn = document.getElementById('logsToggle');
+            const console = document.getElementById('logsConsole');
+
+            if (logsExpanded) {
+                btn.classList.add('expanded');
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>Hide Logs`;
+                console.classList.add('expanded');
+            } else {
+                btn.classList.remove('expanded');
+                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>Show Logs`;
+                console.classList.remove('expanded');
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const logsContent = document.getElementById('logsContent');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            logsContent.appendChild(entry);
+            logsContent.scrollTop = logsContent.scrollHeight;
+        }
+
+        // Log initial state
+        addLog('Update window initialized', 'info');
+
         ipcRenderer.on('update-available', (event, info) => {
             document.getElementById('newVersion').textContent = `v${info.version}`;
+            addLog(`Update available: v${info.version}`, 'success');
+            if (info.releaseDate) {
+                addLog(`Release date: ${info.releaseDate}`, 'info');
+            }
         });
 
         ipcRenderer.on('download-progress', (event, progress) => {
@@ -237,6 +388,11 @@
             document.getElementById('progressPercent').textContent = percent + '%';
             document.getElementById('progressStatus').textContent = 'Downloading...';
             document.getElementById('statusMessage').textContent = `${transferred} MB / ${total} MB (${speed} MB/s)`;
+
+            // Log at 25%, 50%, 75%, 100%
+            if (percent === 25 || percent === 50 || percent === 75 || percent === 100) {
+                addLog(`Download progress: ${percent}% (${transferred}/${total} MB)`, 'info');
+            }
         });
 
         ipcRenderer.on('update-downloaded', () => {
@@ -247,20 +403,37 @@
             const statusText = document.getElementById('statusText');
             statusText.className = 'status-text installing';
             statusText.innerHTML = '<div class="spinner"></div><span>Installing update, restarting...</span>';
+
+            addLog('Download complete!', 'success');
+            addLog('Preparing to install update...', 'info');
+            addLog('App will restart automatically in 3 seconds', 'warning');
         });
 
         ipcRenderer.on('update-error', (event, error) => {
             document.getElementById('statusMessage').textContent = `Error: ${error}`;
             document.getElementById('statusText').style.background = 'rgba(239, 68, 68, 0.1)';
             document.getElementById('statusText').style.color = '#ef4444';
+
+            addLog(`ERROR: ${error}`, 'error');
+            // Auto-expand logs on error
+            if (!logsExpanded) {
+                toggleLogs();
+            }
         });
 
         ipcRenderer.on('current-version', (event, version) => {
             document.getElementById('currentVersion').textContent = `v${version}`;
+            addLog(`Current version: v${version}`, 'info');
+        });
+
+        // Listen for custom log messages from main process
+        ipcRenderer.on('update-log', (event, data) => {
+            addLog(data.message, data.type || 'info');
         });
 
         window.addEventListener('DOMContentLoaded', () => {
             ipcRenderer.send('get-current-version');
+            addLog('Requesting current version...', 'info');
         });
     </script>
 </body>
