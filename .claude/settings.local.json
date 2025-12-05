@@ -17,7 +17,14 @@
       "Bash(gh run download:*)",
       "Bash(gh workflow run:*)",
       "Bash(timeout /t 120 /nobreak)",
-      "Bash(certutil -hashfile:*)"
+      "Bash(certutil -hashfile:*)",
+      "Bash(\"C:\\Users\\brice\\Downloads\\cli_2.4.1_windows_amd64\\cli_v2.4.1.exe\" login)",
+      "Bash(ssh:*)",
+      "Bash(git reset:*)",
+      "Bash(gh run cancel:*)",
+      "Bash(timeout /t 45 /nobreak)",
+      "Bash(gh release download:*)",
+      "Bash(timeout /t 30 /nobreak)"
     ],
     "deny": [],
     "ask": [],

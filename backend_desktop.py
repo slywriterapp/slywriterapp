@@ -983,8 +983,8 @@ telemetry_storage = []
 MAX_TELEMETRY_ENTRIES = 10000
 
 @app.post("/api/beta-telemetry")
-async def receive_telemetry(data: TelemetryData):
-    """Receive telemetry data from beta testers"""
+async def receive_telemetry(data: TelemetryData, background_tasks: BackgroundTasks):
+    """Receive telemetry data from beta testers and forward to cloud"""
     try:
         # Store in memory
         telemetry_entry = {
@@ -992,18 +992,37 @@ async def receive_telemetry(data: TelemetryData):
             "received_at": datetime.now().isoformat()
         }
         telemetry_storage.append(telemetry_entry)
-        
+
         # Keep only recent entries
         if len(telemetry_storage) > MAX_TELEMETRY_ENTRIES:
             telemetry_storage.pop(0)
-        
+
         # Save to file for persistence
         save_telemetry_to_file(telemetry_entry)
-        
+
+        # Forward to cloud server in background (non-blocking)
+        background_tasks.add_task(forward_telemetry_to_cloud, data.dict())
+
         return {"status": "success", "message": "Telemetry received"}
     except Exception as e:
         print(f"Telemetry error: {e}")
         return {"status": "error", "message": str(e)}
+
+async def forward_telemetry_to_cloud(telemetry_data: dict):
+    """Forward telemetry to cloud PostgreSQL storage"""
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "https://slywriterapp.onrender.com/api/beta-telemetry",
+                json=telemetry_data
+            )
+            if response.status_code == 200:
+                print(f"[TELEMETRY] Forwarded to cloud successfully")
+            else:
+                print(f"[TELEMETRY] Cloud forward failed: {response.status_code}")
+    except Exception as e:
+        print(f"[TELEMETRY] Cloud forward error: {e}")
 
 def save_telemetry_to_file(entry):
     """Save telemetry to JSON file for persistence"""

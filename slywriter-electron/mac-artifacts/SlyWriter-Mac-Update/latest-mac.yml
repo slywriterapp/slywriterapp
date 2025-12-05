@@ -1,0 +1,23 @@
+version: 3.1.3
+files:
+  - url: SlyWriter.zip
+    sha512: O/YaC8uk25av93GOthuMtCpFhFWFzEMD32tlvu1oti1hoGe4NcRyKMsfcYSb0ZZZiGgvJsefUK4F3uqGQ9xc5A==
+    size: 170745373
+  - url: SlyWriter.zip
+    sha512: O/YaC8uk25av93GOthuMtCpFhFWFzEMD32tlvu1oti1hoGe4NcRyKMsfcYSb0ZZZiGgvJsefUK4F3uqGQ9xc5A==
+    size: 170745373
+  - url: SlyWriter.zip
+    sha512: Ol8wIKZfM4MjmWKVt1gncMSft2Oa2gTqGgKPvLnADofVlwgalyRLhP5R1dTkcsqkZe5CEoh3Pn4puShdnkoG+g==
+    size: 92850444
+  - url: SlyWriter.dmg
+    sha512: MtpVda5T0XWEqkZEFlywK8+/gv333aCOdPkM4ZH+ZySYLqfnTE6g2ZuaL10GQa4RN5ZF+ti10AqR6RtTudOPbg==
+    size: 177130905
+  - url: SlyWriter.dmg
+    sha512: N3VaEpJpW9TrKY95iMmF+Bsoheb/pVcl8PeEQTEBBeBkANTl/vNG+yz5PUyOlChwrxFMZOcoXriwRkq2cbhvWQ==
+    size: 103349147
+  - url: SlyWriter.dmg
+    sha512: 1stShC1a7X1PFnO5oxxjcPO2SzvffB9SRYWWlXGxPB6wufWj0tI2NGuvC7rm3KozSjx8RHNHfUNQ/RpqZAvyUg==
+    size: 96861283
+path: SlyWriter.zip
+sha512: O/YaC8uk25av93GOthuMtCpFhFWFzEMD32tlvu1oti1hoGe4NcRyKMsfcYSb0ZZZiGgvJsefUK4F3uqGQ9xc5A==
+releaseDate: '2025-12-04T23:31:43.133Z'

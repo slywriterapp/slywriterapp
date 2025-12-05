@@ -96,3 +96,11 @@ The app uses threading for:
 - The app changes working directory to script location on startup
 - UI updates from worker threads must use widget.after() for thread safety
 - Global hotkeys are registered/unregistered dynamically based on user settings
+
+## Release Process Checklist
+
+When uploading Mac releases to GitHub:
+- **ALWAYS verify SHA512 hash matches** between the `latest-mac.yml` and the actual uploaded DMG/ZIP files
+- The `latest-mac.yml` from GitHub Actions builds for universal binaries will contain multiple entries (x64, arm64, universal) - ensure the correct entry matches the uploaded file
+- Check file sizes match between yml and uploaded asset
+- If SHA512 mismatch occurs, download the DMG and regenerate the correct hash or use a clean yml from the same build that produced the DMG
