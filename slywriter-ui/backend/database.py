@@ -166,12 +166,31 @@ class Achievement(Base):
 
 class UserAchievement(Base):
     __tablename__ = "user_achievements"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     achievement_id = Column(Integer, ForeignKey("achievements.id"))
     unlocked_at = Column(DateTime, default=datetime.utcnow)
     progress = Column(Float, default=0)
+
+class BetaTelemetry(Base):
+    """Beta telemetry data stored in PostgreSQL for persistence"""
+    __tablename__ = "beta_telemetry"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)  # Client-side user ID
+    session_id = Column(String, index=True)
+    system_info = Column(JSON, default={})
+    actions_count = Column(Integer, default=0)
+    errors_count = Column(Integer, default=0)
+    features_used = Column(Integer, default=0)
+    performance_metrics_count = Column(Integer, default=0)
+    session_duration = Column(Integer, default=0)
+    client_timestamp = Column(String)  # Timestamp from client
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # Store full data as JSON for detailed analysis
+    full_data = Column(JSON, default={})
 
 # Database initialization
 def init_db():

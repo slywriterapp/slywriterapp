@@ -48,7 +48,7 @@ except ImportError:
 
 # Import database models and functions
 from database import (
-    init_db, get_db, User, TypingSession, Analytics,
+    init_db, get_db, User, TypingSession, Analytics, BetaTelemetry,
     get_user_by_email, create_user, check_weekly_reset,
     get_user_limits, track_word_usage, track_ai_generation,
     track_humanizer_usage, create_typing_session
@@ -2248,34 +2248,60 @@ class BetaTelemetryData(BaseModel):
     lastActivity: int
     timestamp: str
 
-beta_telemetry_storage = []
-
 @app.post("/api/beta-telemetry")
-async def receive_beta_telemetry(data: BetaTelemetryData):
-    """Receive beta testing telemetry data from frontend"""
+async def receive_beta_telemetry(data: BetaTelemetryData, db: Session = Depends(get_db)):
+    """Receive beta testing telemetry data from frontend - stores in PostgreSQL"""
     try:
-        telemetry_entry = {
-            "userId": data.userId,
-            "sessionId": data.sessionId,
-            "systemInfo": data.systemInfo,
-            "actions_count": len(data.actions),
-            "errors_count": len(data.errors),
-            "features_used": len(data.featureUsage),
-            "performance_metrics_count": len(data.performanceMetrics),
-            "sessionDuration": data.sessionDuration,
-            "timestamp": data.timestamp,
-            "received_at": datetime.now().isoformat()
-        }
-        beta_telemetry_storage.append(telemetry_entry)
-        if len(beta_telemetry_storage) > 1000:
-            beta_telemetry_storage.pop(0)
+        # Create telemetry entry in PostgreSQL
+        telemetry_entry = BetaTelemetry(
+            user_id=data.userId,
+            session_id=data.sessionId,
+            system_info=data.systemInfo,
+            actions_count=len(data.actions),
+            errors_count=len(data.errors),
+            features_used=len(data.featureUsage),
+            performance_metrics_count=len(data.performanceMetrics),
+            session_duration=data.sessionDuration,
+            client_timestamp=data.timestamp,
+            full_data={
+                "actions": data.actions,
+                "errors": data.errors,
+                "featureUsage": data.featureUsage,
+                "performanceMetrics": data.performanceMetrics
+            }
+        )
+        db.add(telemetry_entry)
+        db.commit()
+
+        # Log critical errors
         for error in data.errors:
             if error.get('severity') in ['critical', 'high']:
                 logger.error(f"Beta telemetry critical error from {data.userId}: {error.get('error')}")
-        return {"success": True, "message": "Telemetry received"}
+
+        return {"success": True, "message": "Telemetry saved to database"}
     except Exception as e:
         logger.error(f"Beta telemetry error: {e}")
+        db.rollback()
         return {"success": False, "message": str(e)}
+
+@app.get("/api/admin/telemetry/stats")
+async def get_beta_telemetry_stats(db: Session = Depends(get_db)):
+    """Get beta telemetry statistics"""
+    try:
+        total_entries = db.query(BetaTelemetry).count()
+        unique_users = db.query(BetaTelemetry.user_id).distinct().count()
+        unique_sessions = db.query(BetaTelemetry.session_id).distinct().count()
+        total_errors = db.query(BetaTelemetry).filter(BetaTelemetry.errors_count > 0).count()
+
+        return {
+            "total_entries": total_entries,
+            "unique_users": unique_users,
+            "unique_sessions": unique_sessions,
+            "entries_with_errors": total_errors
+        }
+    except Exception as e:
+        logger.error(f"Error getting telemetry stats: {e}")
+        return {"error": str(e)}
 
 @app.get("/api/user-dashboard")
 async def get_user_dashboard(request: Request, db: Session = Depends(get_db)):
