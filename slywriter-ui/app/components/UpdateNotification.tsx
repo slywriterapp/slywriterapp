@@ -1,113 +1,133 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Download, RefreshCw, Check, AlertCircle } from 'lucide-react'
+import { X, Download, ExternalLink } from 'lucide-react'
 
-export default function UpdateNotification() {
-  const [updateStatus, setUpdateStatus] = useState<'checking' | 'available' | 'downloading' | 'ready' | 'none' | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [version, setVersion] = useState('')
+interface UpdateBannerProps {
+  onDismiss?: () => void
+}
+
+export default function UpdateNotification({ onDismiss }: UpdateBannerProps = {}) {
+  const [showBanner, setShowBanner] = useState(false)
+  const [latestVersion, setLatestVersion] = useState('')
   const [currentVersion, setCurrentVersion] = useState('')
+  const [isChecking, setIsChecking] = useState(false)
 
   useEffect(() => {
-    // Only run in Electron environment
-    if (typeof window !== 'undefined' && (window as any).electron) {
-      const electron = (window as any).electron
+    checkForUpdate()
 
-      // Get current version
-      electron.ipcRenderer.invoke('get-app-version').then((v: string) => {
-        setCurrentVersion(v)
-      })
-
-      // Listen for update events
-      electron.ipcRenderer.on('update-downloading', (_: any, info: any) => {
-        setUpdateStatus('downloading')
-        setVersion(info.version)
-      })
-
-      electron.ipcRenderer.on('update-progress', (_: any, progressObj: any) => {
-        setProgress(Math.round(progressObj.percent))
-      })
-
-      // Check for updates on mount
-      checkForUpdates()
-    }
+    // Check every 24 hours
+    const interval = setInterval(checkForUpdate, 24 * 60 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [])
 
-  const checkForUpdates = async () => {
-    if (typeof window !== 'undefined' && (window as any).electron) {
-      setUpdateStatus('checking')
-      try {
-        const result = await (window as any).electron.ipcRenderer.invoke('check-for-updates')
-        // The dialog will be shown by the main process
-        setTimeout(() => {
-          if (updateStatus === 'checking') {
-            setUpdateStatus('none')
-          }
-        }, 3000)
-      } catch (error) {
-        console.error('Failed to check for updates:', error)
-        setUpdateStatus('none')
+  const checkForUpdate = async () => {
+    try {
+      setIsChecking(true)
+
+      // Get current version from Electron
+      let current = '3.1.6' // Fallback
+      if (typeof window !== 'undefined' && (window as any).electron) {
+        try {
+          current = await (window as any).electron.ipcRenderer.invoke('get-app-version')
+        } catch (e) {
+          console.log('Could not get version from Electron, using fallback')
+        }
       }
+      setCurrentVersion(current)
+
+      // Fetch latest version from GitHub API
+      const response = await fetch('https://api.github.com/repos/slywriterapp/slywriter-releases/releases/latest')
+      if (!response.ok) throw new Error('Failed to fetch latest version')
+
+      const data = await response.json()
+      const latest = data.tag_name.replace('v', '')
+      setLatestVersion(latest)
+
+      // Check if dismissed
+      const dismissedVersion = localStorage.getItem('dismissed_update_version')
+      if (dismissedVersion === latest) {
+        setShowBanner(false)
+        return
+      }
+
+      // Compare versions
+      if (isNewerVersion(latest, current)) {
+        setShowBanner(true)
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error)
+    } finally {
+      setIsChecking(false)
     }
   }
 
-  if (!updateStatus || updateStatus === 'none') {
-    return (
-      <button
-        onClick={checkForUpdates}
-        className="fixed bottom-4 right-4 p-2 bg-gray-800 hover:bg-gray-700 text-white rounded-full transition-all duration-300 shadow-lg"
-        title={`Version ${currentVersion} - Check for updates`}
-      >
-        <RefreshCw className="w-5 h-5" />
-      </button>
-    )
+  const isNewerVersion = (latest: string, current: string): boolean => {
+    const latestParts = latest.split('.').map(Number)
+    const currentParts = current.split('.').map(Number)
+
+    for (let i = 0; i < 3; i++) {
+      if (latestParts[i] > currentParts[i]) return true
+      if (latestParts[i] < currentParts[i]) return false
+    }
+    return false
   }
 
+  const handleDownload = () => {
+    window.open('https://slywriter.ai/download', '_blank')
+  }
+
+  const handleDismiss = () => {
+    setShowBanner(false)
+    onDismiss?.()
+  }
+
+  const handleDismissForVersion = () => {
+    localStorage.setItem('dismissed_update_version', latestVersion)
+    setShowBanner(false)
+    onDismiss?.()
+  }
+
+  if (!showBanner) return null
+
   return (
-    <div className="fixed bottom-4 right-4 bg-gray-800 text-white rounded-lg shadow-xl p-4 min-w-[300px]">
-      {updateStatus === 'checking' && (
-        <div className="flex items-center gap-3">
-          <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />
-          <span className="text-sm">Checking for updates...</span>
+    <div className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 shadow-lg">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1">
+          <Download className="w-5 h-5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">
+              New version v{latestVersion} available!
+              <span className="text-white/80 ml-1">(Current: v{currentVersion})</span>
+            </p>
+          </div>
         </div>
-      )}
 
-      {updateStatus === 'available' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-400" />
-            <span className="text-sm font-medium">Update Available!</span>
-          </div>
-          <p className="text-xs text-gray-400">Version {version} is ready to download</p>
-        </div>
-      )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownload}
+            className="px-4 py-1.5 bg-white text-purple-600 hover:bg-purple-50 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5"
+          >
+            Download Update
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
 
-      {updateStatus === 'downloading' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Download className="w-5 h-5 text-blue-400 animate-pulse" />
-            <span className="text-sm">Downloading update...</span>
-          </div>
-          <div className="w-full bg-gray-700 rounded-full h-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-xs text-gray-400">{progress}% complete</p>
-        </div>
-      )}
+          <button
+            onClick={handleDismissForVersion}
+            className="px-3 py-1.5 hover:bg-white/10 rounded-md text-sm transition-colors"
+          >
+            Not now
+          </button>
 
-      {updateStatus === 'ready' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Check className="w-5 h-5 text-green-400" />
-            <span className="text-sm font-medium">Update Ready!</span>
-          </div>
-          <p className="text-xs text-gray-400">Restart to apply version {version}</p>
+          <button
+            onClick={handleDismiss}
+            className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }

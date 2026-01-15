@@ -1,10 +1,5 @@
-// SlyWriter Desktop v3.1.2
-// Testing auto-update functionality
-// TODO: Enable signature verification after purchasing code signing certificate
-// Temporarily disabled until EV certificate is purchased ($249/year from SSL.com)
-// SECURITY: This allows unsigned updates - MUST enable after getting certificate
-// Steps: 1) Purchase cert, 2) Sign builds, 3) Remove this line
-process.env.ELECTRON_UPDATER_ALLOW_UNSIGNED = 'true'
+// SlyWriter Desktop v3.1.6
+// Auto-update removed - users will be notified via web UI banner
 
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, screen, clipboard, shell, dialog } = require('electron')
 const path = require('path')
@@ -12,7 +7,6 @@ const fs = require('fs')
 const { spawn, exec } = require('child_process')
 const http = require('http')
 const https = require('https')
-const { autoUpdater } = require('electron-updater')
 
 // Read version from package.json or use app.getVersion()
 const APP_VERSION = app.getVersion()
@@ -29,10 +23,6 @@ try {
 } catch (e) {
   console.log('Axios not found, will use http module')
 }
-
-// Configure auto-updater
-autoUpdater.autoDownload = true
-autoUpdater.autoInstallOnAppQuit = true
 
 // Wrap console methods to prevent EPIPE errors
 const originalLog = console.log
@@ -106,9 +96,6 @@ let tray
 let nextServer
 let nextPort = 3000
 let typingServerProcess = null
-
-// Flag to track if we're quitting for an auto-update installation
-let isQuittingForUpdate = false
 
 // Enable live reload for Electron in dev mode
 const isDev = process.argv.includes('--dev')
@@ -1268,48 +1255,6 @@ function createTray() {
 }
 
 // Auto-updater setup
-let updateWindow = null
-
-function createUpdateWindow() {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.focus()
-    return
-  }
-
-  const { screen } = require('electron')
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
-
-  // Center the window on screen
-  const windowWidth = 420
-  const windowHeight = 280
-  const x = Math.round((screenWidth - windowWidth) / 2)
-  const y = Math.round((screenHeight - windowHeight) / 2)
-
-  updateWindow = new BrowserWindow({
-    width: windowWidth,
-    height: windowHeight,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true, // Always on top so user sees it
-    resizable: false,
-    skipTaskbar: false,
-    x: x,
-    y: y,
-    modal: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  })
-
-  updateWindow.loadFile('update.html')
-
-  updateWindow.on('closed', () => {
-    updateWindow = null
-  })
-}
-
 // ============== LICENSE VERIFICATION SYSTEM ==============
 
 async function verifyLicense() {
@@ -1432,249 +1377,6 @@ async function handleLicenseError(licenseData) {
   return true
 }
 
-function setupAutoUpdater() {
-  // Configure auto-updater to use GitHub releases (public releases repo)
-  autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: 'slywriterapp',
-    repo: 'slywriter-releases'
-  })
-
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-
-  // Check for updates on app start (after splash screen)
-  // NOTE: Updates should work regardless of license status
-  setTimeout(async () => {
-    console.log('[AUTO-UPDATE] ========================================')
-    console.log('[AUTO-UPDATE] Initial update check starting...')
-    console.log('[AUTO-UPDATE] Timestamp:', new Date().toISOString())
-    console.log('[AUTO-UPDATE] Initiating update check...')
-
-    try {
-      const result = await autoUpdater.checkForUpdatesAndNotify()
-      console.log('[AUTO-UPDATE] Check result:', result)
-    } catch (err) {
-      console.error('[AUTO-UPDATE] Update check failed:', err)
-      console.error('[AUTO-UPDATE] Error details:', {
-        message: err.message,
-        code: err.code,
-        stack: err.stack
-      })
-    }
-    console.log('[AUTO-UPDATE] ========================================')
-  }, 3500)
-
-  // Check for updates every 30 minutes
-  setInterval(() => {
-    autoUpdater.checkForUpdates().catch(err => {
-      console.log('Periodic update check failed:', err)
-    })
-  }, 30 * 60 * 1000)
-
-  // Auto-updater event handlers with ENHANCED DEBUGGING
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[AUTO-UPDATE] ========================================')
-    console.log('[AUTO-UPDATE] Checking for updates...')
-    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
-    console.log('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL())
-    console.log('[AUTO-UPDATE] Platform:', process.platform)
-    console.log('[AUTO-UPDATE] Arch:', process.arch)
-    console.log('[AUTO-UPDATE] ========================================')
-
-    // Send to main window (for login screen)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-checking')
-    }
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.webContents.send('update-checking')
-    }
-  })
-
-  autoUpdater.on('update-available', (info) => {
-    console.log('[AUTO-UPDATE] ========================================')
-    console.log('[AUTO-UPDATE] ✅ UPDATE AVAILABLE!')
-    console.log('[AUTO-UPDATE] New version:', info.version)
-    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
-    console.log('[AUTO-UPDATE] Release date:', info.releaseDate)
-    console.log('[AUTO-UPDATE] Release notes:', info.releaseNotes)
-    console.log('[AUTO-UPDATE] Files:', info.files)
-    console.log('[AUTO-UPDATE] ========================================')
-
-    // Send to main window for login screen notification
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-available', {
-        version: info.version,
-        currentVersion: app.getVersion()
-      })
-    }
-
-    // Create update window
-    createUpdateWindow()
-
-    // Send update info to window
-    setTimeout(() => {
-      if (updateWindow && !updateWindow.isDestroyed()) {
-        updateWindow.webContents.send('update-available', info)
-      }
-    }, 500)
-
-    // Start download automatically
-    console.log('[AUTO-UPDATE] Starting download...')
-    autoUpdater.downloadUpdate()
-  })
-
-  autoUpdater.on('update-not-available', (info) => {
-    console.log('[AUTO-UPDATE] ========================================')
-    console.log('[AUTO-UPDATE] ℹ️ No updates available')
-    console.log('[AUTO-UPDATE] Current version:', app.getVersion())
-    console.log('[AUTO-UPDATE] Checked version:', info?.version || 'N/A')
-    console.log('[AUTO-UPDATE] ========================================')
-
-    // Send to main window
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-not-available', { version: app.getVersion() })
-    }
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.webContents.send('update-not-available')
-    }
-  })
-
-  autoUpdater.on('download-progress', (progressObj) => {
-    const logInterval = Math.floor(progressObj.percent / 10) * 10
-    if (progressObj.percent >= logInterval && progressObj.percent < logInterval + 2) {
-      console.log('[AUTO-UPDATE] Download progress:', {
-        percent: progressObj.percent.toFixed(2) + '%',
-        transferred: (progressObj.transferred / 1024 / 1024).toFixed(2) + ' MB',
-        total: (progressObj.total / 1024 / 1024).toFixed(2) + ' MB',
-        bytesPerSecond: (progressObj.bytesPerSecond / 1024).toFixed(2) + ' KB/s'
-      })
-    }
-
-    // Send progress to update window
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.webContents.send('download-progress', progressObj)
-    }
-  })
-
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('[AUTO-UPDATE] ========================================')
-    console.log('[AUTO-UPDATE] ✅ UPDATE DOWNLOADED SUCCESSFULLY!')
-    console.log('[AUTO-UPDATE] Version:', info.version)
-    console.log('[AUTO-UPDATE] Files downloaded:', info.files)
-    console.log('[AUTO-UPDATE] Auto-installing in 3 seconds...')
-    console.log('[AUTO-UPDATE] ========================================')
-
-    // Send to update window
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.webContents.send('update-downloaded', info)
-    }
-
-    // Auto quit and install after 3 seconds (same as v3.0.4 that worked)
-    setTimeout(() => {
-      console.log('[AUTO-UPDATE] Quitting and installing update now...')
-      isQuittingForUpdate = true
-
-      // Track update install progress for debugging
-      let updateDebugLogs = []
-      updateDebugLogs.push(`[${new Date().toISOString()}] Starting update installation...`)
-      updateDebugLogs.push(`[${new Date().toISOString()}] Platform: ${process.platform}`)
-      updateDebugLogs.push(`[${new Date().toISOString()}] Current version: ${app.getVersion()}`)
-      updateDebugLogs.push(`[${new Date().toISOString()}] Target version: ${info.version}`)
-
-      // ========== SIMPLE APPROACH FIRST (v3.0.4 style) ==========
-      // Just call quitAndInstall directly - this worked for other users
-      console.log('[AUTO-UPDATE] Using simple quitAndInstall(false, true)...')
-      updateDebugLogs.push(`[${new Date().toISOString()}] Method 1: Simple quitAndInstall(false, true)`)
-      autoUpdater.quitAndInstall(false, true)
-
-      // ========== FALLBACK: If still running after 10s, try more aggressive methods ==========
-      setTimeout(() => {
-        console.log('[AUTO-UPDATE] Still running after 10s, trying silent install...')
-        updateDebugLogs.push(`[${new Date().toISOString()}] Method 2: quitAndInstall(true, true) - silent`)
-
-        if (updateWindow && !updateWindow.isDestroyed()) {
-          updateWindow.webContents.send('update-log', {
-            message: 'Trying alternative restart method...',
-            type: 'info'
-          })
-        }
-
-        autoUpdater.quitAndInstall(true, true)
-      }, 10000)
-
-      // ========== FALLBACK: If still running after 20s, try app.relaunch ==========
-      setTimeout(() => {
-        console.log('[AUTO-UPDATE] Still running after 20s, trying app.relaunch...')
-        updateDebugLogs.push(`[${new Date().toISOString()}] Method 3: app.relaunch() + app.exit()`)
-
-        if (updateWindow && !updateWindow.isDestroyed()) {
-          updateWindow.webContents.send('update-log', {
-            message: 'Trying relaunch method...',
-            type: 'info'
-          })
-        }
-
-        app.relaunch()
-        app.exit(0)
-      }, 20000)
-
-      // ========== FALLBACK: If still running after 30s, show manual restart button ==========
-      setTimeout(() => {
-        console.log('[AUTO-UPDATE] Still running after 30s, showing manual restart button...')
-        updateDebugLogs.push(`[${new Date().toISOString()}] All automatic methods failed, showing manual button...`)
-
-        console.error('[AUTO-UPDATE] ========================================')
-        console.error('[AUTO-UPDATE] ⚠️ Automatic restart taking longer than expected')
-        console.error('[AUTO-UPDATE] Debug logs:')
-        updateDebugLogs.forEach(log => console.error(log))
-        console.error('[AUTO-UPDATE] ========================================')
-
-        if (updateWindow && !updateWindow.isDestroyed()) {
-          // Tell update window to show manual restart button
-          updateWindow.webContents.send('show-manual-restart', {
-            message: 'Automatic restart is taking longer than expected. Click the button below to restart manually.',
-            debugLogs: updateDebugLogs
-          })
-          updateWindow.webContents.send('update-log', {
-            message: 'Please click "Restart Now" to complete the update',
-            type: 'warning'
-          })
-        }
-      }, 30000)
-    }, 3000)
-  })
-
-  // IPC handler for manual restart from update window
-  ipcMain.on('force-restart-update', () => {
-    console.log('[AUTO-UPDATE] Manual restart requested by user')
-    isQuittingForUpdate = true
-
-    // Close update window
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.close()
-    }
-
-    // Try relaunch + exit (most reliable manual method)
-    app.relaunch()
-    app.exit(0)
-  })
-
-  autoUpdater.on('error', (error) => {
-    console.error('[AUTO-UPDATE] ========================================')
-    console.error('[AUTO-UPDATE] ❌ UPDATE ERROR!')
-    console.error('[AUTO-UPDATE] Error message:', error.message)
-    console.error('[AUTO-UPDATE] Error stack:', error.stack)
-    console.error('[AUTO-UPDATE] Current version:', app.getVersion())
-    console.error('[AUTO-UPDATE] Feed URL:', autoUpdater.getFeedURL())
-    console.error('[AUTO-UPDATE] ========================================')
-
-    // Send error to update window
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.webContents.send('update-error', error.message)
-    }
-  })
-}
 
 // App event handlers
 app.whenReady().then(async () => {
@@ -1718,9 +1420,6 @@ app.whenReady().then(async () => {
     global.licenseData = licenseData
   }
   // ============================================================
-
-  // Initialize auto-updater
-  setupAutoUpdater()
 
   // ============== PERIODIC LICENSE RE-VERIFICATION ==============
   // Re-verify license every 30 minutes while app is running
@@ -3036,15 +2735,6 @@ app.on('before-quit', () => {
 })
 
 app.on('will-quit', (event) => {
-  // If quitting for auto-update, skip blocking cleanup and let electron-updater handle it
-  if (isQuittingForUpdate) {
-    console.log('[AUTO-UPDATE] Quitting for update installation - skipping blocking cleanup')
-    // Still do quick cleanup but don't block
-    globalShortcut.unregisterAll()
-    stopTypingServer()
-    return // Let the quit proceed immediately
-  }
-
   // Prevent quit until cleanup is done
   event.preventDefault()
 
@@ -3152,35 +2842,9 @@ ipcMain.handle('get-user-config', async () => {
   }
 })
 
-// Auto-updater IPC handlers
-ipcMain.handle('check-for-updates', async () => {
-  return await autoUpdater.checkForUpdates()
-})
-
+// Version info for web UI
 ipcMain.handle('get-app-version', async () => {
   return app.getVersion()
-})
-
-// Update window IPC handlers
-ipcMain.on('check-for-updates', () => {
-  autoUpdater.checkForUpdates()
-})
-
-ipcMain.on('install-update', () => {
-  isQuittingForUpdate = true
-  autoUpdater.quitAndInstall()
-})
-
-ipcMain.on('install-update-later', () => {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.close()
-  }
-})
-
-ipcMain.on('close-update-window', () => {
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    updateWindow.close()
-  }
 })
 
 ipcMain.on('get-current-version', (event) => {

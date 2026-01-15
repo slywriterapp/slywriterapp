@@ -21,6 +21,7 @@ import OnboardingFlow from './components/OnboardingFlow'
 import SplashScreen from './components/SplashScreen'
 // import BetaDisclosure from './components/BetaDisclosure' // REMOVED FOR LAUNCH
 import UserProfile from './components/UserProfile'
+import UpdateNotification from './components/UpdateNotification'
 import axios from 'axios'
 import { 
   KeyboardIcon, BrainIcon, BarChart3Icon, SettingsIcon,
@@ -523,6 +524,9 @@ function SlyWriterApp() {
 
   return (
     <div className="min-h-screen bg-black">
+      {/* Update Notification Banner */}
+      <UpdateNotification />
+
       {/* Splash Screen */}
       <SplashScreen />
       
